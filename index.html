@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wassel Logistics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              wassel: {
+                blue: '#002B49',
+                yellow: '#FFCD00',
+                darkBlue: '#001A2F',
+                lightYellow: '#FFD733',
+              },
+              corp: {
+                primary: '#3D3D3D',
+                secondary: '#FFCD00',
+                dark: '#262626'
+              }
+            },
+            fontFamily: {
+              sans: ['Parkinsans', 'sans-serif'],
+              // Updated stack: Graphik first, then IBM Plex Sans Arabic (Corporate/Geometric), finally system sans.
+              arabic: ['GraphikArabic', 'IBM Plex Sans Arabic', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Replaced Readex Pro with IBM Plex Sans Arabic for a more corporate look closer to Graphik -->
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Parkinsans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      /* 
+        @font-face Definitions for Graphik Arabic
+        Ensure these files exist in a 'fonts' folder relative to this file 
+        for the primary font to work.
+      */
+
+      @font-face {
+        font-family: 'GraphikArabic';
+        src: url('fonts/GraphikArabic-Regular.woff2') format('woff2'),
+             url('fonts/GraphikArabic-Regular.woff') format('woff');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+      
+      @font-face {
+        font-family: 'GraphikArabic';
+        src: url('fonts/GraphikArabic-Medium.woff2') format('woff2'),
+             url('fonts/GraphikArabic-Medium.woff') format('woff');
+        font-weight: 500;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'GraphikArabic';
+        src: url('fonts/GraphikArabic-Semibold.woff2') format('woff2'),
+             url('fonts/GraphikArabic-Semibold.woff') format('woff');
+        font-weight: 600;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'GraphikArabic';
+        src: url('fonts/GraphikArabic-Bold.woff2') format('woff2'),
+             url('fonts/GraphikArabic-Bold.woff') format('woff');
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'GraphikArabic';
+        src: url('fonts/GraphikArabic-Black.woff2') format('woff2'),
+             url('fonts/GraphikArabic-Black.woff') format('woff');
+        font-weight: 800;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      /* Default English Font */
+      body {
+        font-family: 'Parkinsans', sans-serif;
+      }
+
+      /* 
+         ARABIC FONT OVERRIDES 
+         Strictly enforces GraphikArabic or IBM Plex Sans Arabic when language is 'ar'.
+      */
+      html[lang="ar"] body {
+        font-family: 'GraphikArabic', 'IBM Plex Sans Arabic', sans-serif !important;
+      }
+      
+      /* Force override all Tailwind font-sans classes in Arabic mode */
+      html[lang="ar"] .font-sans {
+        font-family: 'GraphikArabic', 'IBM Plex Sans Arabic', sans-serif !important;
+      }
+
+      /* Global wildcard override for Arabic to catch any specificity issues */
+      html[lang="ar"] * {
+        font-family: 'GraphikArabic', 'IBM Plex Sans Arabic', sans-serif !important;
+      }
+
+      /* Custom scrollbar for chat */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+
+      /* Animations */
+      .animate-enter {
+        animation: enter 0.4s ease-out forwards;
+      }
+      
+      .animate-slide-up {
+        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      .animate-slide-in-right {
+        animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+      
+      .animate-pop {
+        animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        opacity: 0;
+        transform: scale(0.9);
+      }
+
+      @keyframes enter {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes slideInRight {
+        from { opacity: 0; transform: translateX(-10px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+
+      @keyframes pop {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+      }
+
+      /* Animation Delays */
+      .delay-75 { animation-delay: 75ms; }
+      .delay-100 { animation-delay: 100ms; }
+      .delay-150 { animation-delay: 150ms; }
+      .delay-200 { animation-delay: 200ms; }
+      .delay-300 { animation-delay: 300ms; }
+      .delay-400 { animation-delay: 400ms; }
+      .delay-500 { animation-delay: 500ms; }
+      .delay-600 { animation-delay: 600ms; }
+      .delay-700 { animation-delay: 700ms; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3"
+  }
+}
+</script>
+</head>
+  <body class="text-wassel-blue antialiased bg-gray-50">
+    <div id="root"></div>
+  </body>
+</html>
