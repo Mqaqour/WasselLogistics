@@ -19,8 +19,17 @@ export function createApp() {
     .filter(Boolean);
   app.use(cors({
     origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  }));
+  // Respond 204 to all OPTIONS preflight requests before any auth middleware
+  app.options('*', cors({
+    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 204,
   }));
 
   // Body parsing
