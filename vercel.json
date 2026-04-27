@@ -1,13 +1,6 @@
 {
-  "name": "wassel-logistics",
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "experimentalServices": {
-    "backend": {
-      "entrypoint": "backend",
-      "routePrefix": "/"
-    }
-  }
+  "installCommand": "npm install"
 }
