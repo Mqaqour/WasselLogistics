@@ -113,12 +113,6 @@ export const FAQ_DATA: FAQCollection = {
       a: { en: 'Bulk rates typically apply for batches of 50+ items distributed to the same zone.', ar: 'تطبق أسعار الجملة عادةً على الدفعات المكونة من 50 عنصراً أو أكثر يتم توزيعها في نفس المنطقة.' }
     }
   ],
-  'service-corp-import': [
-    {
-      q: { en: 'Do you offer door-to-door freight?', ar: 'هل تقدمون خدمة الشحن من الباب للباب؟' },
-      a: { en: 'Yes, we manage the entire chain from the factory floor abroad to your warehouse in Palestine.', ar: 'نعم، ندير السلسلة بأكملها من المصنع في الخارج إلى مستودعك في فلسطين.' }
-    }
-  ],
   'service-corp-storage': [
     {
       q: { en: 'Is the storage insurance covered?', ar: 'هل التخزين مغطى بالتأمين؟' },
@@ -135,16 +129,6 @@ export const FAQ_DATA: FAQCollection = {
     {
       q: { en: 'Do you handle permits for oversized loads?', ar: 'هل تتعاملون مع تصاريح الحمولات الزائدة؟' },
       a: { en: 'Yes, our team handles all necessary road permits and police escorts if required.', ar: 'نعم، يتولى فريقنا جميع تصاريح الطرق اللازمة ومرافقات الشرطة إذا لزم الأمر.' }
-    }
-  ],
-  'service-corp-pick-pack': [
-    {
-      q: { en: 'Do you handle custom branding?', ar: 'هل تتعاملون مع العلامات التجارية المخصصة؟' },
-      a: { en: 'Yes, for corporate clients, we can use your branded packaging materials or apply custom stickers.', ar: 'نعم، لعملاء الشركات، يمكننا استخدام مواد التغليف الخاصة بعلامتك التجارية أو وضع ملصقات مخصصة.' }
-    },
-    {
-      q: { en: 'What is the turnaround time for fulfillment?', ar: 'ما هو الوقت المستغرق للتجهيز؟' },
-      a: { en: 'Orders received before 2 PM are typically picked, packed, and dispatched the same day.', ar: 'يتم عادةً تجهيز وتغليف وإرسال الطلبات المستلمة قبل الساعة 2 مساءً في نفس اليوم.' }
     }
   ],
 

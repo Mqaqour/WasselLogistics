@@ -1,30 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
-import { Tracking } from './components/Tracking';
-import { RateCalculator } from './components/RateCalculator';
-import { Pickup } from './components/Pickup';
-import { Dashboard } from './components/Dashboard';
-import { Login } from './components/Login';
-import { ChatBot } from './components/ChatBot';
-import { Services } from './components/Services';
-import { Corporate } from './components/Corporate';
-import { Handmade } from './components/Handmade';
-import { Resources } from './components/Resources';
-import { Industries } from './components/Industries';
-import { PaymentGateway } from './components/PaymentGateway';
-import { FloatingActionBar } from './components/FloatingActionBar';
-import { About, Management, Contact } from './components/StaticPages';
-import { StickyServices } from './components/StickyServices';
-import { SignUpBenefits } from './components/SignUpBenefits';
-import { ScrollAirplane } from './components/ScrollAirplane';
-import { FloatingCircles } from './components/FloatingCircles';
-import { IDPOrderModal } from './components/IDPOrderModal';
-import { ServiceDetail } from './components/ServiceDetail';
-import { BookingWindow } from './components/BookingWindow';
+import {
+  Navbar,
+  Tracking,
+  RateCalculator,
+  Pickup,
+  Dashboard,
+  Login,
+  ChatBot,
+  Services,
+  Corporate,
+  Handmade,
+  Resources,
+  Industries,
+  PaymentGateway,
+  FloatingActionBar,
+  About,
+  Management,
+  Contact,
+  FloatingCircles,
+  IDPOrderModal,
+  ServiceDetail,
+  BookingWindow,
+  LatestUpdates,
+} from './components';
+import { ChatWidget } from './components/chat/ChatWidget';
 import { PageView, Language, Theme } from './types';
 import { Package, X, Truck } from 'lucide-react';
 
+const BRAND_LOGO = '/assets/Wassel logo-01.png';
+
 export const App: React.FC = () => {
+  const respondIoChannelId = import.meta.env.VITE_RESPONDIO_CHANNEL_ID?.trim();
+  const shouldRenderLegacyChatBot = Boolean(respondIoChannelId);
+
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<PageView>('home');
   const [theme, setTheme] = useState<Theme>('individuals');
@@ -73,12 +81,12 @@ export const App: React.FC = () => {
     const preloadAssets = async () => {
       try {
         const imageUrls = [
-          'background.jpg',
-          'Wassel logo-01.png',
-          'airplane.png',
-          'truck.png',
-          'warehouse.png',
-          'corporate-bg.jpg'
+          '/assets/background.jpg',
+          BRAND_LOGO,
+          '/assets/airplane.png',
+          '/assets/truck.png',
+          '/assets/warehouse.png',
+          '/assets/corporate-bg.jpg'
         ];
 
         const imagePromises = imageUrls.map((src) => {
@@ -123,7 +131,7 @@ export const App: React.FC = () => {
 
   const t = {
     heroTitleHighlight: lang === 'en' ? 'Connecting Palestine.' : 'نصل فلسطين بالعالم.',
-    heroDesc: lang === 'en' ? 'Reliable international and domestic logistics. Track shipments, compare rates from top carriers like FedEx & DHL, and schedule pickups instantly.' : 'خدمات لوجستية محلية ودولية موثوقة. تتبع الشحنات، قارن الأسعار من شركات مثل FedEx و DHL، وجدول استلام الشحنات فوراً.',
+    heroDesc: lang === 'en' ? 'We go beyond logistics — embedding our solutions into your supply chain to drive efficiency, visibility, and growth, while you stay focused on your core business.' : 'نحن نتخطى حدود الخدمات اللوجستية — ندمج حلولنا في سلسلة التوريد الخاصة بك لتحقيق الكفاءة والشفافية والنمو، بينما تركّز أنت على جوهر أعمالك.',
     trackBtn: lang === 'en' ? 'Track Shipment' : 'تتبع الشحنة',
     trackPlaceholder: lang === 'en' ? 'Enter Tracking Number' : 'أدخل رقم التتبع',
     quoteBtn: lang === 'en' ? 'Get Quote' : 'احصل على عرض سعر',
@@ -289,6 +297,8 @@ export const App: React.FC = () => {
         return <Handmade lang={lang} />;
       case 'resources':
         return <Resources lang={lang} />;
+      case 'latest_updates':
+        return <LatestUpdates lang={lang} />;
       case 'industries':
         return <Industries lang={lang} />;
       case 'payment-gateway':
@@ -316,14 +326,14 @@ export const App: React.FC = () => {
 
         // Default / Individuals Home
         return (
-          <div className="flex flex-col min-h-screen animate-enter relative">
+          <div className="flex flex-col flex-1 animate-enter relative">
             {/* --- GLOBAL HOME BACKGROUND IMAGE --- */}
             <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none overflow-hidden bg-[#002B49]">
                 {!bgError ? (
                     <img 
-                        src="background.jpg" 
+                        src="/assets/background.jpg" 
                         alt="Background" 
-                        className="w-full h-full object-cover opacity-100"
+                        className="w-full h-auto object-contain object-top opacity-100"
                         onError={() => setBgError(true)}
                     />
                 ) : (
@@ -333,7 +343,7 @@ export const App: React.FC = () => {
 
             {/* Hero Section */}
             {/* Reduced space for mobile by adjusting min-height and padding */}
-            <div className="relative z-10 bg-transparent overflow-hidden min-h-[60vh] sm:min-h-[85vh] flex flex-col justify-center pt-32 lg:pt-56">
+            <div className="relative z-10 bg-transparent overflow-hidden flex-1 min-h-[60vh] sm:min-h-[70vh] flex flex-col justify-center pt-32 lg:pt-44">
               
               {/* Subtle Pattern Background */}
               <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#002B49_1px,transparent_1px)] [background-size:16px_16px]"></div>
@@ -341,11 +351,8 @@ export const App: React.FC = () => {
               {/* Floating Circles Background Effect */}
               <FloatingCircles />
 
-              {/* Scroll Animated Airplane */}
-              <ScrollAirplane />
-
               <div className="w-full max-w-[1920px] mx-auto relative z-10 pointer-events-none">
-                <div className="relative pb-8 sm:pb-16 md:pb-20 lg:w-full lg:pb-28 xl:pb-32 px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
+                <div className="relative pb-6 sm:pb-8 md:pb-10 lg:w-full lg:pb-12 xl:pb-14 px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
                   
                   <div className="max-w-4xl mx-auto pointer-events-auto">
                       <h1 className="text-5xl tracking-tight font-extrabold text-wassel-blue sm:text-6xl md:text-7xl leading-tight animate-slide-up mb-6">
@@ -363,7 +370,7 @@ export const App: React.FC = () => {
             </div>
 
             {/* SEPARATE TRACKING CONTAINER */}
-            <div className="relative z-30 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 -mt-24 mb-12">
+            <div className="relative z-30 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 -mt-16">
                 <div className="max-w-6xl mx-auto animate-slide-up delay-200">
                     <form onSubmit={(e) => {
                         e.preventDefault();
@@ -390,45 +397,12 @@ export const App: React.FC = () => {
                         </div>
                     </form>
 
-                    <p className="text-center mt-6 text-gray-500 font-medium text-sm sm:text-lg animate-slide-up delay-300 bg-white/50 inline-block px-4 py-1 rounded-full backdrop-blur-sm mx-auto w-full">
+                    <p className="text-center mt-3 text-white font-medium text-sm sm:text-base animate-slide-up delay-300">
                          {lang === 'en' 
                             ? 'Insert your Domestic shipment or FedEx or DHL shipments or Passport No or Clearance No'
                             : 'أدخل رقم الشحنة المحلية أو شحنات FedEx أو DHL أو رقم الجواز أو رقم المعاملة الجمركية'}
                     </p>
                 </div>
-            </div>
-
-            {/* NEW: Sticky Services Section (Replaces ServiceFlow for better details viewing) */}
-            <div className="relative z-10">
-                <StickyServices 
-                    lang={lang} 
-                    onNavigate={(view) => {
-                        if (view === 'tracking') {
-                            setTrackingMode('standard');
-                            setActivePopup('tracking');
-                        } else if (view === 'tracking-customs') {
-                            setTrackingMode('customs');
-                            setActivePopup('tracking');
-                        } else if (view === 'pickup') {
-                            setActivePopup('pickup');
-                        } else if (view === 'rates-domestic') {
-                            setRateTab('domestic');
-                            setActivePopup('rates');
-                        } else if (view === 'rates-international') {
-                            setRateTab('international');
-                            setActivePopup('rates');
-                        } else if (view === 'idp-flow') {
-                            setActivePopup('idp-flow');
-                        } else {
-                            setCurrentView(view as PageView);
-                        }
-                    }} 
-                />
-            </div>
-
-            {/* SIGN UP BENEFITS SECTION */}
-            <div className="relative z-10">
-                <SignUpBenefits lang={lang} onSignUp={() => setCurrentView('login')} />
             </div>
 
           </div>
@@ -456,7 +430,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen ${isLandingPage ? 'bg-transparent' : 'bg-white'} ${effectiveTheme === 'corporate' ? 'text-corp-primary' : 'text-wassel-blue'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen flex flex-col ${isLandingPage ? 'bg-transparent' : 'bg-white'} ${effectiveTheme === 'corporate' ? 'text-corp-primary' : 'text-wassel-blue'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <Navbar 
         currentView={currentView} 
         setCurrentView={setCurrentView} 
@@ -469,141 +443,18 @@ export const App: React.FC = () => {
       />
       {/* Key ensures animation replays on view change. Padding adjusted to account for header height without banner. */}
       {/* Remove padding-top for landing pages (Individuals & Corporate Home) so background sits behind header */}
-      <main key={currentView + effectiveTheme} className={`animate-enter pb-24 ${isLandingPage ? 'bg-transparent pt-0' : 'pt-[180px]'}`}>
+      <main key={currentView + effectiveTheme} className={`animate-enter flex-1 flex flex-col ${isLandingPage ? 'bg-transparent pt-0' : 'pt-[116px] sm:pt-[148px]'}`}>
         {renderView()}
       </main>
       
       {/* Footer */}
-      <footer className={`${footerBg} ${footerText} py-16 mt-auto border-t pb-32 transition-colors duration-500 relative z-10`}>
-        <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-                {/* Brand Column */}
-                <div className="text-center md:text-left rtl:md:text-right">
-                    <a 
-                        href="https://wasselgroup.ps" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-block group mb-4"
-                    >
-                        <img 
-                            src="Wassel logo-01.png" 
-                            alt="Wassel Logistics" 
-                            className="h-16 w-auto object-contain brightness-0 invert mx-auto md:mx-0 opacity-90 group-hover:opacity-100 transition-opacity" 
-                        />
-                        <span className="block mt-2 text-sm font-medium text-gray-400 group-hover:text-white transition-colors">
-                            {lang === 'en' ? 'A Wassel Group Company' : 'احدى شركات مجموعة واصل'}
-                        </span>
-                    </a>
-                    <p className="text-sm text-gray-400 max-w-xs mx-auto md:mx-0 leading-relaxed">
-                        {t.heroDesc.split('.')[0]}.
-                    </p>
-                </div>
-
-                {/* Services Column */}
-                <div>
-                    <h3 className={`${footerHeading} text-center md:text-left rtl:md:text-right`}>{t.footerServices}</h3>
-                    <ul className="space-y-3 text-center md:text-left rtl:md:text-right">
-                        {footerData.services.map((item, index) => (
-                            <li key={index}>
-                                <button 
-                                    onClick={() => { setCurrentView('services'); setTheme('individuals'); }}
-                                    className={footerLink}
-                                >
-                                    {lang === 'en' ? item.en : item.ar}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-
-                {/* Corporate Column */}
-                <div>
-                     <h3 className={`${footerHeading} text-center md:text-left rtl:md:text-right`}>{t.footerCorporate}</h3>
-                    <ul className="space-y-3 text-center md:text-left rtl:md:text-right">
-                        {footerData.corporate.map((item, index) => (
-                            <li key={index}>
-                                <button 
-                                    onClick={() => { setCurrentView('home'); setTheme('corporate'); }}
-                                    className={footerLink}
-                                >
-                                    {lang === 'en' ? item.en : item.ar}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-
-                {/* Company/Tools Column */}
-                <div>
-                    <h3 className={`${footerHeading} text-center md:text-left rtl:md:text-right`}>{t.quickTools}</h3>
-                    <ul className="space-y-3 text-center md:text-left rtl:md:text-right mb-8">
-                        <li><button onClick={() => handleAction('tracking')} className={footerLink}>{t.trackBtn}</button></li>
-                        <li><button onClick={() => handleAction('rates')} className={footerLink}>{t.quoteBtn}</button></li>
-                        <li><button onClick={() => handleAction('pickup')} className={footerLink}>{t.pickupLabel}</button></li>
-                    </ul>
-
-                    <h3 className={`${footerHeading} text-center md:text-left rtl:md:text-right`}>{t.footerCompany}</h3>
-                    <ul className="space-y-3 text-center md:text-left rtl:md:text-right">
-                        <li><a href="#" className={footerLink}>{t.privacy}</a></li>
-                        <li><a href="#" className={footerLink}>{t.terms}</a></li>
-                        <li><a href="#" className={footerLink}>{t.contact}</a></li>
-                    </ul>
-                </div>
-            </div>
-
-            {/* Offices Section */}
-            <div className={`border-t ${effectiveTheme === 'corporate' ? 'border-gray-600' : 'border-gray-800'} pt-12 mb-12`}>
-                <h3 className={`${footerHeading} border-none mb-8 text-center md:text-left rtl:md:text-right`}>{lang === 'en' ? 'Our Offices' : 'مكاتبنا'}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8 text-sm text-gray-400 text-center md:text-left rtl:md:text-right">
-                    {/* Ramallah */}
-                    <div>
-                        <h4 className="text-white font-bold mb-2">{lang === 'en' ? 'Ramallah (HQ)' : 'رام الله (المقر الرئيسي)'}</h4>
-                        <p>{lang === 'en' ? 'Edward Said Street, Castle Building - First Floor' : 'شارع إدوارد سعيد، عمارة القلعة - الطابق الأول'}</p>
-                        <p>{lang === 'en' ? 'Across from the Legislative Council Roundabout' : 'مقابل دوار المجلس التشريعي'}</p>
-                        <p dir="ltr" className="mt-2 text-wassel-yellow">1700-974-444 | 02-241-5161</p>
-                        <p dir="ltr" className="text-green-500">+972 59-477-5000</p>
-                    </div>
-                    {/* Hebron */}
-                    <div>
-                        <h4 className="text-white font-bold mb-2">{lang === 'en' ? 'Hebron' : 'الخليل'}</h4>
-                        <p>{lang === 'en' ? 'Ibn Rushd Roundabout - Next to the New Chamber of Commerce' : 'دوار ابن رشد - بجانب الغرفة التجارية الجديدة'}</p>
-                        <p>{lang === 'en' ? 'Opposite the Mukataa, Al-Juthour Building' : 'مقابل المقاطعة، عمارة الجذور'}</p>
-                    </div>
-                    {/* Jerusalem */}
-                    <div>
-                         <h4 className="text-white font-bold mb-2">{lang === 'en' ? 'Jerusalem' : 'القدس'}</h4>
-                         <p>{lang === 'en' ? "Shu'fat, Shu'fat Street 45" : 'شعفاط، شارع شعفاط 45'}</p>
-                         <p>{lang === 'en' ? 'Jerusalem Towers 1' : 'أبراج القدس 1'}</p>
-                         <p dir="ltr" className="mt-2 text-wassel-yellow">02-627-1792</p>
-                    </div>
-                    {/* Nablus */}
-                    <div>
-                        <h4 className="text-white font-bold mb-2">{lang === 'en' ? 'Nablus' : 'نابلس'}</h4>
-                        <p>{lang === 'en' ? "Rafidia Across Ala'elat Park" : 'رفيديا - مقابل منتزه العائلات'}</p>
-                        <p>{lang === 'en' ? 'Amasha Building' : 'عمارة عماشة'}</p>
-                    </div>
-                    {/* Gaza */}
-                    <div>
-                        <h4 className="text-white font-bold mb-2">{lang === 'en' ? 'Gaza' : 'غزة'}</h4>
-                        <p>{lang === 'en' ? 'Gaza City - Khaled Bin Al-Walid Street' : 'مدينة غزة - شارع خالد بن الوليد'}</p>
-                        <p>{lang === 'en' ? 'Branching from Al-Wahda Street' : 'المتفرع من شارع الوحدة'}</p>
-                    </div>
-                    {/* Amman */}
-                    <div>
-                        <h4 className="text-white font-bold mb-2">{lang === 'en' ? 'Amman' : 'عمان'}</h4>
-                        <p>{lang === 'en' ? 'Rabyeh, Kabul Street 23 - Unit 2' : 'الرابية، شارع كابول 23 - الوحدة 2'}</p>
-                        <p>{lang === 'en' ? 'Al-Sabeel Building - Ground Floor' : 'عمارة السبيل - الطابق الأرضي'}</p>
-                        <p dir="ltr" className="mt-2 text-wassel-yellow">+962-65534707</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className={`border-t ${effectiveTheme === 'corporate' ? 'border-gray-600' : 'border-gray-800'} pt-8 flex flex-col md:flex-row justify-between items-center text-center md:text-left rtl:md:text-right`}>
-                 <p className="text-sm text-gray-500">{t.footerRights}</p>
-                 <div className="mt-4 md:mt-0 flex space-x-4 rtl:space-x-reverse">
-                    {/* Placeholder for social icons if needed later */}
-                 </div>
-            </div>
+      <footer className={`${footerBg} ${footerText} py-8 mt-auto border-t transition-colors duration-500 relative z-10`}>
+        <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p className="text-sm text-gray-400">
+                {lang === 'en'
+                    ? '© 2026 Wassel Logistics. All rights reserved. Built and developed by Wassel Technology.'
+                    : '© 2026 واصل للخدمات اللوجستية. جميع الحقوق محفوظة. تم البناء والتطوير من قبل واصل تكنولوجي.'}
+            </p>
         </div>
       </footer>
 
@@ -616,7 +467,19 @@ export const App: React.FC = () => {
         />
       )}
 
-      <ChatBot lang={lang} isOpen={isChatOpen} onClose={() => { setIsChatOpen(false); if(activePopup==='chat') setActivePopup(null); }} />
+      {shouldRenderLegacyChatBot && (
+        <ChatBot
+          lang={lang}
+          isOpen={isChatOpen}
+          onClose={() => {
+            setIsChatOpen(false);
+            if (activePopup === 'chat') setActivePopup(null);
+          }}
+        />
+      )}
+
+      {/* Custom Wassel Chat Widget — powered by respond.io Custom Channel */}
+      <ChatWidget lang={lang} />
 
       {/* Generic Popup Modal */}
       {activePopup && activePopup !== 'chat' && (
@@ -636,7 +499,12 @@ export const App: React.FC = () => {
                      /* Default Modal Panel for other popups */
                      <div className="inline-block align-middle bg-white rounded-xl text-left rtl:text-right overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:max-w-5xl w-full relative">
                          <div className="absolute top-4 right-4 rtl:left-4 rtl:right-auto z-10">
-                             <button onClick={() => setActivePopup(null)} className="bg-gray-100 rounded-full p-2 hover:bg-gray-200 transition-colors">
+                             <button
+                                onClick={() => setActivePopup(null)}
+                                className="bg-gray-100 rounded-full p-2 hover:bg-gray-200 transition-colors"
+                                aria-label={lang === 'en' ? 'Close modal' : 'إغلاق النافذة'}
+                                title={lang === 'en' ? 'Close modal' : 'إغلاق النافذة'}
+                             >
                                 <X className="w-6 h-6 text-gray-500" />
                              </button>
                          </div>

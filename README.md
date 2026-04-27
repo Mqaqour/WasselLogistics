@@ -2,19 +2,44 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# Wassel Logistics
 
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1CqnIFPVyRZSBiYJd5G8EyJHdjJCl4Tmb
+This repo contains the Vite frontend for the Wassel Logistics site plus a lightweight `respond.io` webhook bridge for Custom Channel integrations.
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+Prerequisite: Node.js 18+
 
+1. Install dependencies with `npm install`
+2. Create `.env` from `.env.example`
+3. Start the frontend with `npm run dev`
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## respond.io Setup
+
+### Website Chat Widget
+
+Set `VITE_RESPONDIO_CHANNEL_ID` in `.env` using the Website Chat channel ID from `respond.io`.
+
+The app now loads the widget script dynamically and opens or closes it from the custom site chat button in [`components/support/ChatBot.tsx`](./components/support/ChatBot.tsx).
+
+### Custom Channel Webhook Bridge
+
+Run `npm run respondio:bridge` to start the local webhook bridge server.
+
+Use these routes in your custom channel setup:
+
+- Outgoing webhook URL: `https://your-domain/message`
+- Incoming webhook endpoint exposed by this bridge: `https://your-domain/webhooks/respondio/incoming`
+
+Required bridge environment variables:
+
+- `RESPONDIO_API_TOKEN`
+- `RESPONDIO_CHANNEL_ID`
+- `RESPONDIO_INCOMING_WEBHOOK_URL`
+
+Optional bridge environment variables:
+
+- `RESPONDIO_BRIDGE_PORT`
+- `CUSTOM_CHAT_OUTGOING_WEBHOOK_URL`
+
+If `CUSTOM_CHAT_OUTGOING_WEBHOOK_URL` is set, outgoing messages from `respond.io` are forwarded there. If it is not set, the bridge still accepts the webhook and returns a generated message ID so you can finish the downstream delivery later.

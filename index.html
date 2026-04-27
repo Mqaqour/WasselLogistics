@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/assets/Wassel logo-01.png" />
     <title>Wassel Logistics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -23,9 +24,8 @@
               }
             },
             fontFamily: {
-              sans: ['Parkinsans', 'sans-serif'],
-              // Updated stack: Graphik first, then IBM Plex Sans Arabic (Corporate/Geometric), finally system sans.
-              arabic: ['GraphikArabic', 'IBM Plex Sans Arabic', 'sans-serif'],
+              sans: ['"IBM Plex Sans Arabic"', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+              arabic: ['"IBM Plex Sans Arabic"', 'sans-serif'],
             }
           }
         }
@@ -33,81 +33,18 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Replaced Readex Pro with IBM Plex Sans Arabic for a more corporate look closer to Graphik -->
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Parkinsans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      /* 
-        @font-face Definitions for Graphik Arabic
-        Ensure these files exist in a 'fonts' folder relative to this file 
-        for the primary font to work.
-      */
-
-      @font-face {
-        font-family: 'GraphikArabic';
-        src: url('fonts/GraphikArabic-Regular.woff2') format('woff2'),
-             url('fonts/GraphikArabic-Regular.woff') format('woff');
-        font-weight: 400;
-        font-style: normal;
-        font-display: swap;
-      }
-      
-      @font-face {
-        font-family: 'GraphikArabic';
-        src: url('fonts/GraphikArabic-Medium.woff2') format('woff2'),
-             url('fonts/GraphikArabic-Medium.woff') format('woff');
-        font-weight: 500;
-        font-style: normal;
-        font-display: swap;
-      }
-
-      @font-face {
-        font-family: 'GraphikArabic';
-        src: url('fonts/GraphikArabic-Semibold.woff2') format('woff2'),
-             url('fonts/GraphikArabic-Semibold.woff') format('woff');
-        font-weight: 600;
-        font-style: normal;
-        font-display: swap;
-      }
-
-      @font-face {
-        font-family: 'GraphikArabic';
-        src: url('fonts/GraphikArabic-Bold.woff2') format('woff2'),
-             url('fonts/GraphikArabic-Bold.woff') format('woff');
-        font-weight: 700;
-        font-style: normal;
-        font-display: swap;
-      }
-
-      @font-face {
-        font-family: 'GraphikArabic';
-        src: url('fonts/GraphikArabic-Black.woff2') format('woff2'),
-             url('fonts/GraphikArabic-Black.woff') format('woff');
-        font-weight: 800;
-        font-style: normal;
-        font-display: swap;
-      }
-
-      /* Default English Font */
+      /* Default site font: IBM Plex Sans Arabic covers both Arabic and Latin glyphs gracefully. */
       body {
-        font-family: 'Parkinsans', sans-serif;
+        font-family: 'IBM Plex Sans Arabic', 'IBM Plex Sans', system-ui, sans-serif;
       }
 
-      /* 
-         ARABIC FONT OVERRIDES 
-         Strictly enforces GraphikArabic or IBM Plex Sans Arabic when language is 'ar'.
-      */
-      html[lang="ar"] body {
-        font-family: 'GraphikArabic', 'IBM Plex Sans Arabic', sans-serif !important;
-      }
-      
-      /* Force override all Tailwind font-sans classes in Arabic mode */
-      html[lang="ar"] .font-sans {
-        font-family: 'GraphikArabic', 'IBM Plex Sans Arabic', sans-serif !important;
-      }
-
-      /* Global wildcard override for Arabic to catch any specificity issues */
+      /* ARABIC FONT OVERRIDES */
+      html[lang="ar"] body,
+      html[lang="ar"] .font-sans,
       html[lang="ar"] * {
-        font-family: 'GraphikArabic', 'IBM Plex Sans Arabic', sans-serif !important;
+        font-family: 'IBM Plex Sans Arabic', sans-serif !important;
       }
 
       /* Custom scrollbar for chat */
@@ -172,6 +109,36 @@
       .delay-500 { animation-delay: 500ms; }
       .delay-600 { animation-delay: 600ms; }
       .delay-700 { animation-delay: 700ms; }
+
+      /* ===== Animated Service Icons ===== */
+      .asi-wrap { overflow: visible; }
+      .asi-wheel    { transform-origin: center; transform-box: fill-box; animation: asi-spin 1.6s linear infinite; }
+      .asi-truck    { animation: asi-bob 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+      .asi-dash     { stroke-dasharray: 6 8; animation: asi-dash 0.9s linear infinite; }
+      .asi-plane    { animation: asi-fly 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+      .asi-cloud    { animation: asi-drift 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+      .asi-cloud-2  { animation: asi-drift 5s ease-in-out infinite reverse; transform-box: fill-box; transform-origin: center; }
+      .asi-bag      { animation: asi-bob 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: top center; }
+      .asi-spark    { animation: asi-twinkle 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+      .asi-spark.d1 { animation-delay: .4s; }
+      .asi-spark.d2 { animation-delay: .8s; }
+      .asi-shimmer  { animation: asi-shimmer 2.4s linear infinite; }
+      .asi-globe    { animation: asi-spin 6s linear infinite; transform-box: fill-box; transform-origin: center; }
+      .asi-orbit    { animation: asi-spin 4s linear infinite reverse; transform-box: fill-box; transform-origin: center; }
+      .asi-doc      { animation: asi-flip 3.6s ease-in-out infinite; transform-box: fill-box; transform-origin: left center; }
+      .asi-shield   { animation: asi-pulse 2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+      .asi-check    { stroke-dasharray: 24; stroke-dashoffset: 24; animation: asi-draw 2s ease-in-out infinite; }
+
+      @keyframes asi-spin    { to { transform: rotate(360deg); } }
+      @keyframes asi-bob     { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+      @keyframes asi-dash    { to { stroke-dashoffset: -28; } }
+      @keyframes asi-fly     { 0%,100% { transform: translate(0,0) rotate(-8deg); } 50% { transform: translate(2px,-2px) rotate(-4deg); } }
+      @keyframes asi-drift   { 0%,100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
+      @keyframes asi-twinkle { 0%,100% { opacity: .2; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.1); } }
+      @keyframes asi-shimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
+      @keyframes asi-flip    { 0%,100% { transform: rotateY(0deg); } 50% { transform: rotateY(35deg); } }
+      @keyframes asi-pulse   { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+      @keyframes asi-draw    { 0% { stroke-dashoffset: 24; } 50%,100% { stroke-dashoffset: 0; } }
     </style>
   <script type="importmap">
 {
@@ -188,5 +155,12 @@
 </head>
   <body class="text-wassel-blue antialiased bg-gray-50">
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+
+    <!-- IMPORTANT: Replace "null" below with your actual Channel ID from respond.io Settings → Channels → Live Chat -->
+    <style>
+      /* Hide respond.io default launcher — the site uses its own chat button */
+      #respondio__widget-holder { display: none !important; }
+    </style>
   </body>
 </html>

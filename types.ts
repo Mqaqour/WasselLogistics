@@ -1,5 +1,5 @@
 
-export type PageView = 'home' | 'tracking' | 'rates' | 'pickup' | 'login' | 'dashboard' | 'payment' | 'services' | 'payment-gateway' | 'corporate' | 'about' | 'management' | 'contact' | 'handmade' | 'resources' | 'industries' 
+export type PageView = 'home' | 'tracking' | 'rates' | 'pickup' | 'login' | 'dashboard' | 'payment' | 'services' | 'payment-gateway' | 'corporate' | 'about' | 'management' | 'contact' | 'handmade' | 'resources' | 'industries' | 'latest_updates'
 | 'service-clearance' 
 | 'service-express' 
 | 'service-domestic' 
@@ -10,18 +10,17 @@ export type PageView = 'home' | 'tracking' | 'rates' | 'pickup' | 'login' | 'das
 | 'service-corp-daily'
 | 'service-corp-signing'
 | 'service-corp-bulk'
-| 'service-corp-import'
 | 'service-corp-storage'
 | 'service-corp-warehousing'
 | 'service-corp-freight'
-| 'service-corp-pick-pack'
+| 'service-multimodal-freight'
 | 'booking_window';
 
 export type Language = 'en' | 'ar';
 export type Theme = 'individuals' | 'corporate';
 
 export interface RateResult {
-  provider: 'Wassel Standard' | 'Wassel Express' | 'FedEx' | 'DHL';
+  provider: string;
   service: string;
   price: number;
   currency: string;
@@ -34,6 +33,10 @@ export interface TrackingEvent {
   timestamp: string;
   description: string;
   icon: 'box' | 'truck' | 'check' | 'alert';
+  relativeTime?: string;
+  day?: string;
+  date?: string;
+  time?: string;
 }
 
 export interface Shipment {
