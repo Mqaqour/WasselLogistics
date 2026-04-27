@@ -12,9 +12,13 @@ export function createApp() {
   // Security headers
   app.use(helmet());
 
-  // CORS — restricted to FRONTEND_URL
+  // CORS — supports single URL or comma-separated list in FRONTEND_URL
+  const allowedOrigins = env.FRONTEND_URL
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   app.use(cors({
-    origin: env.FRONTEND_URL,
+    origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
