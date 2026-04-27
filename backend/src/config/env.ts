@@ -24,11 +24,11 @@ export const env = {
   RESPOND_API_TOKEN:    optional('RESPOND_API_TOKEN', ''),
   RESPOND_WEBHOOK_URL:  optional('RESPOND_WEBHOOK_URL', 'https://app.respond.io/custom/channel/webhook/'),
 
-  // SQL Server
-  DB_SERVER:                   required('DB_SERVER'),
-  DB_DATABASE:                 required('DB_DATABASE'),
-  DB_USERNAME:                 required('DB_USERNAME'),
-  DB_PASSWORD:                 required('DB_PASSWORD'),
+  // SQL Server (optional — app falls back to in-memory store when not set)
+  DB_SERVER:                   optional('DB_SERVER', ''),
+  DB_DATABASE:                 optional('DB_DATABASE', ''),
+  DB_USERNAME:                 optional('DB_USERNAME', ''),
+  DB_PASSWORD:                 optional('DB_PASSWORD', ''),
   DB_PORT:                     parseInt(optional('DB_PORT', '1433'), 10),
   DB_ENCRYPT:                  optional('DB_ENCRYPT', 'true') === 'true',
   DB_TRUST_SERVER_CERTIFICATE: optional('DB_TRUST_SERVER_CERTIFICATE', 'false') === 'true',
