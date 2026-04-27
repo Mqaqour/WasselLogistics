@@ -34,6 +34,8 @@ jobs:
         run: npm run build -- --base=/WasselLogistics/
         env:
           VITE_CHAT_BACKEND_URL: https://wassel-backend-production.up.railway.app
+          VITE_GOOGLE_PLACES_API_KEY: ${{ secrets.VITE_GOOGLE_PLACES_API_KEY }}
+          VITE_GOOGLE_PLACES_LANGUAGE: en
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
