@@ -44,6 +44,26 @@ export function createApp() {
   app.use('/api/chat',      chatRoutes);
   app.use('/api/respondio', respondioRoutes);
 
+  // QuickRate proxy — forwards to quickrate.wassel.ps with the server-side API key
+  app.post('/api/quickrate/*', async (req, res) => {
+    const upstreamPath = req.path.replace('/api/quickrate', '');
+    const url = `${env.QUICKRATE_BASE_URL}${upstreamPath}`;
+    try {
+      const upstream = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': env.QUICKRATE_API_KEY,
+        },
+        body: JSON.stringify(req.body),
+      });
+      const data = await upstream.json().catch(() => ({}));
+      res.status(upstream.status).json(data);
+    } catch (err) {
+      res.status(502).json({ error: 'QuickRate upstream error' });
+    }
+  });
+
   // Centralised error handler (must be last)
   app.use(errorHandler);
 

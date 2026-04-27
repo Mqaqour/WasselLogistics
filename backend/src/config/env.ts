@@ -35,4 +35,8 @@ export const env = {
 
   // CORS
   FRONTEND_URL: optional('FRONTEND_URL', 'http://localhost:5173'),
+
+  // QuickRate shipping proxy
+  QUICKRATE_API_KEY: optional('QUICKRATE_API_KEY', ''),
+  QUICKRATE_BASE_URL: optional('QUICKRATE_BASE_URL', 'https://quickrate.wassel.ps'),
 };

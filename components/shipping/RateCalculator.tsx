@@ -146,7 +146,8 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       };
 
       try {
-        const response = await fetch('/api/quickrate/api/external/shipping/quotes', {
+        const backendUrl = import.meta.env.VITE_CHAT_BACKEND_URL?.trim() ?? '';
+        const response = await fetch(`${backendUrl}/api/quickrate/api/external/shipping/quotes`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
