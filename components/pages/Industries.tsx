@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { 
   Landmark, 
   HeartPulse, 
@@ -156,7 +156,7 @@ export const Industries: React.FC<IndustriesProps> = ({ lang, isEmbedded = false
         { en: 'Bulk Mail', ar: 'البريد الشامل', icon: Database, desc: 'Statement distribution to customers.' },
       ],
       customers: [
-        { en: 'Arab Bank', ar: 'البنك العربي', logo: '/assets/arabbank.png' },
+        { en: 'Arab Bank', ar: 'البنك العربي', logo: `${import.meta.env.BASE_URL}assets/arabbank.png` },
         { en: 'Bank of Palestine', ar: 'بنك فلسطين', domain: 'bankofpalestine.com' },
         { en: 'Cairo Amman Bank', ar: 'بنك القاهرة عمان', domain: 'cab.jo' },
         { en: 'Quds Bank', ar: 'بنك القدس', domain: 'qudsbank.ps' },

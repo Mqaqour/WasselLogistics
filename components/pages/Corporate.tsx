@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
   Building, 
   Mail, 
@@ -103,7 +103,7 @@ export const Corporate: React.FC<CorporateProps> = ({ lang }) => {
         ? 'Secure off-site document storage and management solutions. We organize, index, and protect your critical business records with rapid physical or digital retrieval.' 
         : 'حلول آمنة لتخزين وإدارة المستندات خارج الموقع. نقوم بتنظيم وفهرسة وحماية سجلات عملك الهامة مع إمكانية الاسترجاع المادي أو الرقمي السريع.',
       icon: Archive,
-      image: '/assets/archive.jpg'
+      image: `${import.meta.env.BASE_URL}assets/archive.jpg`
     },
     {
       title: lang === 'en' ? 'Daily Mail Services' : 'البريد اليومي',
@@ -111,7 +111,7 @@ export const Corporate: React.FC<CorporateProps> = ({ lang }) => {
         ? 'Scheduled daily pickup and delivery routes for regular business correspondence. Keep your business moving with reliable, timed exchanges.' 
         : 'رحلات يومية مجدولة للاستلام والتوصيل لمراسلات الأعمال المنتظمة. حافظ على سير عملك مع تبادلات موثوقة.',
       icon: Mail,
-      image: '/assets/daily-mail.jpg'
+      image: `${import.meta.env.BASE_URL}assets/daily-mail.jpg`
     },
     {
       title: lang === 'en' ? 'Document Signing' : 'توقيع المستندات',
@@ -119,7 +119,7 @@ export const Corporate: React.FC<CorporateProps> = ({ lang }) => {
         ? 'Courier-facilitated document signing where we ensure the recipient signs required paperwork upon delivery. Ideal for contracts and legal notices.' 
         : 'توقيع المستندات بمعاونة المندوب. نضمن توقيع المستلم للأوراق المطلوبة عند الاستلام، مثالية للعقود.',
       icon: FileSignature,
-      image: '/assets/signing.jpg'
+      image: `${import.meta.env.BASE_URL}assets/signing.jpg`
     },
     {
       title: lang === 'en' ? 'Storage Services' : 'خدمات التخزين',
@@ -127,7 +127,7 @@ export const Corporate: React.FC<CorporateProps> = ({ lang }) => {
         ? 'Secure, climate-controlled storage facilities for short-term needs. Flexible space options to handle seasonal inventory fluctuations.' 
         : 'مرافق تخزين آمنة ومتحكم في مناخها للاحتياجات قصيرة المدى. خيارات مساحة مرنة للتعامل مع تقلبات المخزون.',
       icon: Box,
-      image: '/assets/storage.jpg'
+      image: `${import.meta.env.BASE_URL}assets/storage.jpg`
     },
     {
       title: lang === 'en' ? 'Managed Warehousing' : 'إدارة المستودعات',
@@ -135,7 +135,7 @@ export const Corporate: React.FC<CorporateProps> = ({ lang }) => {
         ? 'Full-scale inventory management, order fulfillment, and distribution services. We handle the logistics so you can focus on growing your business.' 
         : 'إدارة مخزون شاملة، وتجهيز الطلبات، وخدمات التوزيع. نتولى نحن الخدمات اللوجستية لتتمكن من التركيز على عملك.',
       icon: Warehouse,
-      image: '/assets/warehouse.png'
+      image: `${import.meta.env.BASE_URL}assets/warehouse.png`
     },
     {
       title: lang === 'en' ? 'Wassel APIs' : 'واجهة برمجة التطبيقات',
@@ -143,7 +143,7 @@ export const Corporate: React.FC<CorporateProps> = ({ lang }) => {
         ? 'Integrate your ERP or e-commerce system directly with Wassel for automated shipping and tracking. Streamline your operations with real-time sync.' 
         : 'ربط نظامك مباشرة مع واصل للشحن والتتبع الآلي. بسّط عملياتك مع مزامنة البيانات في الوقت الفعلي.',
       icon: Server,
-      image: '/assets/api.jpg'
+      image: `${import.meta.env.BASE_URL}assets/api.jpg`
     },
     {
       title: lang === 'en' ? 'Bulk Flat Mail' : 'البريد الشامل',
@@ -151,7 +151,7 @@ export const Corporate: React.FC<CorporateProps> = ({ lang }) => {
         ? 'Efficient distribution of marketing materials, magazines, and mass communications. Targeted delivery solutions for high-volume dispatch.' 
         : 'توزيع فعال للمواد التسويقية والمراسلات الجماعية. حلول توصيل مستهدفة للإرساليات ضخمة الحجم.',
       icon: Layers,
-      image: '/assets/bulk.jpg'
+      image: `${import.meta.env.BASE_URL}assets/bulk.jpg`
     }
   ];
 
@@ -238,7 +238,7 @@ export const Corporate: React.FC<CorporateProps> = ({ lang }) => {
       {/* --- GLOBAL FIXED BACKGROUND --- */}
       <div className="fixed inset-0 z-0 bg-corp-dark">
          <img 
-             src="/assets/corporate-bg.jpg" 
+             src={`${import.meta.env.BASE_URL}assets/corporate-bg.jpg`} 
              alt="Corporate Background" 
              className="w-full h-full object-cover object-top"
              onError={(e) => {

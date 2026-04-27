@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Plane, Truck, Globe, Map, FileText, Package, ArrowRight } from 'lucide-react';
 import { RateResult, Language } from '../../types';
 import { PlacesAutocomplete, PlaceDetails } from './PlacesAutocomplete';
 
-const BRAND_LOGO = '/assets/Wassel logo-01.png';
+const BRAND_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
 
 interface RateCalculatorProps {
     lang: Language;

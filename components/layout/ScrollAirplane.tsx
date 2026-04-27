@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Plane } from 'lucide-react';
 
 export const ScrollAirplane: React.FC = () => {
@@ -26,7 +26,7 @@ export const ScrollAirplane: React.FC = () => {
         >
             {!planeError ? (
                 <img 
-                    src="/assets/airplane.png" 
+                    src={`${import.meta.env.BASE_URL}assets/airplane.png`} 
                     alt="Wassel Airplane" 
                     onError={() => setPlaneError(true)}
                     // Increased mobile width significantly for impact

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { AlertTriangle, Info, CheckCircle2, Clock, ArrowRight, Bell } from 'lucide-react';
 import { Language } from '../../types';
 
@@ -212,7 +212,7 @@ export const LatestUpdates: React.FC<LatestUpdatesProps> = ({ lang }) => {
                             return;
                           }
                           e.currentTarget.dataset.fallbackApplied = 'true';
-                          e.currentTarget.src = '/assets/corporate-bg.jpg';
+                          e.currentTarget.src = `${import.meta.env.BASE_URL}assets/corporate-bg.jpg`;
                         }}
                       />
                       <div className={`absolute top-3 left-3 rtl:left-auto rtl:right-3 w-9 h-9 rounded-full flex items-center justify-center shadow-md ${s.badge}`}>

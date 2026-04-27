@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Navbar,
   Tracking,
@@ -27,7 +27,7 @@ import { ChatWidget } from './components/chat/ChatWidget';
 import { PageView, Language, Theme } from './types';
 import { Package, X, Truck } from 'lucide-react';
 
-const BRAND_LOGO = '/assets/Wassel logo-01.png';
+const BRAND_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
 
 export const App: React.FC = () => {
   const respondIoChannelId = import.meta.env.VITE_RESPONDIO_CHANNEL_ID?.trim();
@@ -81,12 +81,12 @@ export const App: React.FC = () => {
     const preloadAssets = async () => {
       try {
         const imageUrls = [
-          '/assets/background.jpg',
+          `${import.meta.env.BASE_URL}assets/background.jpg`,
           BRAND_LOGO,
-          '/assets/airplane.png',
-          '/assets/truck.png',
-          '/assets/warehouse.png',
-          '/assets/corporate-bg.jpg'
+          `${import.meta.env.BASE_URL}assets/airplane.png`,
+          `${import.meta.env.BASE_URL}assets/truck.png`,
+          `${import.meta.env.BASE_URL}assets/warehouse.png`,
+          `${import.meta.env.BASE_URL}assets/corporate-bg.jpg`
         ];
 
         const imagePromises = imageUrls.map((src) => {
@@ -331,7 +331,7 @@ export const App: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none overflow-hidden bg-[#002B49]">
                 {!bgError ? (
                     <img 
-                        src="/assets/background.jpg" 
+                        src={`${import.meta.env.BASE_URL}assets/background.jpg`} 
                         alt="Background" 
                         className="w-full h-auto object-contain object-top opacity-100"
                         onError={() => setBgError(true)}

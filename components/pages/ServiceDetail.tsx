@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
     Truck, 
     Plane, 
@@ -1042,7 +1042,7 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({ serviceId, lang, o
                             return;
                         }
                         e.currentTarget.dataset.fallbackApplied = 'true';
-                        e.currentTarget.src = isCorporate ? '/assets/corporate-bg.jpg' : '/assets/background.jpg';
+                        e.currentTarget.src = isCorporate ? `${import.meta.env.BASE_URL}assets/corporate-bg.jpg` : `${import.meta.env.BASE_URL}assets/background.jpg`;
                     }}
                 />
                 <div className={`w-full h-full absolute inset-0 mix-blend-color ${themeClasses.heroBg}`}></div>

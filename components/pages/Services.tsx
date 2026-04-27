@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Truck, Plane, Container, FileText, Globe, ShoppingBag, ShieldCheck, CreditCard, ArrowRight } from 'lucide-react';
 import { Language, PageView } from '../../types';
 import { AnimatedServiceIcon, AnimatedIconType } from '../icons/AnimatedServiceIcon';
@@ -163,7 +163,7 @@ export const Services: React.FC<ServicesProps> = ({ lang, onNavigate }) => {
                                     return;
                                 }
                                 e.currentTarget.dataset.fallbackApplied = 'true';
-                                e.currentTarget.src = '/assets/corporate-bg.jpg';
+                                e.currentTarget.src = `${import.meta.env.BASE_URL}assets/corporate-bg.jpg`;
                             }}
                         />
                         <div className={`absolute inset-0 ${service.color} opacity-60 group-hover:opacity-40 transition-opacity`}></div>

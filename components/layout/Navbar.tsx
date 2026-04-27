@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { PageView, Language, Theme } from '../../types';
 import { Menu, X, Truck, User, LogIn, Globe, CreditCard, Phone, MessageCircle, ChevronDown, ChevronUp, ArrowRight, Info, Users, Briefcase, Plane } from 'lucide-react';
 
-const BRAND_LOGO = '/assets/Wassel logo-01.png';
+const BRAND_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
 
 interface NavbarProps {
   currentView: PageView;

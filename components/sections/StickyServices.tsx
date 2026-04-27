@@ -44,7 +44,7 @@ export const StickyServices: React.FC<StickyServicesProps> = ({ lang, onNavigate
       title: lang === 'en' ? 'Domestic Services' : 'الخدمات المحلية',
       tagline: lang === 'en' ? 'Door-to-door, next-day across Palestine.' : 'من الباب إلى الباب، في اليوم التالي عبر فلسطين.',
       desc: lang === 'en' ? placeholderEn : placeholderAr,
-      image: '/assets/DomSer.png',
+      image: `${import.meta.env.BASE_URL}assets/DomSer.png`,
       accent: 'text-wassel-blue',
       accentBg: 'bg-wassel-blue',
       accentHover: 'hover:bg-wassel-darkBlue',
@@ -66,7 +66,7 @@ export const StickyServices: React.FC<StickyServicesProps> = ({ lang, onNavigate
       title: lang === 'en' ? 'International Services' : 'الخدمات الدولية',
       tagline: lang === 'en' ? 'Global reach via FedEx & DHL partnerships.' : 'وصول عالمي عبر شراكاتنا مع FedEx و DHL.',
       desc: lang === 'en' ? placeholderEn : placeholderAr,
-      image: '/assets/airplane.png',
+      image: `${import.meta.env.BASE_URL}assets/airplane.png`,
       accent: 'text-yellow-500',
       accentBg: 'bg-yellow-500',
       accentHover: 'hover:bg-yellow-600',
@@ -88,7 +88,7 @@ export const StickyServices: React.FC<StickyServicesProps> = ({ lang, onNavigate
       title: lang === 'en' ? 'Logistics Service' : 'الخدمات اللوجستية',
       tagline: lang === 'en' ? 'Warehousing, freight, and supply chain.' : 'التخزين والشحن وإدارة سلسلة التوريد.',
       desc: lang === 'en' ? placeholderEn : placeholderAr,
-      image: '/assets/warehouse.png',
+      image: `${import.meta.env.BASE_URL}assets/warehouse.png`,
       accent: 'text-orange-600',
       accentBg: 'bg-orange-600',
       accentHover: 'hover:bg-orange-700',
@@ -108,7 +108,7 @@ export const StickyServices: React.FC<StickyServicesProps> = ({ lang, onNavigate
       title: lang === 'en' ? 'Wassel Technology' : 'واصل للتكنولوجيا',
       tagline: lang === 'en' ? 'Smart platforms powering modern logistics.' : 'منصات ذكية تدعم اللوجستيات الحديثة.',
       desc: lang === 'en' ? placeholderEn : placeholderAr,
-      image: '/assets/corporate-bg.jpg',
+      image: `${import.meta.env.BASE_URL}assets/corporate-bg.jpg`,
       accent: 'text-emerald-600',
       accentBg: 'bg-emerald-600',
       accentHover: 'hover:bg-emerald-700',
@@ -159,7 +159,7 @@ export const StickyServices: React.FC<StickyServicesProps> = ({ lang, onNavigate
                         return;
                       }
                       e.currentTarget.dataset.fallbackApplied = 'true';
-                      e.currentTarget.src = '/assets/corporate-bg.jpg';
+                      e.currentTarget.src = `${import.meta.env.BASE_URL}assets/corporate-bg.jpg`;
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
