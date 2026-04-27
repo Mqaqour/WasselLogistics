@@ -42,7 +42,9 @@ async function sendIncomingMessageToRespondIo(params: SendParams): Promise<SendR
   };
 
   try {
-    const response = await fetch(env.RESPOND_WEBHOOK_URL, {
+    // respond.io incoming webhook URL must include the channel ID in the path
+    const webhookUrl = env.RESPOND_WEBHOOK_URL.replace(/\/$/, '') + '/' + env.RESPOND_CHANNEL_ID;
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type':  'application/json',

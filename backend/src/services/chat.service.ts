@@ -78,13 +78,14 @@ export async function sendMessage(body: SendMessageRequest): Promise<SendMessage
   });
 
   if (!sent.success) {
+    // Log the failure but don't reject the user's send — message is already saved
+    logger.warn(`Message ${messageId} saved but could not be forwarded to respond.io: ${sent.error}`);
     await repo.saveEvent({
       sessionId: session.sessionId,
       contactId: session.contactId,
       eventType: 'respondio_send_failed',
       rawPayload: JSON.stringify({ messageId, error: sent.error }),
     });
-    throw Object.assign(new Error('Failed to forward message to respond.io.'), { code: 'UPSTREAM_ERROR', status: 502 });
   }
 
   return { success: true, messageId };
