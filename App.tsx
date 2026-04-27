@@ -478,9 +478,6 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Custom Wassel Chat Widget — powered by respond.io Custom Channel */}
-      <ChatWidget lang={lang} />
-
       {/* Generic Popup Modal */}
       {activePopup && activePopup !== 'chat' && (
         <div className="fixed inset-0 z-[60] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
