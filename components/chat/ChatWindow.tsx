@@ -10,9 +10,10 @@ interface ChatWindowProps {
   lang: 'ar' | 'en';
   sessionId: string;
   onClose: () => void;
+  onSessionExpired?: () => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose, onSessionExpired }) => {
   const [messages, setMessages]           = useState<ChatMessage[]>([]);
   const [sending, setSending]             = useState(false);
   const [connected, setConnected]         = useState(false);
@@ -33,7 +34,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
 
     chatApi.getMessages(sessionId)
       .then(({ messages: hist }) => { if (!cancelled) setMessages(hist); })
-      .catch(() => {});
+      .catch((err) => {
+        if (err instanceof Error && err.message === 'Session not found.') {
+          onSessionExpired?.();
+        }
+      });
 
     const sock = socketClient.connect();
     socketClient.joinSession(sessionId);
@@ -82,6 +87,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
       );
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.messageId !== tempId));
+      if (err instanceof Error && err.message === 'Session not found.') {
+        onSessionExpired?.();
+        return;
+      }
       setErrorMsg(err instanceof Error ? err.message : (isAr ? 'فشل الإرسال' : 'Send failed'));
     } finally {
       setSending(false);

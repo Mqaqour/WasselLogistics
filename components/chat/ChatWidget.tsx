@@ -22,6 +22,12 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ lang = 'ar' }) => {
     if (saved) setSessionId(saved);
   }, []);
 
+  const resetSession = useCallback(() => {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    setSessionId(null);
+    setState('pre-chat');
+  }, []);
+
   const handleOpen = useCallback(() => {
     setUnread(0);
     if (state === 'closed') {
@@ -76,7 +82,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ lang = 'ar' }) => {
             <PreChatForm lang={lang} onSubmit={handlePreChatSubmit} />
           )}
           {state === 'chat' && sessionId && (
-            <ChatWindow lang={lang} sessionId={sessionId} onClose={handleClose} />
+            <ChatWindow lang={lang} sessionId={sessionId} onClose={handleClose} onSessionExpired={resetSession} />
           )}
         </div>
       )}
