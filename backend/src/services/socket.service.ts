@@ -7,9 +7,10 @@ import { SocketMessageNewEvent } from '../types/chat.types';
 let io: SocketServer | null = null;
 
 export function initSocketService(httpServer: HttpServer): SocketServer {
+  const allowedOrigins = env.FRONTEND_URL.split(',').map((s) => s.trim()).filter(Boolean);
   io = new SocketServer(httpServer, {
     cors: {
-      origin: env.FRONTEND_URL,
+      origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
       methods: ['GET', 'POST'],
     },
   });
