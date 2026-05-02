@@ -192,6 +192,31 @@ export function createApp() {
     }
   });
 
+  // Wassel AWB tracking proxy — avoids mixed-content/CORS issues from the browser
+  app.get('/api/wassel/track', async (req, res) => {
+    const awbs = String(req.query.Awbs ?? '').trim();
+    if (!awbs) {
+      res.status(400).json({ error: 'Awbs query parameter is required' });
+      return;
+    }
+    try {
+      const upstream = await fetch(
+        `http://external.wassel.ps:4040/api/GetAwbDetails?Awbs=${encodeURIComponent(awbs)}`,
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: 'Basic ' + Buffer.from('ramallah_admin:Mo@2020!').toString('base64'),
+          },
+        }
+      );
+      const data = await upstream.json().catch(() => ({}));
+      res.status(upstream.status).json(data);
+    } catch {
+      res.status(502).json({ error: 'Wassel AWB upstream error' });
+    }
+  });
+
   // QuickRate proxy — forwards to quickrate.wassel.ps with the server-side API key
   app.post('/api/quickrate/*', async (req, res) => {
     const upstreamPath = req.path.replace('/api/quickrate', '');

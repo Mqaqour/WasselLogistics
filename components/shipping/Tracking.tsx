@@ -27,8 +27,7 @@ interface ShipmentInfo {
     weight: string;
 }
 
-const WASSEL_API_URL = 'http://external.wassel.ps:4040/api/GetAwbDetails';
-const WASSEL_API_AUTH = 'Basic ' + btoa('ramallah_admin:Mo@2020!');
+const WASSEL_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || 'http://localhost:3001'}/api/wassel/track`;
 
 const JO_PASSPORT_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || 'http://localhost:3001'}/api/jopassport/track`;
 
@@ -392,7 +391,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
       } else {
         const response = await fetch(`${WASSEL_API_URL}?Awbs=${encodeURIComponent(trimmedId)}`, {
           method: 'GET',
-          headers: { Accept: 'application/json', Authorization: WASSEL_API_AUTH },
+          headers: { Accept: 'application/json' },
         });
 
         if (!response.ok) {
