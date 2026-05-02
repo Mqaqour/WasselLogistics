@@ -22,14 +22,14 @@ router.post('/send',
   chatController.sendMessage
 );
 
+// Diagnostic — must be above /messages/:sessionId so Express doesn't match 'debug' as a sessionId
+router.get('/debug/respondio', chatController.debugRespondIo);
+
 router.get('/messages/:sessionId', chatController.getMessages);
 
 router.post('/close',
   validateBody(closeSessionSchema),
   chatController.closeSession
 );
-
-// Diagnostic — tests respond.io forwarding without touching real sessions
-router.get('/debug/respondio', chatController.debugRespondIo);
 
 export default router;
