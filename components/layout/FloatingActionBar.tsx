@@ -13,6 +13,10 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
     onAction, 
     activeAction 
 }) => {
+    // Temporary release toggles for floating shortcuts.
+    const showQuickSearch = false;
+    const showPayShortcut = false;
+
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchValue, setSearchValue] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -106,6 +110,8 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
         }
     ];
 
+    const visibleItems = showPayShortcut ? items : items.filter((item) => item.id !== 'pay');
+
     return (
         <>
             {/* The Floating Bar */}
@@ -126,29 +132,33 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
                     flex-row md:flex-col
                 `}>
                     {/* Search Trigger Button */}
-                    <button
-                        type="button"
-                        title={lang === 'en' ? 'Open quick search' : 'فتح البحث السريع'}
-                        aria-label={lang === 'en' ? 'Open quick search' : 'فتح البحث السريع'}
-                        onClick={() => setIsSearchOpen(true)}
-                        className="group relative flex min-h-[56px] min-w-[56px] flex-col items-center justify-center sm:min-w-[64px] transition-all duration-300 hover:scale-105 opacity-90 hover:opacity-100"
-                    >
-                        <div className="p-2 transition-colors group-hover:bg-white/5 rounded-xl relative">
-                            <Search className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                            {/* AI Badge */}
-                            <div className="absolute -top-2 -right-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg border border-wassel-darkBlue flex items-center gap-0.5 animate-pulse">
-                                <Sparkles size={8} className="text-yellow-200" />
-                                AI
+                    {showQuickSearch && (
+                      <>
+                        <button
+                            type="button"
+                            title={lang === 'en' ? 'Open quick search' : 'فتح البحث السريع'}
+                            aria-label={lang === 'en' ? 'Open quick search' : 'فتح البحث السريع'}
+                            onClick={() => setIsSearchOpen(true)}
+                            className="group relative flex min-h-[56px] min-w-[56px] flex-col items-center justify-center sm:min-w-[64px] transition-all duration-300 hover:scale-105 opacity-90 hover:opacity-100"
+                        >
+                            <div className="p-2 transition-colors group-hover:bg-white/5 rounded-xl relative">
+                                <Search className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                {/* AI Badge */}
+                                <div className="absolute -top-2 -right-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg border border-wassel-darkBlue flex items-center gap-0.5 animate-pulse">
+                                    <Sparkles size={8} className="text-yellow-200" />
+                                    AI
+                                </div>
                             </div>
-                        </div>
-                        <span className="text-[10px] sm:text-xs font-medium mt-1 text-gray-300">
-                            {lang === 'en' ? 'Search' : 'بحث'}
-                        </span>
-                    </button>
+                            <span className="text-[10px] sm:text-xs font-medium mt-1 text-gray-300">
+                                {lang === 'en' ? 'Search' : 'بحث'}
+                            </span>
+                        </button>
 
-                    <div className="w-px h-8 md:w-8 md:h-px bg-white/10 mx-1 hidden sm:block"></div>
+                        <div className="w-px h-8 md:w-8 md:h-px bg-white/10 mx-1 hidden sm:block"></div>
+                      </>
+                    )}
 
-                    {items.map((item) => {
+                    {visibleItems.map((item) => {
                         const isActive = activeAction === item.id;
                         return (
                             <button

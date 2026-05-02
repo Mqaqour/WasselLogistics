@@ -25,6 +25,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
   const [activeMegaMenu, setActiveMegaMenu] = useState<'discover' | 'services' | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+    // Temporary release toggles for top navigation items.
+    const showDiscoverNav = false;
+    const showServicesNav = false;
+    const showResourcesNav = false;
+    const showLatestUpdatesNav = false;
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -259,30 +265,38 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
                 {/* Desktop Top Menu */}
                 <div className="hidden lg:flex items-center gap-1 xl:gap-2">
                     {/* Discover Trigger */}
-                    <button
-                        onClick={() => handleMegaMenuTrigger('discover')}
-                        className={`flex items-center gap-1 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 group hover:bg-white/5 ${activeMegaMenu === 'discover' ? `bg-white/10 ${accentColor}` : `text-gray-100 hover:${accentColor}`}`}
-                    >
-                        <span>{t.discover}</span>
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${activeMegaMenu === 'discover' ? 'rotate-180' : ''}`} />
-                    </button>
+                    {showDiscoverNav && (
+                      <button
+                          onClick={() => handleMegaMenuTrigger('discover')}
+                          className={`flex items-center gap-1 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 group hover:bg-white/5 ${activeMegaMenu === 'discover' ? `bg-white/10 ${accentColor}` : `text-gray-100 hover:${accentColor}`}`}
+                      >
+                          <span>{t.discover}</span>
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${activeMegaMenu === 'discover' ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
 
                     {/* Our Services Trigger (merged Individuals + Corporate + Handmade) */}
-                    <button
-                        onClick={() => handleMegaMenuTrigger('services')}
-                        className={`relative flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 ${activeMegaMenu === 'services' ? 'text-wassel-yellow bg-white/10' : 'text-gray-100 hover:text-wassel-yellow hover:bg-white/5'}`}
-                    >
-                        <span>{t.ourServices}</span>
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${activeMegaMenu === 'services' ? 'rotate-180' : ''}`} />
-                    </button>
+                    {showServicesNav && (
+                      <button
+                          onClick={() => handleMegaMenuTrigger('services')}
+                          className={`relative flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 ${activeMegaMenu === 'services' ? 'text-wassel-yellow bg-white/10' : 'text-gray-100 hover:text-wassel-yellow hover:bg-white/5'}`}
+                      >
+                          <span>{t.ourServices}</span>
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${activeMegaMenu === 'services' ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
 
-                    <button onClick={() => handleNavClick('resources')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 text-gray-100 hover:text-wassel-yellow hover:bg-white/5`}>
-                        <span>{lang === 'en' ? 'Resources' : 'المصادر'}</span>
-                    </button>
+                    {showResourcesNav && (
+                      <button onClick={() => handleNavClick('resources')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 text-gray-100 hover:text-wassel-yellow hover:bg-white/5`}>
+                          <span>{lang === 'en' ? 'Resources' : 'المصادر'}</span>
+                      </button>
+                    )}
 
-                    <button onClick={() => handleNavClick('latest_updates')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 text-gray-100 hover:text-wassel-yellow hover:bg-white/5`}>
-                        <span>{lang === 'en' ? 'Latest Updates' : 'آخر المستجدات'}</span>
-                    </button>
+                    {showLatestUpdatesNav && (
+                      <button onClick={() => handleNavClick('latest_updates')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 text-gray-100 hover:text-wassel-yellow hover:bg-white/5`}>
+                          <span>{lang === 'en' ? 'Latest Updates' : 'آخر المستجدات'}</span>
+                      </button>
+                    )}
 
                     <div className="h-6 w-px bg-gray-600 mx-2"></div>
 
@@ -435,73 +449,81 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
           <div className="px-2 pt-2 pb-20 space-y-1 sm:px-3">
 
             {/* Discover Section */}
-            <div className="border-b border-gray-700/50">
-                <button
-                    onClick={() => toggleMobileSubmenu('discover')}
-                    className="w-full flex justify-between items-center px-4 py-4 text-lg font-bold text-gray-200 hover:text-white hover:bg-white/5 rounded-md"
-                >
-                    <span>{t.discover}</span>
-                    {mobileSubmenu === 'discover' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                </button>
-                {mobileSubmenu === 'discover' && (
-                    <div className="bg-black/20 px-4 py-2 space-y-1">
-                        {discoverItems.map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => handleNavClick(item.view)}
-                                className="block w-full text-left rtl:text-right px-4 py-3 text-base font-medium text-gray-400 hover:text-white rounded-md transition-colors"
-                            >
-                                {lang === 'en' ? item.label.en : item.label.ar}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+            {showDiscoverNav && (
+              <div className="border-b border-gray-700/50">
+                  <button
+                      onClick={() => toggleMobileSubmenu('discover')}
+                      className="w-full flex justify-between items-center px-4 py-4 text-lg font-bold text-gray-200 hover:text-white hover:bg-white/5 rounded-md"
+                  >
+                      <span>{t.discover}</span>
+                      {mobileSubmenu === 'discover' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  </button>
+                  {mobileSubmenu === 'discover' && (
+                      <div className="bg-black/20 px-4 py-2 space-y-1">
+                          {discoverItems.map((item) => (
+                              <button
+                                  key={item.id}
+                                  onClick={() => handleNavClick(item.view)}
+                                  className="block w-full text-left rtl:text-right px-4 py-3 text-base font-medium text-gray-400 hover:text-white rounded-md transition-colors"
+                              >
+                                  {lang === 'en' ? item.label.en : item.label.ar}
+                              </button>
+                          ))}
+                      </div>
+                  )}
+              </div>
+            )}
 
             {/* Our Services (merged) */}
-            <div className="border-b border-gray-700/50">
-                <button
-                    onClick={() => toggleMobileSubmenu('services')}
-                    className="w-full flex justify-between items-center px-4 py-4 text-lg font-bold text-gray-200 hover:text-white hover:bg-white/5 rounded-md"
-                >
-                    <span>{t.ourServices}</span>
-                    {mobileSubmenu === 'services' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                </button>
-                {mobileSubmenu === 'services' && (
-                    <div className="bg-black/20 px-4 py-3 space-y-4">
-                        {serviceCategories.map((cat) => (
-                            <div key={cat.id}>
-                                <h5 className="text-xs font-bold uppercase tracking-wider mb-2 text-wassel-yellow">
-                                    {lang === 'en' ? cat.title.en : cat.title.ar}
-                                </h5>
-                                <div className="space-y-1">
-                                    {cat.services.map((service) => (
-                                        <button
-                                            key={service.id}
-                                            onClick={() => { setTheme(service.theme); handleNavClick(service.view); }}
-                                            className={`flex items-center gap-2 w-full text-left rtl:text-right px-3 py-2 text-base font-medium text-gray-300 hover:text-white rounded-md transition-colors ${currentView === service.view ? 'text-wassel-yellow' : ''}`}
-                                        >
-                                            <span>{lang === 'en' ? service.label.en : service.label.ar}</span>
-                                            {service.isHandmade && (
-                                                <span className="px-1.5 py-[1px] text-[8px] leading-none bg-wassel-yellow text-wassel-blue rounded font-bold uppercase">{t.new}</span>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+            {showServicesNav && (
+              <div className="border-b border-gray-700/50">
+                  <button
+                      onClick={() => toggleMobileSubmenu('services')}
+                      className="w-full flex justify-between items-center px-4 py-4 text-lg font-bold text-gray-200 hover:text-white hover:bg-white/5 rounded-md"
+                  >
+                      <span>{t.ourServices}</span>
+                      {mobileSubmenu === 'services' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  </button>
+                  {mobileSubmenu === 'services' && (
+                      <div className="bg-black/20 px-4 py-3 space-y-4">
+                          {serviceCategories.map((cat) => (
+                              <div key={cat.id}>
+                                  <h5 className="text-xs font-bold uppercase tracking-wider mb-2 text-wassel-yellow">
+                                      {lang === 'en' ? cat.title.en : cat.title.ar}
+                                  </h5>
+                                  <div className="space-y-1">
+                                      {cat.services.map((service) => (
+                                          <button
+                                              key={service.id}
+                                              onClick={() => { setTheme(service.theme); handleNavClick(service.view); }}
+                                              className={`flex items-center gap-2 w-full text-left rtl:text-right px-3 py-2 text-base font-medium text-gray-300 hover:text-white rounded-md transition-colors ${currentView === service.view ? 'text-wassel-yellow' : ''}`}
+                                          >
+                                              <span>{lang === 'en' ? service.label.en : service.label.ar}</span>
+                                              {service.isHandmade && (
+                                                  <span className="px-1.5 py-[1px] text-[8px] leading-none bg-wassel-yellow text-wassel-blue rounded font-bold uppercase">{t.new}</span>
+                                              )}
+                                          </button>
+                                      ))}
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+              </div>
+            )}
 
             {/* Static Links */}
             <div className="border-t border-gray-700/50 pt-2">
-                <button onClick={() => handleNavClick('resources')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
-                    {lang === 'en' ? 'Resources' : 'المصادر'}
-                </button>
-                <button onClick={() => handleNavClick('latest_updates')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
-                    {lang === 'en' ? 'Latest Updates' : 'آخر المستجدات'}
-                </button>
+                {showResourcesNav && (
+                  <button onClick={() => handleNavClick('resources')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
+                      {lang === 'en' ? 'Resources' : 'المصادر'}
+                  </button>
+                )}
+                {showLatestUpdatesNav && (
+                  <button onClick={() => handleNavClick('latest_updates')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
+                      {lang === 'en' ? 'Latest Updates' : 'آخر المستجدات'}
+                  </button>
+                )}
                 <button onClick={() => handleNavClick('contact')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
                     {lang === 'en' ? 'Contact Us' : 'تواصل معنا'}
                 </button>

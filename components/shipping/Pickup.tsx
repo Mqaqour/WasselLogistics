@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar, Package, MapPin, Smartphone, Check, Send } from 'lucide-react';
 import { Language } from '../../types';
 
@@ -23,12 +23,20 @@ const PALESTINIAN_CITIES = [
 ];
 
 export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
+    const SMS_PROXY_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || 'http://localhost:3001'}/api/sms/send-verification`;
+    const PICKUP_REQUEST_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || 'http://localhost:3001'}/api/pickup/request`;
+
   const [submitted, setSubmitted] = useState(false);
   
   // Form State
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+    const [generatedOtp, setGeneratedOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
+    const [isSendingOtp, setIsSendingOtp] = useState(false);
+    const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+    const [otpCooldown, setOtpCooldown] = useState(0);
+    const [showPhoneConfirm, setShowPhoneConfirm] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [city, setCity] = useState('');
 
@@ -55,25 +63,88 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
     scheduleAnother: lang === 'en' ? 'Schedule Another' : 'جدولة طلب آخر',
     verify: lang === 'en' ? 'Verify' : 'تحقق',
     sendCode: lang === 'en' ? 'Send Code' : 'إرسال الرمز',
+        sendingCode: lang === 'en' ? 'Sending...' : 'جاري الإرسال...',
+        resendIn: lang === 'en' ? 'Resend in' : 'إعادة الإرسال خلال',
     codeSent: lang === 'en' ? 'Code sent' : 'تم الإرسال',
     enterCode: lang === 'en' ? 'Enter Code' : 'أدخل الرمز',
     verified: lang === 'en' ? 'Verified' : 'تم التحقق',
     verifyError: lang === 'en' ? 'Incorrect code' : 'رمز خاطئ',
-    verifySuccess: lang === 'en' ? 'Mobile number verified' : 'تم التحقق من رقم الجوال'
+        verifySuccess: lang === 'en' ? 'Mobile number verified' : 'تم التحقق من رقم الجوال',
+        confirmPhoneTitle: lang === 'en' ? 'Confirm Mobile Number' : 'تأكيد رقم الجوال',
+        confirmPhoneDesc: lang === 'en' ? 'We will send a verification code to this number:' : 'سنرسل رمز التحقق إلى هذا الرقم:',
+        confirmSend: lang === 'en' ? 'Confirm & Send' : 'تأكيد وإرسال',
+        cancel: lang === 'en' ? 'Cancel' : 'إلغاء',
+        smsSentSuccess: lang === 'en' ? 'Verification code sent successfully' : 'تم إرسال رمز التحقق بنجاح',
+          smsSendError: lang === 'en' ? 'Could not send verification code. Please try again.' : 'تعذر إرسال رمز التحقق. يرجى المحاولة مرة أخرى.',
+          submitError: lang === 'en' ? 'Could not submit pickup request. Please try again.' : 'تعذر إرسال طلب الاستلام. يرجى المحاولة مرة أخرى.',
+          submitting: lang === 'en' ? 'Submitting...' : 'جاري الإرسال...'
   };
 
+    useEffect(() => {
+        if (otpCooldown <= 0) return;
+        const timer = window.setInterval(() => {
+            setOtpCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [otpCooldown]);
+
+    const normalizePhone = (value: string): string => value.replace(/\s+/g, '');
+
+    const buildOtpMessage = (code: string) => {
+        if (lang === 'en') {
+            return `Wassel verification code: ${code}. It expires in 5 minutes.`;
+        }
+        return `رمز التحقق من واصل: ${code} .صالح لمدة 5 دقائق`;
+    };
+
   const handleSendOtp = () => {
-    if (phone.length < 9) {
+        const normalizedPhone = normalizePhone(phone);
+        if (normalizedPhone.length < 9) {
         alert(lang === 'en' ? 'Please enter a valid mobile number' : 'يرجى إدخال رقم جوال صحيح');
         return;
     }
-    setIsOtpSent(true);
-    // Mock OTP send
-    setTimeout(() => alert(lang === 'en' ? 'Your verification code is 1234' : 'رمز التحقق الخاص بك هو 1234'), 500);
+        if (otpCooldown > 0) {
+            return;
+        }
+        setShowPhoneConfirm(true);
   };
 
+    const confirmAndSendOtp = async () => {
+        const normalizedPhone = normalizePhone(phone);
+        if (normalizedPhone.length < 9) return;
+
+        const code = `${Math.floor(1000 + Math.random() * 9000)}`;
+        setIsSendingOtp(true);
+
+        try {
+            const response = await fetch(SMS_PROXY_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: normalizedPhone,
+                    msg: buildOtpMessage(code),
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`SMS request failed with status ${response.status}`);
+            }
+
+            setGeneratedOtp(code);
+            setIsOtpSent(true);
+            setOtpCooldown(60);
+            setShowPhoneConfirm(false);
+            alert(t.smsSentSuccess);
+        } catch (error) {
+            console.error('Failed to send verification SMS:', error);
+            alert(t.smsSendError);
+        } finally {
+            setIsSendingOtp(false);
+        }
+    };
+
   const handleVerifyOtp = () => {
-      if (otp === '1234') {
+            if (otp.trim() === generatedOtp) {
           setIsVerified(true);
           setIsOtpSent(false);
       } else {
@@ -81,14 +152,45 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
       }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isVerified) {
         alert(lang === 'en' ? 'Please verify your mobile number first' : 'يرجى التحقق من رقم الجوال أولاً');
         return;
     }
-    // Simulate API call
-    setTimeout(() => setSubmitted(true), 800);
+
+        const formData = new FormData(e.currentTarget);
+        const payload = {
+            fullName: String(formData.get('fullName') || '').trim(),
+            phone: normalizePhone(phone),
+            city: String(formData.get('city') || '').trim(),
+            address: String(formData.get('address') || '').trim(),
+            notes: String(formData.get('notes') || '').trim(),
+            pickupDate: String(formData.get('pickupDate') || '').trim(),
+            readyTime: String(formData.get('readyTime') || '').trim(),
+            numPackages: String(formData.get('numPackages') || '').trim(),
+            packageDescription: String(formData.get('packageDescription') || '').trim(),
+        };
+
+        setIsSubmittingRequest(true);
+        try {
+            const response = await fetch(PICKUP_REQUEST_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Pickup request failed with status ${response.status}`);
+            }
+
+            setSubmitted(true);
+        } catch (error) {
+            console.error('Failed to submit pickup request:', error);
+            alert(t.submitError);
+        } finally {
+            setIsSubmittingRequest(false);
+        }
   };
 
   const resetForm = () => {
@@ -96,7 +198,10 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
       setIsVerified(false);
       setPhone('');
       setOtp('');
+      setGeneratedOtp('');
       setIsOtpSent(false);
+      setOtpCooldown(0);
+      setShowPhoneConfirm(false);
       setCity('');
   };
 
@@ -134,12 +239,13 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label className="block text-sm font-medium text-gray-700">{t.fullName}</label>
-                    <input required type="text" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
+                    <input name="fullName" title={t.fullName} required type="text" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700">{t.phone}</label>
                     <div className="mt-1 flex rounded-md shadow-sm">
                         <input 
+                            title={t.phone}
                             type="tel" 
                             required 
                             disabled={isVerified}
@@ -155,10 +261,12 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
                             <button 
                                 type="button" 
                                 onClick={handleSendOtp}
-                                disabled={isOtpSent || phone.length < 2}
+                                disabled={isSendingOtp || isOtpSent || otpCooldown > 0 || phone.length < 2}
                                 className="inline-flex items-center px-4 py-2 border border-gray-300 rtl:rounded-l-md ltr:rounded-r-md shadow-sm text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-wassel-yellow"
                             >
-                                {isOtpSent ? t.codeSent : t.sendCode}
+                                {isSendingOtp
+                                  ? t.sendingCode
+                                  : (isOtpSent ? t.codeSent : (otpCooldown > 0 ? `${t.resendIn} ${otpCooldown}s` : t.sendCode))}
                             </button>
                         )}
                     </div>
@@ -196,6 +304,8 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700">{t.city}</label>
                         <select 
+                            name="city"
+                            title={t.city}
                             required 
                             value={city}
                             onChange={(e) => setCity(e.target.value)}
@@ -209,12 +319,12 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">{t.address}</label>
-                        <input required type="text" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
+                        <input name="address" title={t.address} required type="text" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
                     </div>
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700">{t.notes}</label>
-                    <textarea rows={2} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
+                    <textarea name="notes" title={t.notes} rows={2} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
                 </div>
             </div>
         </div>
@@ -227,21 +337,21 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                  <div>
                     <label className="block text-sm font-medium text-gray-700">{t.pickupDate}</label>
-                    <input required type="date" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
+                    <input name="pickupDate" title={t.pickupDate} required type="date" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
                 </div>
                  <div>
                     <label className="block text-sm font-medium text-gray-700">{t.readyTime}</label>
-                    <input required type="time" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
+                    <input name="readyTime" title={t.readyTime} required type="time" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
                 </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div className="md:col-span-1">
                     <label className="block text-sm font-medium text-gray-700">{t.numPackages}</label>
-                    <input required type="number" min="1" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
+                    <input name="numPackages" title={t.numPackages} required type="number" min="1" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
                 </div>
                 <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700">{t.pkgDescription}</label>
-                    <input required type="text" placeholder={t.pkgDescPlaceholder} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
+                    <input name="packageDescription" required type="text" placeholder={t.pkgDescPlaceholder} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow" />
                 </div>
             </div>
         </div>
@@ -249,13 +359,43 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
         <div className="pt-4">
             <button
                 type="submit"
-                disabled={!isVerified}
+                disabled={!isVerified || isSubmittingRequest}
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-bold text-white bg-wassel-blue hover:bg-wassel-darkBlue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wassel-yellow transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                {t.submit}
+                {isSubmittingRequest ? t.submitting : t.submit}
             </button>
         </div>
       </form>
+
+            {showPhoneConfirm && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                    <div className="absolute inset-0 bg-black/50" onClick={() => !isSendingOtp && setShowPhoneConfirm(false)}></div>
+                    <div className="relative w-full max-w-md rounded-xl bg-white shadow-2xl p-6">
+                        <h3 className="text-xl font-bold text-wassel-blue">{t.confirmPhoneTitle}</h3>
+                        <p className="mt-3 text-gray-600">{t.confirmPhoneDesc}</p>
+                        <p className="mt-2 text-lg font-bold text-gray-900" dir="ltr">{normalizePhone(phone)}</p>
+
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowPhoneConfirm(false)}
+                                disabled={isSendingOtp}
+                                className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                            >
+                                {t.cancel}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmAndSendOtp}
+                                disabled={isSendingOtp}
+                                className="flex-1 rounded-md bg-wassel-blue px-4 py-2 text-sm font-semibold text-white hover:bg-wassel-darkBlue disabled:opacity-60"
+                            >
+                                {isSendingOtp ? t.sendingCode : t.confirmSend}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
     </div>
   );
 };

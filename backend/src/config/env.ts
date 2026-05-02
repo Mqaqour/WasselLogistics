@@ -39,4 +39,11 @@ export const env = {
   // QuickRate shipping proxy
   QUICKRATE_API_KEY: optional('QUICKRATE_API_KEY', ''),
   QUICKRATE_BASE_URL: optional('QUICKRATE_BASE_URL', 'https://quickrate.wassel.ps'),
+
+  // Pickup request email notifications
+  SMTP_HOST: optional('SMTP_HOST', ''),
+  SMTP_PORT: parseInt(optional('SMTP_PORT', '587'), 10),
+  SMTP_USER: optional('SMTP_USER', ''),
+  SMTP_PASSWORD: optional('SMTP_PASSWORD', ''),
+  PICKUP_NOTIFY_EMAIL: optional('PICKUP_NOTIFY_EMAIL', 'Mqaqour@wassel.ps'),
 };

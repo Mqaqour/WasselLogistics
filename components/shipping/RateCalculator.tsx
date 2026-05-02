@@ -31,6 +31,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
   const origin = 'IL';
   const originCity = 'Jerusalem';
   const originZip = '9730000';
+  const [domesticOriginCity, setDomesticOriginCity] = useState(originCity);
   const [destination, setDestination] = useState('');
   const [destCity, setDestCity] = useState('');
   const [destZip, setDestZip] = useState('');
@@ -72,6 +73,8 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       document: lang === 'en' ? 'Document' : 'مستند',
       parcel: lang === 'en' ? 'Non-Document / Parcel' : 'طرد / غير مستند',
       cityLabel: lang === 'en' ? 'City' : 'المدينة',
+      originCityLabel: lang === 'en' ? 'Origin City' : 'مدينة الانطلاق',
+      destinationCityLabel: lang === 'en' ? 'Destination City' : 'مدينة الوجهة',
       zipLabel: lang === 'en' ? 'Zip / Postal Code' : 'الرمز البريدي',
       cityPlaceholder: lang === 'en' ? 'e.g., Ramallah' : 'مثال: رام الله',
       destCityPlaceholder: lang === 'en' ? 'e.g., New York' : 'مثال: نيويورك',
@@ -203,6 +206,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
   };
 
   const handleBookClick = (rate: RateResult) => {
+      const bookingOrigin = type === 'domestic' ? domesticOriginCity : origin;
       const params = new URLSearchParams({
           mode: 'booking',
           provider: rate.provider,
@@ -211,7 +215,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
           currency: rate.currency,
           deliveryDate: rate.deliveryDate,
           weight: weight.toString(),
-          origin: origin,
+            origin: bookingOrigin,
           destination: destination,
           lang: lang
       });
@@ -255,12 +259,33 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
           
           {/* Origin — fixed to IL / Jerusalem / 9730000, hidden from UI */}
 
+          {/* Domestic origin city selector */}
+          {type === 'domestic' && (
+            <div className="col-span-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">{t.originCityLabel}</label>
+              <select
+                required
+                title={t.originCityLabel}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-wassel-yellow focus:border-wassel-yellow bg-white"
+                value={domesticOriginCity}
+                onChange={(e) => setDomesticOriginCity(e.target.value)}
+              >
+                {PALESTINIAN_CITIES.map((city) => (
+                  <option key={city.en} value={city.en}>
+                    {lang === 'en' ? city.en : city.ar}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Domestic destination city selector */}
           {type === 'domestic' && (
             <div className="col-span-1 md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">{t.destination} {t.city}</label>
+              <label className="block text-sm font-medium text-gray-700">{t.destinationCityLabel}</label>
               <select
                 required
+                title={t.destinationCityLabel}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-wassel-yellow focus:border-wassel-yellow bg-white"
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}

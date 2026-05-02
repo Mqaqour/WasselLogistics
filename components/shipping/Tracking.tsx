@@ -30,6 +30,86 @@ interface ShipmentInfo {
 const WASSEL_API_URL = 'http://external.wassel.ps:4040/api/GetAwbDetails';
 const WASSEL_API_AUTH = 'Basic ' + btoa('ramallah_admin:Mo@2020!');
 
+const JO_PASSPORT_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || 'http://localhost:3001'}/api/jopassport/track`;
+
+const isJordanPassportNumber = (id: string): boolean => {
+  const upper = id.trim().toUpperCase();
+  return upper.length === 13 && (upper.startsWith('QW') || upper.startsWith('RA'));
+};
+
+const parsePassportJson = (
+  record: any,
+  lang: Language
+): { shipmentInfo: ShipmentInfo; trackingResult: TrackingEvent[]; requiredAction: ActionRequired | null } => {
+  const shipmentInfo: ShipmentInfo = {
+    category: lang === 'en' ? 'Jordan Passport' : 'جواز السفر الأردني',
+    serviceType: lang === 'en' ? 'Passport Delivery' : 'توصيل جواز السفر',
+    origin: lang === 'en' ? 'Jordan Civil Affairs' : 'الأحوال المدنية الأردنية',
+    destination: lang === 'en'
+      ? (record.location_en || record.location || '—')
+      : (record.location_ar || record.location || '—'),
+    weight: '—',
+  };
+
+  const logs: any[] = Array.isArray(record.events) ? record.events : [];
+
+  const trackingResult: TrackingEvent[] = [...logs]
+    .sort((a: any, b: any) => {
+      const ta = new Date(a?.delevn_date || '').getTime();
+      const tb = new Date(b?.delevn_date || '').getTime();
+      if (!isNaN(tb) && !isNaN(ta)) return tb - ta;
+      return 0;
+    })
+    .map((log: any) => {
+    const status = lang === 'en'
+      ? (log.status_front_en || log.status || '')
+      : (log.status_front_ar || log.status_front_en || log.status || '');
+    const location = lang === 'en'
+      ? (log.location_en || log.location || '—')
+      : (log.location_ar || log.location_en || log.location || '—');
+    const dateStr = log.date || '—';
+    const timeStr = log.time || '—';
+    const phase = lang === 'en'
+      ? (log.phase_description_en || '')
+      : (log.phase_description_ar || log.phase_description_en || '');
+    const description = [status, phase].filter(Boolean).join(' - ').trim();
+    return {
+      status: status.trim() || '—',
+      location,
+      timestamp: timeStr ? `${dateStr} - ${timeStr}` : dateStr,
+      description: description || status.trim() || '—',
+      icon: getEventIcon(status),
+      relativeTime: log.days || '—',
+      day: log.day || '—',
+      date: dateStr,
+      time: timeStr,
+    } as TrackingEvent;
+  });
+
+  if (trackingResult.length === 0) {
+    const currentStatus = lang === 'en'
+      ? (record.status_front_en || record.status_desc || record.status || '—')
+      : (record.status_front_ar || record.status_desc || record.status || '—');
+    if (currentStatus !== '—') {
+      trackingResult.push({
+        status: currentStatus,
+        location: lang === 'en'
+          ? (record.location_en || record.location || shipmentInfo.destination)
+          : (record.location_ar || record.location || shipmentInfo.destination),
+        timestamp: record.created_date || '—',
+        description: currentStatus,
+        icon: getEventIcon(currentStatus),
+        relativeTime: '—',
+        day: '—',
+        date: record.created_date || '—',
+        time: '—',
+      });
+    }
+  }
+
+  return { shipmentInfo, trackingResult, requiredAction: null };
+};
+
 // Adds business days skipping Friday (5) and Saturday (6)
 const addBusinessDays = (dateStr: string, days: number): string => {
   const parsed = new Date(dateStr);
@@ -282,31 +362,60 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
     setPendingBillDetails(undefined);
 
     try {
-      const response = await fetch(`${WASSEL_API_URL}?Awbs=${encodeURIComponent(trimmedId)}`, {
-        method: 'GET',
-        headers: { Accept: 'application/json', Authorization: WASSEL_API_AUTH },
-      });
+      if (isJordanPassportNumber(trimmedId)) {
+        const response = await fetch(JO_PASSPORT_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delivery_nos: [trimmedId.toUpperCase()] }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`Tracking request failed with status ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Passport tracking request failed with status ${response.status}`);
+        }
+
+        const json = await response.json();
+
+        const records: any[] = Array.isArray(json)
+          ? json
+          : (json.data || json.results || json.deliveries || []);
+
+        if (records.length === 0) {
+          setNotFound(true);
+          return;
+        }
+
+        const parsed = parsePassportJson(records[0], lang);
+        setAwbRecord(records[0]);
+        setShipmentInfo(parsed.shipmentInfo);
+        setTrackingResult(parsed.trackingResult);
+        setRequiredAction(parsed.requiredAction);
+      } else {
+        const response = await fetch(`${WASSEL_API_URL}?Awbs=${encodeURIComponent(trimmedId)}`, {
+          method: 'GET',
+          headers: { Accept: 'application/json', Authorization: WASSEL_API_AUTH },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Tracking request failed with status ${response.status}`);
+        }
+
+        const json = await response.json();
+
+        if (!json.isSuccess || !json.data || json.data.length === 0) {
+          setNotFound(true);
+          return;
+        }
+
+        const record = json.data[0];
+        const parsed = parseAwbJson(record, lang);
+
+        setAwbRecord(record);
+        setShipmentInfo(parsed.shipmentInfo);
+        setTrackingResult(parsed.trackingResult);
+        setRequiredAction(parsed.requiredAction);
       }
-
-      const json = await response.json();
-
-      if (!json.isSuccess || !json.data || json.data.length === 0) {
-        setNotFound(true);
-        return;
-      }
-
-      const record = json.data[0];
-      const parsed = parseAwbJson(record, lang);
-
-      setAwbRecord(record);
-      setShipmentInfo(parsed.shipmentInfo);
-      setTrackingResult(parsed.trackingResult);
-      setRequiredAction(parsed.requiredAction);
     } catch (error) {
-      console.error('Wassel tracking lookup failed:', error);
+      console.error('Tracking lookup failed:', error);
       setErrorMessage(t.errorLoading);
     } finally {
       setIsLoading(false);
