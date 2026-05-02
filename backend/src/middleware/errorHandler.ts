@@ -7,17 +7,23 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
-  if (err instanceof Error) {
-    logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
+  const anyErr = err as Record<string, unknown>;
+  const status  = typeof anyErr?.status  === 'number' ? anyErr.status  : 500;
+  const code    = typeof anyErr?.code    === 'string'  ? anyErr.code    : 'INTERNAL_SERVER_ERROR';
+  const message = err instanceof Error   ? err.message : 'An unexpected error occurred.';
+
+  if (status >= 500) {
+    if (err instanceof Error) {
+      logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
+    } else {
+      logger.error('Unhandled error (non-Error object):', err);
+    }
   } else {
-    logger.error('Unhandled error (non-Error object):', err);
+    logger.warn(`Client error ${status}: ${message}`);
   }
 
-  res.status(500).json({
+  res.status(status).json({
     success: false,
-    error: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected error occurred.',
-    },
+    error: { code, message },
   });
 }

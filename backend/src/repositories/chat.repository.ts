@@ -68,7 +68,8 @@ export async function findSessionById(sessionId: string): Promise<ChatSession | 
       FROM chat_sessions
       WHERE session_id = @sessionId
     `);
-  return result.recordset[0] ?? null;
+  // Fall back to in-memory store in case the session was created while DB was unavailable
+  return result.recordset[0] ?? memSessions.get(sessionId) ?? null;
 }
 
 export async function findOpenSessionByContactId(contactId: string): Promise<ChatSession | null> {
