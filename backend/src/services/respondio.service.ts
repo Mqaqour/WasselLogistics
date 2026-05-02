@@ -42,8 +42,9 @@ async function sendIncomingMessageToRespondIo(params: SendParams): Promise<SendR
   };
 
   try {
-    // respond.io incoming webhook URL must include the channel ID in the path
-    const webhookUrl = env.RESPOND_WEBHOOK_URL.replace(/\/$/, '') + '/' + env.RESPOND_CHANNEL_ID;
+    // RESPOND_WEBHOOK_URL must be the full incoming webhook URL provided by respond.io
+    // (e.g. https://app.respond.io/custom/channel/webhook/<token>)
+    const webhookUrl = env.RESPOND_WEBHOOK_URL.replace(/\/$/, '');
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {

@@ -49,7 +49,8 @@ export async function closeSession(req: Request, res: Response, next: NextFuncti
 export async function debugRespondIo(_req: Request, res: Response): Promise<void> {
   const channelId  = env.RESPOND_CHANNEL_ID;
   const apiToken   = env.RESPOND_API_TOKEN;
-  const webhookUrl = env.RESPOND_WEBHOOK_URL.replace(/\/$/, '') + '/' + channelId;
+  // RESPOND_WEBHOOK_URL must be the full URL — do NOT append channelId
+  const webhookUrl = env.RESPOND_WEBHOOK_URL.replace(/\/$/, '');
 
   // Show config (mask token for security)
   const config = {
