@@ -118,16 +118,16 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
             <div className={`
                 fixed z-40 
                 transition-all duration-500 ease-in-out
-                /* MOBILE: Bottom Center Horizontal */
-                bottom-6 left-1/2 -translate-x-1/2 w-auto max-w-[95vw]
+                /* MOBILE: Strict bottom bar — full width, flush to bottom */
+                bottom-0 left-0 right-0 w-full
                 /* DESKTOP: Bottom Left Vertical (Avoid Top Header Overlap) */
-                md:left-6 md:translate-x-0 md:bottom-12 md:top-auto md:translate-y-0 md:max-w-none
+                md:left-6 md:right-auto md:w-auto md:bottom-12 md:top-auto md:translate-y-0
             `}>
                 <div className={`
                     bg-wassel-darkBlue/95 backdrop-blur-md border border-white/10 shadow-2xl 
-                    rounded-2xl
-                    p-2 sm:p-3 
-                    flex items-center gap-2 sm:gap-4
+                    rounded-t-2xl rounded-b-none md:rounded-2xl
+                    p-2 sm:p-3 pb-safe
+                    flex items-center justify-around md:justify-start gap-2 sm:gap-4
                     /* RESPONSIVE DIRECTION */
                     flex-row md:flex-col
                 `}>

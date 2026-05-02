@@ -443,7 +443,7 @@ export const App: React.FC = () => {
       />
       {/* Key ensures animation replays on view change. Padding adjusted to account for header height without banner. */}
       {/* Remove padding-top for landing pages (Individuals & Corporate Home) so background sits behind header */}
-      <main key={currentView + effectiveTheme} className={`animate-enter flex-1 flex flex-col ${isLandingPage ? 'bg-transparent pt-0' : 'pt-[116px] sm:pt-[148px]'}`}>
+      <main key={currentView + effectiveTheme} className={`animate-enter flex-1 flex flex-col ${isLandingPage ? 'bg-transparent pt-0' : 'pt-[116px] sm:pt-[148px]'} pb-20 md:pb-0`}>
         {renderView()}
       </main>
       
