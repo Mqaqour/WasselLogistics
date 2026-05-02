@@ -39,6 +39,8 @@ export const env = {
   // QuickRate shipping proxy
   QUICKRATE_API_KEY: optional('QUICKRATE_API_KEY', ''),
   QUICKRATE_BASE_URL: optional('QUICKRATE_BASE_URL', 'https://quickrate.wassel.ps'),
+  // 'lowest' returns only the cheapest quote (carrier/service hidden) | 'all' returns every quote
+  QUICKRATE_RESULT_MODE: optional('QUICKRATE_RESULT_MODE', 'lowest') as 'lowest' | 'all',
 
   // Pickup request email notifications
   SMTP_HOST: optional('SMTP_HOST', ''),

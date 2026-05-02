@@ -231,6 +231,16 @@ export function createApp() {
         body: JSON.stringify(req.body),
       });
       const data = await upstream.json().catch(() => ({}));
+
+      if (env.QUICKRATE_RESULT_MODE === 'lowest' && Array.isArray(data.quotes) && data.quotes.length > 0) {
+        const lowest = data.quotes.reduce((min: { price: number }, q: { price: number }) =>
+          q.price < min.price ? q : min
+        );
+        const filtered = { ...data, quotes: [{ ...lowest, carrier: '', serviceType: '' }] };
+        res.status(upstream.status).json(filtered);
+        return;
+      }
+
       res.status(upstream.status).json(data);
     } catch (err) {
       res.status(502).json({ error: 'QuickRate upstream error' });
