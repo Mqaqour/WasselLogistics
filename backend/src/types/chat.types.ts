@@ -66,6 +66,8 @@ export interface SendMessageRequest {
 export interface SendMessageResponse {
   success: true;
   messageId: string;
+  _forwarded?: boolean;
+  _forwardError?: string;
 }
 
 export interface GetMessagesResponse {
