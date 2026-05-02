@@ -191,18 +191,33 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       return;
     }
 
-    // ── Domestic mock ────────────────────────────────────────────────────────
+    // ── Domestic rates ───────────────────────────────────────────────────────
     setTimeout(() => {
-      let baseRate = 20 + weight * 5;
-      if (isDocument) baseRate = 15 + weight * 2;
+      const isJerusalemRoute =
+        domesticOriginCity === 'Jerusalem' || destination === 'Jerusalem';
+
+      const standardRate = isJerusalemRoute ? 35 : 25;
+      const sameDayRate  = isJerusalemRoute ? 40 : 30;
 
       const rates: RateResult[] = [
-        { provider: 'Wassel Express', service: lang === 'en' ? 'Next Day Delivery' : 'توصيل في اليوم التالي', price: baseRate, currency: 'ILS', deliveryDate: t.tomorrow },
-        { provider: 'Wassel Standard', service: lang === 'en' ? 'Ground Transport' : 'نقل بري', price: baseRate * 0.7, currency: 'ILS', deliveryDate: lang === 'en' ? '2-4 Business Days' : '2-4 أيام عمل' },
+        {
+          provider: 'Wassel',
+          service: lang === 'en' ? 'Standard Delivery' : 'توصيل عادي',
+          price: standardRate,
+          currency: 'ILS',
+          deliveryDate: lang === 'en' ? 'Next Business Day' : 'يوم العمل التالي',
+        },
+        {
+          provider: 'Wassel',
+          service: lang === 'en' ? 'Same Day Delivery' : 'توصيل في نفس اليوم',
+          price: sameDayRate,
+          currency: 'ILS',
+          deliveryDate: lang === 'en' ? 'Same Day' : 'نفس اليوم',
+        },
       ];
       setResults(rates);
       setLoading(false);
-    }, 1200);
+    }, 800);
   };
 
   const handleBookClick = (rate: RateResult) => {
