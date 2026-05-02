@@ -195,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
                     <CreditCard className="w-4 h-4" />
                     <span>{t.pay}</span>
                 </button>
-                */
+                */}
                 <div className="hidden sm:flex items-center gap-2 hover:text-white cursor-pointer">
                     <Phone className="w-4 h-4" />
                     <span dir="ltr">1700 974 444</span>
@@ -542,7 +542,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
                         {t.pay}
                     </div>
                 </button>
-                */
+                */}
                 
                 <div className="text-gray-400 space-y-4 py-2">
                     <div className="flex items-center gap-3 px-4">
