@@ -44,6 +44,7 @@ export function createApp() {
   // Routes
   app.use('/api/chat',      chatRoutes);
   app.use('/api/respondio', respondioRoutes);
+  app.use('/respond',       respondioRoutes); // respond.io outgoing webhook calls /respond/message
 
   // Jordan Passport proxy — forwards to jopassports.wassel.ps
   app.post('/api/jopassport/track', async (req, res) => {
