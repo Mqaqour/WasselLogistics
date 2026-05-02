@@ -42,8 +42,8 @@ async function sendIncomingMessageToRespondIo(params: SendParams): Promise<SendR
   };
 
   try {
-    // Full incoming webhook URL = base RESPOND_WEBHOOK_URL + '/' + RESPOND_CHANNEL_ID
-    const webhookUrl = env.RESPOND_WEBHOOK_URL.replace(/\/$/, '') + '/' + env.RESPOND_CHANNEL_ID;
+    // channelId is sent in the JSON body — do NOT append it to the URL
+    const webhookUrl = env.RESPOND_WEBHOOK_URL.replace(/\/$/, '') + '/';
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
