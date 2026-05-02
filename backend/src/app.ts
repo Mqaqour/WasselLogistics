@@ -192,6 +192,96 @@ export function createApp() {
     }
   });
 
+  // Contact Us form — sends inquiry email to operations inbox
+  app.post('/api/contact/submit', async (req, res) => {
+    const { topic, name, mobile, email, message, trackingNumber, passportNumber } = req.body ?? {};
+
+    if (!topic || !name || !mobile || !message) {
+      res.status(400).json({ error: 'topic, name, mobile and message are required' });
+      return;
+    }
+
+    if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) {
+      res.status(500).json({ error: 'SMTP is not configured' });
+      return;
+    }
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        secure: false,
+        auth: {
+          user: env.SMTP_USER,
+          pass: env.SMTP_PASSWORD,
+        },
+      });
+
+      const topicLabels: Record<string, string> = {
+        general: 'General Inquiry',
+        shipment: 'Shipment Inquiry',
+        passport: 'Jordan Passport Services',
+        complaint: 'Complaint',
+        claiming: 'Claiming',
+      };
+      const topicLabel = topicLabels[String(topic)] ?? String(topic);
+      const submittedAt = new Date().toISOString();
+      const subject = `Contact Us: ${topicLabel} — ${String(name)}`;
+
+      const extraRows = [
+        trackingNumber ? `<tr><td style="padding:8px 0; width:200px; color:#64748b;">Tracking Number</td><td style="padding:8px 0; font-weight:600;">${String(trackingNumber)}</td></tr>` : '',
+        passportNumber ? `<tr><td style="padding:8px 0; color:#64748b;">Passport Number</td><td style="padding:8px 0; font-weight:600;">${String(passportNumber)}</td></tr>` : '',
+        email        ? `<tr><td style="padding:8px 0; color:#64748b;">Email</td><td style="padding:8px 0; font-weight:600;">${String(email)}</td></tr>` : '',
+      ].join('');
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; background:#f5f8fc; padding:24px; color:#0f172a;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:700px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
+            <tr>
+              <td style="background:#0b3f77; padding:18px 24px; color:#ffffff;">
+                <h2 style="margin:0; font-size:20px;">Contact Us — ${topicLabel}</h2>
+                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">Submitted at ${submittedAt}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 24px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;">
+                  <tr><td style="padding:8px 0; width:200px; color:#64748b;">Name</td><td style="padding:8px 0; font-weight:600;">${String(name)}</td></tr>
+                  <tr><td style="padding:8px 0; color:#64748b;">Mobile</td><td style="padding:8px 0; font-weight:600;">${String(mobile)}</td></tr>
+                  ${extraRows}
+                  <tr><td style="padding:8px 0; color:#64748b; vertical-align:top;">Message</td><td style="padding:8px 0; font-weight:600;">${String(message).replace(/\n/g, '<br>')}</td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+      `;
+
+      const text = [
+        `Contact Us — ${topicLabel}`,
+        `Submitted at: ${submittedAt}`,
+        `Name: ${name}`,
+        `Mobile: ${mobile}`,
+        email          ? `Email: ${email}` : '',
+        trackingNumber ? `Tracking Number: ${trackingNumber}` : '',
+        passportNumber ? `Passport Number: ${passportNumber}` : '',
+        `Message: ${message}`,
+      ].filter(Boolean).join('\n');
+
+      await transporter.sendMail({
+        from: env.SMTP_USER,
+        to: env.CONTACT_NOTIFY_EMAIL,
+        subject,
+        text,
+        html,
+      });
+
+      res.json({ ok: true });
+    } catch {
+      res.status(502).json({ error: 'Could not send contact email' });
+    }
+  });
+
   // Wassel AWB tracking proxy — avoids mixed-content/CORS issues from the browser
   app.get('/api/wassel/track', async (req, res) => {
     const awbs = String(req.query.Awbs ?? '').trim();

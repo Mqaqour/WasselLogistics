@@ -237,7 +237,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
         <p className="mt-2 text-gray-500 text-sm sm:text-base">{t.subtitle}</p>
       </div>
 
-      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-100">
+      <div className="bg-white shadow-xl rounded-lg border border-gray-100">
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => { setType('international'); setResults(null); }}

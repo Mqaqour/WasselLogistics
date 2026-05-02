@@ -213,14 +213,28 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSent, setIsSent] = useState(false);
+    const [submitError, setSubmitError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setIsSubmitting(false);
-        setIsSent(true);
+        setSubmitError('');
+        try {
+            const res = await fetch('/api/contact/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error((err as { error?: string }).error ?? 'Failed to send');
+            }
+            setIsSent(true);
+        } catch (err) {
+            setSubmitError(err instanceof Error ? err.message : 'Failed to send message');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const t = {
@@ -264,29 +278,38 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
 
     const branchGroups = [
         {
-            category: lang === 'en' ? 'Mail Locations' : 'مواقع البريد',
+            category: lang === 'en' ? 'Our Offices' : 'فروعنا',
             schedule: lang === 'en' ? 'Sun - Thu: 8:00 AM - 4:30 PM' : 'الأحد - الخميس: 8:00 ص - 4:30 م',
             items: [
-                { name: lang === 'en' ? 'Al Masyoun (HQ)' : 'الماسيون (المقر الرئيسي)', address: lang === 'en' ? 'Padico Building' : 'مبنى باديكو' },
-                { name: lang === 'en' ? 'Al Masyoun - Edward Said' : 'الماسيون - إدوارد سعيد', address: lang === 'en' ? 'Edward Said St.' : 'شارع إدوارد سعيد' },
-                { name: lang === 'en' ? 'Hebron' : 'الخليل', address: lang === 'en' ? 'Ein Sara Street' : 'شارع عين سارة' },
-                { name: lang === 'en' ? 'Nablus' : 'نابلس', address: lang === 'en' ? 'Faisal Street' : 'شارع فيصل' },
-                { name: lang === 'en' ? 'Jerusalem' : 'القدس', address: lang === 'en' ? 'Salah Ad-din Street' : 'شارع صلاح الدين' },
-                { name: lang === 'en' ? 'Bethlehem' : 'بيت لحم', address: lang === 'en' ? 'Bab Zuqak Junction' : 'مفرق باب زقاق' },
+                { 
+                    name: lang === 'en' ? 'Ramallah' : 'رام الله', 
+                    address: lang === 'en' ? 'Al Masyoun, Edward Said St., opposite Legislative Council roundabout, Al-Qalaa Building' : 'الماصيون، شارع إدوارد سعيد، مقابل دوار المجلس التشريعي، عمارة القلعة',
+                    mapUrl: 'https://maps.app.goo.gl/Myne187jJwd7GeVn8'
+                },
+                { 
+                    name: lang === 'en' ? 'Nablus' : 'نابلس', 
+                    address: lang === 'en' ? 'Rafidya, opposite Family Park, Ammasha Building' : 'رفيديا، مقابل منتزه العائلات، عمارة عماشة',
+                    mapUrl: 'https://maps.app.goo.gl/1n24mDWVM7W4eLVz9'
+                },
+                { 
+                    name: lang === 'en' ? 'Hebron' : 'الخليل', 
+                    address: lang === 'en' ? 'Ibn Rushd roundabout, near Commercial Chamber, Juthoor Building' : 'دوار ابن رشد، بالقرب من الغرفة التجارية، عمارة جذور',
+                    mapUrl: 'https://maps.app.goo.gl/aasJrQgu9wp5B7CG6'
+                },
+                { 
+                    name: lang === 'en' ? 'Jerusalem' : 'القدس', 
+                    address: lang === 'en' ? "Shu'fat, Shu'fat St. 45, Jerusalem Towers" : 'شعفاط، شارع شعفاط 45، أبراج القدس',
+                    mapUrl: 'https://maps.app.goo.gl/2dX7reYf8DBL6A3n9'
+                },
             ]
         },
         {
-            category: lang === 'en' ? 'Jordanian Services' : 'الخدمات الأردنية',
+            category: lang === 'en' ? 'Jordanian Services Center' : 'مركز الخدمات الأردنية',
             items: [
                 { 
-                    name: lang === 'en' ? 'Jerusalem - Wadi Al Joz' : 'القدس - واد الجوز', 
-                    address: lang === 'en' ? 'Industrial Zone, Main St.' : 'المنطقة الصناعية، الشارع الرئيسي',
-                    hours: lang === 'en' ? '8:00 AM - 3:00 PM' : '8:00 ص - 3:00 م'
-                },
-                { 
-                    name: lang === 'en' ? 'Rawabi - Q Center' : 'روابي - كيو سنتر', 
-                    address: lang === 'en' ? 'Q Center Commercial Area' : 'منطقة كيو سنتر التجارية',
-                    hours: lang === 'en' ? '9:00 AM - 5:30 PM' : '9:00 ص - 5:30 م'
+                    name: lang === 'en' ? 'Rawabi - Q Center' : 'روابي - كيوسنتر', 
+                    address: lang === 'en' ? 'Rawabi, Q Center, opposite Arab Bank' : 'روابي، كيوسنتر، مقابل البنك العربي',
+                    mapUrl: 'https://maps.app.goo.gl/C9BAZX6Z2UfKsbkJ7'
                 }
             ]
         },
@@ -294,8 +317,8 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
             category: lang === 'en' ? 'Logistics Agent' : 'الوكيل اللوجستي',
             items: [
                 { 
-                    name: lang === 'en' ? 'Amman - Transriver' : 'عمان - عبر النهر', 
-                    address: lang === 'en' ? 'Queen Rania St., Amman' : 'شارع الملكة رانيا، عمان' 
+                    name: lang === 'en' ? 'Bethlehem - Ayyad Logistics (Agent)' : 'بيت لحم - عياد لوجستيكس (وكيل)', 
+                    address: lang === 'en' ? 'Beit Sahour - Astih St.' : 'بيت ساحور - شارع اسطيح'
                 }
             ]
         }
@@ -339,7 +362,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-base mb-1">{t.email}</h3>
-                                        <p className="text-blue-100 text-sm">info@wassel.com</p>
+                                        <p className="text-blue-100 text-sm">info@wassel.ps</p>
                                     </div>
                                 </div>
                             </div>
@@ -362,22 +385,33 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                             </div>
                                             
                                             <div className="space-y-4">
-                                                {group.items.map((location, i) => (
-                                                    <div key={i} className="bg-white/5 rounded-lg p-3 border border-white/5 hover:bg-white/10 transition-colors">
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <h5 className="font-bold text-sm text-white">{location.name}</h5>
-                                                            {'hours' in location && (
-                                                                <span className="text-[10px] bg-blue-900/50 text-blue-200 px-2 py-0.5 rounded whitespace-nowrap">
-                                                                    {location.hours}
-                                                                </span>
-                                                            )}
+                                                {group.items.map((location, i) => {
+                                                    const inner = (
+                                                        <>
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <h5 className="font-bold text-sm text-white">{location.name}</h5>
+                                                                {'mapUrl' in location && (
+                                                                    <span className="text-[10px] bg-wassel-yellow/20 text-wassel-yellow px-2 py-0.5 rounded whitespace-nowrap">
+                                                                        {lang === 'en' ? 'View Map' : 'عرض الخريطة'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-start gap-1.5 text-xs text-blue-200">
+                                                                <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                                                                <span className="opacity-80">{location.address}</span>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                    return 'mapUrl' in location ? (
+                                                        <a key={i} href={(location as { mapUrl: string }).mapUrl} target="_blank" rel="noopener noreferrer" className="block bg-white/5 rounded-lg p-3 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer">
+                                                            {inner}
+                                                        </a>
+                                                    ) : (
+                                                        <div key={i} className="bg-white/5 rounded-lg p-3 border border-white/5 hover:bg-white/10 transition-colors">
+                                                            {inner}
                                                         </div>
-                                                        <div className="flex items-start gap-1.5 text-xs text-blue-200">
-                                                            <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
-                                                            <span className="opacity-80">{location.address}</span>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     ))}
@@ -505,6 +539,9 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                             </>
                                         )}
                                     </button>
+                                    {submitError && (
+                                        <p className="text-red-600 text-sm mt-2 text-center">{submitError}</p>
+                                    )}
                                 </form>
                             </div>
                         ) : (
@@ -517,7 +554,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                     {t.successDesc}
                                 </p>
                                 <button 
-                                    onClick={() => { setIsSent(false); setFormData({topic: '', name: '', mobile: '', email: '', message: '', trackingNumber: '', passportNumber: ''}); }}
+                                    onClick={() => { setIsSent(false); setSubmitError(''); setFormData({topic: '', name: '', mobile: '', email: '', message: '', trackingNumber: '', passportNumber: ''}); }}
                                     className="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
                                 >
                                     {t.sendNew}

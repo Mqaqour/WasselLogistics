@@ -118,15 +118,20 @@ export const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
       .catch(console.error);
   }, [apiKey, language]);
 
-  // Close dropdown on outside click
+  // Close dropdown on outside click/touch
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+    const handler = (e: MouseEvent | TouchEvent) => {
+      const target = e instanceof TouchEvent ? e.touches[0]?.target : (e as MouseEvent).target;
+      if (wrapperRef.current && target && !wrapperRef.current.contains(target as Node)) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', handler as EventListener);
+    document.addEventListener('touchstart', handler as EventListener, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handler as EventListener);
+      document.removeEventListener('touchstart', handler as EventListener);
+    };
   }, []);
 
   const fetchSuggestions = useCallback(
@@ -232,6 +237,10 @@ export const PlacesAutocomplete: React.FC<PlacesAutocompleteProps> = ({
             <li
               key={i}
               onMouseDown={(e) => {
+                e.preventDefault();
+                handleSelect(s);
+              }}
+              onTouchEnd={(e) => {
                 e.preventDefault();
                 handleSelect(s);
               }}

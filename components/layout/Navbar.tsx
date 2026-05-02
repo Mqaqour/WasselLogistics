@@ -187,6 +187,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
       <div className={`${topBarBg} text-gray-300 py-2 border-b transition-colors duration-300 relative z-50`}>
         <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center text-sm font-medium">
             <div className="flex items-center gap-4 sm:gap-6">
+                {/* Wassel Pay — hidden until re-enabled
                 <button 
                   onClick={() => handleNavClick('payment-gateway')}
                   className={`flex items-center gap-2 hover:${accentColor} transition-colors ${currentView === 'payment-gateway' ? accentColor : ''}`}
@@ -194,6 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
                     <CreditCard className="w-4 h-4" />
                     <span>{t.pay}</span>
                 </button>
+                */
                 <div className="hidden sm:flex items-center gap-2 hover:text-white cursor-pointer">
                     <Phone className="w-4 h-4" />
                     <span dir="ltr">1700 974 444</span>
@@ -530,6 +532,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
             </div>
             
             <div className="pt-4 pb-4 space-y-4 px-4 border-t border-gray-700/50">
+                {/* Wassel Pay — hidden until re-enabled
                 <button
                     onClick={() => handleNavClick('payment-gateway')}
                     className="block w-full text-left rtl:text-right px-4 py-3 text-base font-medium text-gray-300 hover:text-white bg-white/5 rounded-lg"
@@ -539,6 +542,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
                         {t.pay}
                     </div>
                 </button>
+                */
                 
                 <div className="text-gray-400 space-y-4 py-2">
                     <div className="flex items-center gap-3 px-4">

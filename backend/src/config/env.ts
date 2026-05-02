@@ -47,5 +47,6 @@ export const env = {
   SMTP_PORT: parseInt(optional('SMTP_PORT', '587'), 10),
   SMTP_USER: optional('SMTP_USER', ''),
   SMTP_PASSWORD: optional('SMTP_PASSWORD', ''),
-  PICKUP_NOTIFY_EMAIL: optional('PICKUP_NOTIFY_EMAIL', 'Mqaqour@wassel.ps'),
+  PICKUP_NOTIFY_EMAIL: optional('PICKUP_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
+  CONTACT_NOTIFY_EMAIL: optional('CONTACT_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
 };

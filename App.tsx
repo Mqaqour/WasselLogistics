@@ -333,7 +333,7 @@ export const App: React.FC = () => {
                     <img 
                         src={`${import.meta.env.BASE_URL}assets/background.jpg`} 
                         alt="Background" 
-                        className="w-full h-auto object-contain object-top opacity-100"
+                        className="w-full h-full object-cover object-top opacity-100"
                         onError={() => setBgError(true)}
                     />
                 ) : (

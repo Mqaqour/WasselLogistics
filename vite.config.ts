@@ -83,6 +83,11 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             secure: false,
           },
+          '/api/contact': {
+            target: 'http://localhost:3001',
+            changeOrigin: true,
+            secure: false,
+          },
           '/socket.io': {
             target: 'http://localhost:3001',
             changeOrigin: true,
