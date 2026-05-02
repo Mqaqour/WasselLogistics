@@ -447,17 +447,6 @@ export const App: React.FC = () => {
         {renderView()}
       </main>
       
-      {/* Footer */}
-      <footer className={`${footerBg} ${footerText} py-8 mt-auto border-t transition-colors duration-500 relative z-10`}>
-        <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p className="text-sm text-gray-400">
-                {lang === 'en'
-                    ? '© 2026 Wassel Logistics. All rights reserved. Built and developed by Wassel Technology.'
-                    : '© 2026 واصل للخدمات اللوجستية. جميع الحقوق محفوظة. تم البناء والتطوير من قبل واصل تكنولوجي.'}
-            </p>
-        </div>
-      </footer>
-
       {/* Floating Action Bar - Only show if NOT corporate and NOT in specific pages */}
       {effectiveTheme !== 'corporate' && !['about', 'management', 'contact'].includes(currentView) && (
         <FloatingActionBar 
