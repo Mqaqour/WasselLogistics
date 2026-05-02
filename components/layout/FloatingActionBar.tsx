@@ -116,7 +116,7 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
         <>
             {/* The Floating Bar */}
             <div className={`
-                fixed z-40 
+                fixed z-[65] 
                 transition-all duration-500 ease-in-out
                 /* MOBILE: Strict bottom bar — full width, flush to bottom */
                 bottom-0 left-0 right-0 w-full
