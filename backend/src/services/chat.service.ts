@@ -88,7 +88,7 @@ export async function sendMessage(body: SendMessageRequest): Promise<SendMessage
     });
   }
 
-  return { success: true, messageId, _forwarded: sent.success, _forwardError: sent.error };
+  return { success: true, messageId, _forwarded: sent.success, _forwardError: sent.error, _respondBody: sent.respondBody };
 }
 
 // ── Get Messages ──────────────────────────────────────────────────────────────

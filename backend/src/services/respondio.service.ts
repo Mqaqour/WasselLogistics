@@ -1,7 +1,7 @@
 import { env } from '../config/env';
-import { RespondIoOutgoingPayload } from '../types/chat.types';
 import { ChatSession } from '../types/chat.types';
 import { logger } from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
 
 interface SendParams {
   session: ChatSession;
@@ -11,19 +11,31 @@ interface SendParams {
 
 interface SendResult {
   success: boolean;
+  respondBody?: string;
   error?: string;
 }
 
 async function sendIncomingMessageToRespondIo(params: SendParams): Promise<SendResult> {
   const { session, messageId, messageText } = params;
 
-  const payload: RespondIoOutgoingPayload = {
+  // Build contact object — omit null/undefined fields
+  const contact: Record<string, string> = {
+    firstName:   session.firstName ?? 'Visitor',
+    countryCode: 'PS',
+    phone:       session.phone,
+    language:    session.language ?? 'ar',
+  };
+  if (session.lastName) contact.lastName   = session.lastName;
+  if (session.email)    contact.email      = session.email;
+
+  const payload = {
     channelId: env.RESPOND_CHANNEL_ID,
     contactId: session.contactId,
     events: [
       {
         type:      'message',
-        mId:       messageId,
+        // respond.io expects a plain UUID for mId (no prefix)
+        mId:       uuidv4(),
         timestamp: Date.now(),
         message: {
           type: 'text',
@@ -31,18 +43,10 @@ async function sendIncomingMessageToRespondIo(params: SendParams): Promise<SendR
         },
       },
     ],
-    contact: {
-      firstName:   session.firstName,
-      lastName:    session.lastName,
-      countryCode: 'PS',
-      email:       session.email,
-      phone:       session.phone,
-      language:    session.language,
-    },
+    contact,
   };
 
   try {
-    // channelId is sent in the JSON body — do NOT append it to the URL
     const webhookUrl = env.RESPOND_WEBHOOK_URL.replace(/\/$/, '') + '/';
     const response = await fetch(webhookUrl, {
       method: 'POST',
@@ -53,14 +57,15 @@ async function sendIncomingMessageToRespondIo(params: SendParams): Promise<SendR
       body: JSON.stringify(payload),
     });
 
+    const respondBody = await response.text().catch(() => '');
+
     if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      logger.error(`respond.io returned ${response.status}: ${body}`);
-      return { success: false, error: `respond.io ${response.status}: ${body}` };
+      logger.error(`respond.io returned ${response.status}: ${respondBody}`);
+      return { success: false, error: `respond.io ${response.status}: ${respondBody}` };
     }
 
-    logger.debug(`Message ${messageId} forwarded to respond.io successfully.`);
-    return { success: true };
+    logger.info(`Message ${messageId} forwarded to respond.io. Response: ${respondBody}`);
+    return { success: true, respondBody };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error(`Failed to reach respond.io: ${message}`);
