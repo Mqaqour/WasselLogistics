@@ -3,7 +3,6 @@ import * as repo from '../repositories/chat.repository';
 import { emitAgentMessage } from '../services/socket.service';
 import { generateMessageId, generateSessionId } from '../utils/ids';
 import { normalizePhoneNumber } from '../utils/phone';
-import { env } from '../config/env';
 import { RespondIoIncomingPayload } from '../types/chat.types';
 import { logger } from '../utils/logger';
 
@@ -19,15 +18,7 @@ export async function receiveAgentMessage(req: Request, res: Response, next: Nex
       rawPayload: JSON.stringify(body),
     });
 
-    // Validate channelId
-    if (body.channelId !== env.RESPOND_CHANNEL_ID) {
-      res.status(400).json({
-        success: false,
-        error: { code: 'INVALID_CHANNEL', message: 'Channel ID does not match.' },
-      });
-      return;
-    }
-
+    // Auth is handled by authRespondio Bearer-token middleware upstream
     const contactId = normalizePhoneNumber(body.contactId);
 
     // Find open session

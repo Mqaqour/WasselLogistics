@@ -23,7 +23,7 @@ export const closeSessionSchema = z.object({
 });
 
 export const respondioMessageSchema = z.object({
-  channelId: z.string().min(1, 'channelId is required'),
+  channelId: z.string().optional(),
   contactId: z.string().min(1, 'contactId is required'),
   message: z.object({
     type: z.enum(['text', 'attachment', 'location', 'quick_reply']),
