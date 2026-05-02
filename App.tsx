@@ -342,7 +342,6 @@ export const App: React.FC = () => {
             </div>
 
             {/* Hero Section */}
-            {/* Reduced space for mobile by adjusting min-height and padding */}
             <div className="relative z-10 bg-transparent overflow-hidden flex-1 min-h-[60vh] sm:min-h-[70vh] flex flex-col justify-center pt-32 lg:pt-44">
               
               {/* Subtle Pattern Background */}
@@ -351,58 +350,56 @@ export const App: React.FC = () => {
               {/* Floating Circles Background Effect */}
               <FloatingCircles />
 
-              <div className="w-full max-w-[1920px] mx-auto relative z-10 pointer-events-none">
+              <div className="w-full max-w-[1920px] mx-auto relative z-10">
                 <div className="relative pb-6 sm:pb-8 md:pb-10 lg:w-full lg:pb-12 xl:pb-14 px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
                   
                   <div className="max-w-4xl mx-auto pointer-events-auto">
                       <h1 className="text-5xl tracking-tight font-extrabold text-wassel-blue sm:text-6xl md:text-7xl leading-tight animate-slide-up mb-6">
                         <span className="block text-wassel-yellow xl:inline">{t.heroTitleHighlight}</span>
                       </h1>
-                      <div className="max-w-2xl mx-auto">
+                      <div className="max-w-2xl mx-auto mb-10">
                         <p className="text-lg text-white sm:text-xl md:text-2xl font-medium animate-slide-up delay-100 drop-shadow-md">
                             {t.heroDesc}
+                        </p>
+                      </div>
+
+                      {/* Tracking box — sits directly below hero description */}
+                      <div className="w-full max-w-3xl mx-auto animate-slide-up delay-200">
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            if(homeTrackingInput.trim()) {
+                                setQuickTrackId(homeTrackingInput);
+                                setTrackingMode('standard');
+                                setActivePopup('tracking');
+                            }
+                        }}>
+                            <div className="relative rounded-xl shadow-2xl bg-white transition-transform hover:scale-[1.01] duration-300">
+                                <input
+                                    type="text"
+                                    className="block w-full rounded-xl border-0 py-6 pl-8 pr-40 sm:pr-56 text-gray-900 ring-1 ring-inset ring-gray-100 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-wassel-yellow text-lg sm:text-2xl sm:leading-relaxed rtl:pr-8 rtl:pl-40 sm:rtl:pl-56"
+                                    placeholder={t.trackPlaceholder}
+                                    value={homeTrackingInput}
+                                    onChange={(e) => setHomeTrackingInput(e.target.value)}
+                                />
+                                <div className="absolute inset-y-2 right-2 rtl:right-auto rtl:left-2 flex items-center">
+                                    <button type="submit" className="h-full rounded-lg bg-wassel-blue px-6 sm:px-10 text-white font-bold text-lg hover:bg-wassel-darkBlue transition-colors flex items-center gap-3">
+                                        <Package className="w-6 h-6" />
+                                        <span className="hidden sm:inline">{t.trackBtn}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <p className="text-center mt-3 text-white font-medium text-sm sm:text-base animate-slide-up delay-300">
+                             {lang === 'en' 
+                                ? 'Insert your Domestic shipment or FedEx or DHL shipments or Passport No or Clearance No'
+                                : 'أدخل رقم الشحنة المحلية أو شحنات FedEx أو DHL أو رقم الجواز أو رقم المعاملة الجمركية'}
                         </p>
                       </div>
                   </div>
 
                 </div>
               </div>
-            </div>
-
-            {/* SEPARATE TRACKING CONTAINER */}
-            <div className="relative z-30 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-[-54px]">
-                <div className="max-w-6xl mx-auto animate-slide-up delay-200">
-                    <form onSubmit={(e) => {
-                        e.preventDefault();
-                        if(homeTrackingInput.trim()) {
-                            setQuickTrackId(homeTrackingInput);
-                            setTrackingMode('standard');
-                            setActivePopup('tracking');
-                        }
-                    }}>
-                        <div className="relative rounded-xl shadow-2xl bg-white transition-transform hover:scale-[1.01] duration-300">
-                            <input
-                                type="text"
-                                className="block w-full rounded-xl border-0 py-6 pl-8 pr-40 sm:pr-56 text-gray-900 ring-1 ring-inset ring-gray-100 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-wassel-yellow text-lg sm:text-2xl sm:leading-relaxed rtl:pr-8 rtl:pl-40 sm:rtl:pl-56"
-                                placeholder={t.trackPlaceholder}
-                                value={homeTrackingInput}
-                                onChange={(e) => setHomeTrackingInput(e.target.value)}
-                            />
-                            <div className="absolute inset-y-2 right-2 rtl:right-auto rtl:left-2 flex items-center">
-                                <button type="submit" className="h-full rounded-lg bg-wassel-blue px-6 sm:px-10 text-white font-bold text-lg hover:bg-wassel-darkBlue transition-colors flex items-center gap-3">
-                                    <Package className="w-6 h-6" />
-                                    <span className="hidden sm:inline">{t.trackBtn}</span>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-
-                    <p className="text-center mt-3 text-white font-medium text-sm sm:text-base animate-slide-up delay-300">
-                         {lang === 'en' 
-                            ? 'Insert your Domestic shipment or FedEx or DHL shipments or Passport No or Clearance No'
-                            : 'أدخل رقم الشحنة المحلية أو شحنات FedEx أو DHL أو رقم الجواز أو رقم المعاملة الجمركية'}
-                    </p>
-                </div>
             </div>
 
           </div>
