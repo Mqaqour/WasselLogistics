@@ -9,9 +9,19 @@ const SESSION_STORAGE_KEY = 'wassel_chat_session_id';
 
 interface ChatWidgetProps {
   lang?: 'ar' | 'en';
+  /** When provided the widget is externally controlled — no internal ChatButton is rendered */
+  externalOpen?: boolean;
+  /** Called when the widget wants to close itself in controlled mode */
+  onExternalClose?: () => void;
 }
 
-export const ChatWidget: React.FC<ChatWidgetProps> = ({ lang = 'ar' }) => {
+export const ChatWidget: React.FC<ChatWidgetProps> = ({
+  lang = 'ar',
+  externalOpen,
+  onExternalClose,
+}) => {
+  const controlled = externalOpen !== undefined;
+
   const [state, setState]         = useState<WidgetState>('closed');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [unread, setUnread]       = useState(0);
@@ -22,12 +32,24 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ lang = 'ar' }) => {
     if (saved) setSessionId(saved);
   }, []);
 
+  // Sync internal state when externally opened/closed
+  useEffect(() => {
+    if (!controlled) return;
+    if (externalOpen) {
+      setUnread(0);
+      setState((prev) => prev === 'closed' ? (sessionId ? 'chat' : 'pre-chat') : prev);
+    } else {
+      setState('closed');
+    }
+  }, [externalOpen, controlled, sessionId]);
+
   const resetSession = useCallback(() => {
     localStorage.removeItem(SESSION_STORAGE_KEY);
     setSessionId(null);
     setState('pre-chat');
   }, []);
 
+  // Only used in standalone (uncontrolled) mode
   const handleOpen = useCallback(() => {
     setUnread(0);
     if (state === 'closed') {
@@ -56,26 +78,32 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ lang = 'ar' }) => {
   }, []);
 
   const handleClose = useCallback(() => {
-    setState('closed');
-  }, []);
+    if (controlled) {
+      onExternalClose?.();
+    } else {
+      setState('closed');
+    }
+  }, [controlled, onExternalClose]);
 
   const isOpen = state !== 'closed';
 
   return (
     <>
-      {/* Floating button */}
-      <ChatButton
-        isOpen={isOpen}
-        lang={lang}
-        onClick={handleOpen}
-        unreadCount={unread}
-      />
+      {/* Standalone floating button — hidden in controlled mode */}
+      {!controlled && (
+        <ChatButton
+          isOpen={isOpen}
+          lang={lang}
+          onClick={handleOpen}
+          unreadCount={unread}
+        />
+      )}
 
       {/* Widget panel */}
       {isOpen && (
         <div
-          className="fixed bottom-24 right-6 z-50 w-[22rem] sm:w-96 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden flex flex-col"
-          style={{ height: '500px', maxHeight: 'calc(100vh - 7rem)' }}
+          className="fixed bottom-[5.5rem] right-4 md:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 rounded-2xl shadow-2xl border border-gray-200 bg-white overflow-hidden flex flex-col"
+          style={{ height: '520px', maxHeight: 'calc(100vh - 6.5rem)' }}
           dir={lang === 'ar' ? 'rtl' : 'ltr'}
         >
           {state === 'pre-chat' && (

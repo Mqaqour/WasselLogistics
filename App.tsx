@@ -453,14 +453,22 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* Custom Chat Widget — driven by FloatingActionBar "Chat" button */}
+      <ChatWidget
+        lang={lang}
+        externalOpen={isChatOpen}
+        onExternalClose={() => {
+          setIsChatOpen(false);
+          if (activePopup === 'chat') setActivePopup(null);
+        }}
+      />
+
+      {/* Legacy respond.io widget — only rendered when VITE_RESPONDIO_CHANNEL_ID is set */}
       {shouldRenderLegacyChatBot && (
         <ChatBot
           lang={lang}
-          isOpen={isChatOpen}
-          onClose={() => {
-            setIsChatOpen(false);
-            if (activePopup === 'chat') setActivePopup(null);
-          }}
+          isOpen={false}
+          onClose={() => {}}
         />
       )}
 
