@@ -29,4 +29,7 @@ router.post('/close',
   chatController.closeSession
 );
 
+// Diagnostic — tests respond.io forwarding without touching real sessions
+router.get('/debug/respondio', chatController.debugRespondIo);
+
 export default router;
