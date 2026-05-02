@@ -370,7 +370,7 @@ export const App: React.FC = () => {
             </div>
 
             {/* SEPARATE TRACKING CONTAINER */}
-            <div className="relative z-30 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-[calc(-4rem+10px)]">
+            <div className="relative z-30 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-[-54px]">
                 <div className="max-w-6xl mx-auto animate-slide-up delay-200">
                     <form onSubmit={(e) => {
                         e.preventDefault();
