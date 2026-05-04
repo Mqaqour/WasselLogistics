@@ -120,7 +120,7 @@ export function createApp() {
     }
 
     if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) {
-      res.status(500).json({ error: 'SMTP is not configured' });
+      res.status(503).json({ error: 'SMTP is not configured' });
       return;
     }
 
@@ -203,7 +203,7 @@ export function createApp() {
     }
 
     if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) {
-      res.status(500).json({ error: 'SMTP is not configured' });
+      res.status(503).json({ error: 'SMTP is not configured' });
       return;
     }
 
