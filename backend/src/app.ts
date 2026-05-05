@@ -5,6 +5,7 @@ import nodemailer from 'nodemailer';
 import { env } from './config/env';
 import chatRoutes from './routes/chat.routes';
 import respondioRoutes from './routes/respondio.routes';
+import aiRoutes from './routes/ai.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export function createApp() {
@@ -44,6 +45,7 @@ export function createApp() {
   // Routes
   app.use('/api/chat',      chatRoutes);
   app.use('/api/respondio', respondioRoutes);
+  app.use('/api/ai',        aiRoutes);
   app.use('/respond',       respondioRoutes); // respond.io outgoing webhook calls /respond/message
 
   // Jordan Passport proxy — forwards to jopassports.wassel.ps
@@ -120,7 +122,7 @@ export function createApp() {
     }
 
     if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) {
-      res.status(503).json({ error: 'SMTP is not configured' });
+      res.status(500).json({ error: 'SMTP is not configured' });
       return;
     }
 
@@ -203,7 +205,7 @@ export function createApp() {
     }
 
     if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) {
-      res.status(503).json({ error: 'SMTP is not configured' });
+      res.status(500).json({ error: 'SMTP is not configured' });
       return;
     }
 

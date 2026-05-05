@@ -42,6 +42,24 @@ export const env = {
   // 'lowest' returns only the cheapest quote (carrier/service hidden) | 'all' returns every quote
   QUICKRATE_RESULT_MODE: optional('QUICKRATE_RESULT_MODE', 'lowest') as 'lowest' | 'all',
 
+  // AI Chat
+  AI_PROVIDER:               optional('AI_PROVIDER', 'none') as 'openai' | 'azure' | 'none',
+  OPENAI_API_KEY:            optional('OPENAI_API_KEY', ''),
+  OPENAI_MODEL:              optional('OPENAI_MODEL', 'gpt-4o-mini'),
+  AZURE_OPENAI_ENDPOINT:     optional('AZURE_OPENAI_ENDPOINT', ''),
+  AZURE_OPENAI_API_KEY:      optional('AZURE_OPENAI_API_KEY', ''),
+  AZURE_OPENAI_DEPLOYMENT:   optional('AZURE_OPENAI_DEPLOYMENT', ''),
+  AZURE_OPENAI_API_VERSION:  optional('AZURE_OPENAI_API_VERSION', '2024-02-01'),
+  AI_PROJECT_ENDPOINT:       optional('AI_PROJECT_ENDPOINT', ''),
+  AI_PROJECT_API_KEY:        optional('AI_PROJECT_API_KEY', ''),
+  AI_AGENT_NAME:             optional('AI_AGENT_NAME', ''),
+  AI_AGENT_VERSION:          optional('AI_AGENT_VERSION', '1'),
+  CHAT_RATE_LIMIT_PER_MINUTE: parseInt(optional('CHAT_RATE_LIMIT_PER_MINUTE', '20'), 10),
+
+  // Respond.io handoff
+  RESPOND_IO_API_KEY:    optional('RESPOND_IO_API_KEY', ''),
+  RESPOND_IO_CHANNEL_ID: optional('RESPOND_IO_CHANNEL_ID', ''),
+
   // Pickup request email notifications
   SMTP_HOST: optional('SMTP_HOST', ''),
   SMTP_PORT: parseInt(optional('SMTP_PORT', '587'), 10),
