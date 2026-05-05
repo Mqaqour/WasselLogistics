@@ -5,6 +5,8 @@ import nodemailer from 'nodemailer';
 import { env } from './config/env';
 import chatRoutes from './routes/chat.routes';
 import respondioRoutes from './routes/respondio.routes';
+import questionsRoutes from './routes/questions.routes';
+import topicsRoutes from './routes/topics.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export function createApp() {
@@ -45,6 +47,10 @@ export function createApp() {
   app.use('/api/chat',      chatRoutes);
   app.use('/api/respondio', respondioRoutes);
   app.use('/respond',       respondioRoutes); // respond.io outgoing webhook calls /respond/message
+
+  // Knowledge Base — Questions & Topics
+  app.use('/api/questions', questionsRoutes);
+  app.use('/api/topics',    topicsRoutes);
 
   // Jordan Passport proxy — forwards to jopassports.wassel.ps
   app.post('/api/jopassport/track', async (req, res) => {

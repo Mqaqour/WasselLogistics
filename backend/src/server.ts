@@ -5,12 +5,15 @@ import { initSocketService } from './services/socket.service';
 import { getPool, closePool } from './config/database';
 import { setDbAvailable } from './repositories/chat.repository';
 import { logger } from './utils/logger';
+import { seedQuestionsKnowledgeBaseAsync } from './seeds/questionsKnowledgeBase.seed';
 
 async function main() {
   // Warm up DB connection pool (non-fatal — server starts even if DB is unavailable)
   try {
     await getPool();
     setDbAvailable(true);
+    // Seed the Questions Knowledge Base (idempotent — safe to run every startup)
+    await seedQuestionsKnowledgeBaseAsync();
   } catch (err) {
     setDbAvailable(false);
     logger.warn('Could not connect to SQL Server on startup — chat features will be unavailable until the DB is reachable.');
