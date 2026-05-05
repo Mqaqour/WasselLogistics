@@ -28,7 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
     // Temporary release toggles for top navigation items.
     const showDiscoverNav = false;
     const showServicesNav = false;
-    const showResourcesNav = false;
+    const showResourcesNav = true;
     const showLatestUpdatesNav = false;
 
   useEffect(() => {
