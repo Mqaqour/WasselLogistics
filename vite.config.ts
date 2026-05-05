@@ -83,6 +83,16 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             secure: false,
           },
+          '/api/questions': {
+            target: 'http://localhost:3001',
+            changeOrigin: true,
+            secure: false,
+          },
+          '/api/topics': {
+            target: 'http://localhost:3001',
+            changeOrigin: true,
+            secure: false,
+          },
           '/api/contact': {
             target: 'http://localhost:3001',
             changeOrigin: true,

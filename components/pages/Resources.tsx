@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Book, FileText, Box, AlertCircle, HelpCircle, ChevronRight, Download, Globe, Sparkles, Loader2, ArrowRight, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
 import { Language } from '../../types';
 import { getResourceSearchResponse } from '../../services/geminiService';
 import { FAQ_DATA } from '../../data/faqs';
+import { suggestKbQuestions, getKbQuestionAnswer, QuestionSuggestionItem } from '../../services/questionsKbService';
 
 interface ResourcesProps {
   lang: Language;
@@ -12,8 +13,14 @@ export const Resources: React.FC<ResourcesProps> = ({ lang }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [aiData, setAiData] = useState<{ answer: string; relatedTopics: string[] } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedSuggestionId, setSelectedSuggestionId] = useState<number | null>(null);
+  const [suggestions, setSuggestions] = useState<QuestionSuggestionItem[]>([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number>(-1);
   const [activeFaqTab, setActiveFaqTab] = useState<'general' | 'services' | 'corporate' | 'industries'>('general');
   const [openFaqIndex, setOpenFaqIndex] = useState<string | null>(null);
+  const searchBoxRef = useRef<HTMLDivElement | null>(null);
 
   const t = {
     heroTitle: lang === 'en' ? 'Wassel Smart' : 'واصل سمارت',
@@ -94,6 +101,33 @@ export const Resources: React.FC<ResourcesProps> = ({ lang }) => {
     setLoading(true);
     setAiData(null);
 
+    // If user selected a dropdown item (or typed an exact suggested question),
+    // always fetch the answer from the DB-backed KB endpoint instead of AI.
+    const exactSuggestionMatch = suggestions.find(
+      (s) => s.question.trim() === searchQuery.trim()
+    );
+    const kbQuestionId = selectedSuggestionId ?? exactSuggestionMatch?.questionId ?? null;
+
+    if (kbQuestionId !== null) {
+      try {
+        const response = await getKbQuestionAnswer(kbQuestionId, lang);
+        setAiData({
+          answer: response.answer,
+          relatedTopics: [response.topicName],
+        });
+      } catch {
+        setAiData({
+          answer: lang === 'en'
+            ? "Sorry, I couldn't load the knowledge base answer right now."
+            : 'عذراً، تعذر تحميل إجابة قاعدة المعرفة حالياً.',
+          relatedTopics: [],
+        });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
         const response = await getResourceSearchResponse(searchQuery);
         setAiData(response);
@@ -107,7 +141,37 @@ export const Resources: React.FC<ResourcesProps> = ({ lang }) => {
     }
   };
 
+  const handleSuggestionSelect = async (item: QuestionSuggestionItem) => {
+    setSearchQuery(item.question);
+    setSelectedSuggestionId(item.questionId);
+    setSuggestionsOpen(false);
+    setSuggestions([]);
+    setActiveSuggestionIndex(-1);
+
+    setLoading(true);
+    setAiData(null);
+
+    try {
+      const response = await getKbQuestionAnswer(item.questionId, lang);
+      setAiData({
+        answer: response.answer,
+        relatedTopics: [response.topicName],
+      });
+    } catch {
+      // For dropdown selections, always use the DB-backed KB answer only.
+      setAiData({
+        answer: lang === 'en'
+          ? "Sorry, I couldn't load the knowledge base answer right now."
+          : 'عذراً، تعذر تحميل إجابة قاعدة المعرفة حالياً.',
+        relatedTopics: [item.topicName],
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleTopicClick = (topic: string) => {
+      setSelectedSuggestionId(null);
       setSearchQuery(topic);
       setLoading(true);
       setAiData(null);
@@ -119,8 +183,60 @@ export const Resources: React.FC<ResourcesProps> = ({ lang }) => {
 
   const handleClear = () => {
       setSearchQuery('');
+      setSelectedSuggestionId(null);
       setAiData(null);
+      setSuggestions([]);
+      setSuggestionsOpen(false);
+      setActiveSuggestionIndex(-1);
   };
+
+  useEffect(() => {
+    // Only query suggestions when user typed enough text.
+    if (searchQuery.trim().length < 2) {
+      setSuggestions([]);
+      setSuggestionsOpen(false);
+      setSuggestionsLoading(false);
+      setActiveSuggestionIndex(-1);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSuggestionsLoading(true);
+      try {
+        const items = await suggestKbQuestions(searchQuery.trim(), lang);
+        if (!cancelled) {
+          setSuggestions(items);
+          setSuggestionsOpen(items.length > 0);
+          setActiveSuggestionIndex(-1);
+        }
+      } catch {
+        if (!cancelled) {
+          setSuggestions([]);
+          setSuggestionsOpen(false);
+        }
+      } finally {
+        if (!cancelled) setSuggestionsLoading(false);
+      }
+    }, 280);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, lang]);
+
+  useEffect(() => {
+    const onDocumentMouseDown = (event: MouseEvent) => {
+      if (!searchBoxRef.current) return;
+      if (!searchBoxRef.current.contains(event.target as Node)) {
+        setSuggestionsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', onDocumentMouseDown);
+    return () => document.removeEventListener('mousedown', onDocumentMouseDown);
+  }, []);
 
   // Helper to filter FAQs based on active tab
   const displayedFAQs = useMemo(() => {
@@ -160,14 +276,14 @@ export const Resources: React.FC<ResourcesProps> = ({ lang }) => {
     <div className="bg-gray-50 min-h-screen">
       {/* Hero Search Section - AI Themed */}
       {/* Increased padding-top to accommodate transparent fixed header */}
-      <div className="bg-wassel-blue relative overflow-hidden pb-16 pt-36 md:pt-48">
+      <div className="bg-wassel-blue relative overflow-x-hidden overflow-y-visible pb-16 pt-36 md:pt-48">
         {/* Abstract Background Shapes */}
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
             <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
             <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-wassel-yellow/10 rounded-full blur-3xl"></div>
         </div>
         
-        <div className="max-w-4xl mx-auto px-4 relative z-10 text-center">
+        <div className="max-w-4xl mx-auto px-4 relative z-30 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-wassel-yellow text-xs font-bold uppercase tracking-wider mb-6 border border-white/20 animate-slide-up">
                 <Sparkles className="w-4 h-4" /> {lang === 'en' ? 'AI Powered Knowledge' : 'معرفة مدعومة بالذكاء الاصطناعي'}
             </div>
@@ -180,12 +296,36 @@ export const Resources: React.FC<ResourcesProps> = ({ lang }) => {
             </p>
 
             {/* Smart Search Box */}
-            <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto animate-slide-up delay-300">
-                <div className={`relative bg-white rounded-2xl shadow-2xl transition-all duration-300 ${loading ? 'scale-[0.98] opacity-90' : 'hover:scale-[1.01]'}`}>
+            <form onSubmit={handleSearch} className="relative z-50 max-w-2xl mx-auto animate-slide-up delay-300">
+                <div ref={searchBoxRef} className={`relative bg-white rounded-2xl shadow-2xl transition-all duration-300 ${loading ? 'scale-[0.98] opacity-90' : 'hover:scale-[1.01]'}`}>
                     <input 
                         type="text" 
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setSelectedSuggestionId(null);
+                        }}
+                        onFocus={() => setSuggestionsOpen(suggestions.length > 0)}
+                        onKeyDown={(e) => {
+                          if (!suggestionsOpen || suggestions.length === 0) return;
+
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setActiveSuggestionIndex((prev) => (prev + 1) % suggestions.length);
+                            return;
+                          }
+
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setActiveSuggestionIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+                            return;
+                          }
+
+                          if (e.key === 'Enter' && activeSuggestionIndex >= 0 && activeSuggestionIndex < suggestions.length) {
+                            e.preventDefault();
+                            void handleSuggestionSelect(suggestions[activeSuggestionIndex]);
+                          }
+                        }}
                         placeholder={t.searchPlaceholder}
                         className="w-full py-5 pl-14 rtl:pl-4 rtl:pr-14 pr-32 rtl:pl-32 rounded-2xl border-2 border-transparent focus:border-wassel-yellow focus:ring-0 text-lg text-gray-900 placeholder-gray-400 outline-none"
                     />
@@ -201,6 +341,39 @@ export const Resources: React.FC<ResourcesProps> = ({ lang }) => {
                             <span className="hidden sm:inline">{t.askBtn}</span>
                         </button>
                     </div>
+
+                    {/* Live KB suggestion dropdown */}
+                    {suggestionsOpen && (
+                      <div className="absolute z-40 left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-auto">
+                        {suggestionsLoading && (
+                          <div className="px-4 py-3 text-sm text-gray-500 flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            {lang === 'en' ? 'Searching suggestions...' : 'جاري البحث عن اقتراحات...'}
+                          </div>
+                        )}
+
+                        {!suggestionsLoading && suggestions.length === 0 && (
+                          <div className="px-4 py-3 text-sm text-gray-500">
+                            {lang === 'en' ? 'No suggestions found.' : 'لا توجد اقتراحات.'}
+                          </div>
+                        )}
+
+                        {!suggestionsLoading && suggestions.map((item, index) => (
+                          <button
+                            type="button"
+                            key={`${item.questionId}-${index}`}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => { void handleSuggestionSelect(item); }}
+                            className={`w-full text-left rtl:text-right px-4 py-3 border-b border-gray-100 last:border-b-0 transition-colors ${
+                              index === activeSuggestionIndex ? 'bg-blue-50' : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="text-sm text-gray-500 mb-1">{item.topicName}</div>
+                            <div className="text-base text-gray-900 font-medium line-clamp-2">{item.question}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                 </div>
             </form>
         </div>
