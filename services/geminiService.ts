@@ -10,16 +10,32 @@ export const getGeminiResponse = async (): Promise<string> => {
   return "This chat endpoint is not enabled in the frontend. Use the website chat widget.";
 };
 
-export const getResourceSearchResponse = async (query: string): Promise<ResourceSearchResult> => {
-  if (!BACKEND_URL) {
+const buildUrl = (path: string): string => (BACKEND_URL ? `${BACKEND_URL}${path}` : path);
+
+const isArabicQuery = (text: string): boolean => /[\u0600-\u06FF]/.test(text);
+
+const buildFallback = (query: string, isRateLimited: boolean): ResourceSearchResult => {
+  const ar = isArabicQuery(query);
+  if (isRateLimited) {
     return {
-      answer: "I'm sorry, I'm currently offline (backend URL missing).",
+      answer: ar
+        ? 'يوجد ضغط مرتفع حالياً على خدمة الذكاء الاصطناعي. يرجى المحاولة بعد قليل.'
+        : 'The AI service is receiving too many requests right now. Please try again in a moment.',
       relatedTopics: [],
     };
   }
 
+  return {
+    answer: ar
+      ? 'تعذر العثور على إجابة حالياً. يمكنك تصفح المواضيع بالأسفل.'
+      : "I couldn't find an answer at the moment. Please browse our categories below.",
+    relatedTopics: [],
+  };
+};
+
+export const getResourceSearchResponse = async (query: string): Promise<ResourceSearchResult> => {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/ai/resource-search`, {
+    const res = await fetch(buildUrl('/api/ai/resource-search'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -29,15 +45,22 @@ export const getResourceSearchResponse = async (query: string): Promise<Resource
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Resource search failed (${res.status}): ${errText}`);
+      const isRateLimited =
+        res.status === 429 ||
+        errText.includes('AI_RATE_LIMITED') ||
+        errText.includes('rate_limit_exceeded');
+
+      if (isRateLimited) {
+        return buildFallback(query, true);
+      }
+
+      console.warn(`Resource search failed (${res.status})`);
+      return buildFallback(query, false);
     }
 
     return await res.json();
   } catch (error) {
-    console.error('Resource Search API Error:', error);
-    return {
-      answer: "I couldn't find an answer at the moment. Please browse our categories below.",
-      relatedTopics: [],
-    };
+    console.warn('Resource Search API unavailable:', error);
+    return buildFallback(query, false);
   }
 };

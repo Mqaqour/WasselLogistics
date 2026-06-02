@@ -3,15 +3,47 @@ import cors from 'cors';
 import helmet from 'helmet';
 import nodemailer from 'nodemailer';
 import { env } from './config/env';
+import * as repo from './repositories/chat.repository';
+import { ContactSubmitRequest } from './types/chat.types';
 import chatRoutes from './routes/chat.routes';
 import respondioRoutes from './routes/respondio.routes';
 import questionsRoutes from './routes/questions.routes';
 import topicsRoutes from './routes/topics.routes';
+import tagsRoutes from './routes/tags.routes';
 import aiRoutes from './routes/ai.routes';
+import kbAiRoutes from './routes/kb-ai.routes';
+import resourceCategoriesRoutes from './routes/resource-categories.routes';
+import resourceSubItemsRoutes   from './routes/resource-sub-items.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export function createApp() {
   const app = express();
+
+  const buildContactLogPayload = (body: ContactSubmitRequest) => {
+    const isArabic = String(body.language ?? 'ar').trim().toLowerCase().startsWith('ar');
+    const aiAnswer = body.aiSuggestion?.answer?.trim()
+      ? String(body.aiSuggestion.answer).trim()
+      : (isArabic
+        ? 'تعذر توليد رد الذكاء الاصطناعي تلقائيا لهذه الرسالة.'
+        : 'AI response could not be generated automatically for this message.');
+    const aiRelatedTopics = Array.isArray(body.aiSuggestion?.relatedTopics)
+      ? body.aiSuggestion.relatedTopics.filter((topicItem): topicItem is string => typeof topicItem === 'string' && topicItem.trim().length > 0)
+      : [];
+
+    return {
+      topic: String(body.topic),
+      name: String(body.name),
+      mobile: String(body.mobile),
+      email: body.email ? String(body.email) : null,
+      message: String(body.message),
+      trackingNumber: body.trackingNumber ? String(body.trackingNumber) : null,
+      passportNumber: body.passportNumber ? String(body.passportNumber) : null,
+      language: body.language ? String(body.language) : null,
+      aiAnswer,
+      aiRelatedTopics,
+      aiRelatedTopicsJson: JSON.stringify(aiRelatedTopics),
+    };
+  };
 
   // Security headers
   app.use(helmet());
@@ -23,7 +55,7 @@ export function createApp() {
     .filter(Boolean);
   app.use(cors({
     origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     preflightContinue: false,
     optionsSuccessStatus: 204,
@@ -31,13 +63,18 @@ export function createApp() {
   // Respond 204 to all OPTIONS preflight requests before any auth middleware
   app.options('*', cors({
     origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     optionsSuccessStatus: 204,
   }));
 
   // Body parsing
   app.use(express.json({ limit: '1mb' }));
+
+  // Root
+  app.get('/', (_req, res) => {
+    res.json({ name: 'Wassel Chat Backend', status: 'running', ts: new Date().toISOString() });
+  });
 
   // Health check
   app.get('/health', (_req, res) => {
@@ -50,9 +87,13 @@ export function createApp() {
   app.use('/api/ai',        aiRoutes);
   app.use('/respond',       respondioRoutes); // respond.io outgoing webhook calls /respond/message
 
-  // Knowledge Base — Questions & Topics
-  app.use('/api/questions', questionsRoutes);
-  app.use('/api/topics',    topicsRoutes);
+  // Knowledge Base — Questions, Topics & Tags
+  app.use('/api/questions',           questionsRoutes);
+  app.use('/api/topics',              topicsRoutes);
+  app.use('/api/tags',                tagsRoutes);
+  app.use('/api/kb',                  kbAiRoutes);
+  app.use('/api/resource-categories', resourceCategoriesRoutes);
+  app.use('/api/resource-sub-items',  resourceSubItemsRoutes);
 
   // Jordan Passport proxy — forwards to jopassports.wassel.ps
   app.post('/api/jopassport/track', async (req, res) => {
@@ -202,15 +243,113 @@ export function createApp() {
   });
 
   // Contact Us form — sends inquiry email to operations inbox
-  app.post('/api/contact/submit', async (req, res) => {
-    const { topic, name, mobile, email, message, trackingNumber, passportNumber } = req.body ?? {};
+  app.post('/api/contact/log-ai-suggestion', async (req, res) => {
+    const body = (req.body ?? {}) as ContactSubmitRequest;
+    const { topic, name, mobile, message } = body;
 
     if (!topic || !name || !mobile || !message) {
       res.status(400).json({ error: 'topic, name, mobile and message are required' });
       return;
     }
 
+    const payload = buildContactLogPayload(body);
+
+    const logId = await repo.createContactMessageLog({
+      topic: payload.topic,
+      name: payload.name,
+      mobile: payload.mobile,
+      email: payload.email,
+      message: payload.message,
+      trackingNumber: payload.trackingNumber,
+      passportNumber: payload.passportNumber,
+      language: payload.language,
+      aiAnswer: payload.aiAnswer,
+      aiRelatedTopics: payload.aiRelatedTopicsJson,
+    });
+
+    if (logId === null) {
+      res.status(503).json({ error: 'Could not persist contact inquiry. Please try again.' });
+      return;
+    }
+
+    res.json({ ok: true, logId });
+  });
+
+  // Contact Us form — sends inquiry email to operations inbox
+  app.post('/api/contact/submit', async (req, res) => {
+    const {
+      logId,
+      topic,
+      name,
+      mobile,
+      email,
+      message,
+      trackingNumber,
+      passportNumber,
+      language,
+      aiSuggestion,
+    } = (req.body ?? {}) as ContactSubmitRequest;
+
+    if (!topic || !name || !mobile || !message) {
+      res.status(400).json({ error: 'topic, name, mobile and message are required' });
+      return;
+    }
+
+    const payload = buildContactLogPayload({
+      topic,
+      name,
+      mobile,
+      email,
+      message,
+      trackingNumber,
+      passportNumber,
+      language,
+      aiSuggestion,
+    });
+
+    let persistedLogId = typeof logId === 'number' && Number.isFinite(logId) && logId > 0 ? logId : null;
+
+    if (persistedLogId !== null) {
+      const updated = await repo.updateContactMessageLog(persistedLogId, {
+        topic: payload.topic,
+        name: payload.name,
+        mobile: payload.mobile,
+        email: payload.email,
+        message: payload.message,
+        trackingNumber: payload.trackingNumber,
+        passportNumber: payload.passportNumber,
+        language: payload.language,
+        aiAnswer: payload.aiAnswer,
+        aiRelatedTopics: payload.aiRelatedTopicsJson,
+      });
+
+      if (!updated) {
+        persistedLogId = null;
+      }
+    }
+
+    if (persistedLogId === null) {
+      persistedLogId = await repo.createContactMessageLog({
+        topic: payload.topic,
+        name: payload.name,
+        mobile: payload.mobile,
+        email: payload.email,
+        message: payload.message,
+        trackingNumber: payload.trackingNumber,
+        passportNumber: payload.passportNumber,
+        language: payload.language,
+        aiAnswer: payload.aiAnswer,
+        aiRelatedTopics: payload.aiRelatedTopicsJson,
+      });
+    }
+
+    if (persistedLogId === null) {
+      res.status(503).json({ error: 'Could not persist contact inquiry. Please try again.' });
+      return;
+    }
+
     if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) {
+      await repo.updateContactMessageLogStatus(persistedLogId, 'failed', 'SMTP is not configured');
       res.status(500).json({ error: 'SMTP is not configured' });
       return;
     }
@@ -259,6 +398,7 @@ export function createApp() {
                   <tr><td style="padding:8px 0; color:#64748b;">Mobile</td><td style="padding:8px 0; font-weight:600;">${String(mobile)}</td></tr>
                   ${extraRows}
                   <tr><td style="padding:8px 0; color:#64748b; vertical-align:top;">Message</td><td style="padding:8px 0; font-weight:600;">${String(message).replace(/\n/g, '<br>')}</td></tr>
+                  <tr><td style="padding:8px 0; color:#64748b; vertical-align:top;">AI Answer</td><td style="padding:8px 0; font-weight:600;">${payload.aiAnswer.replace(/\n/g, '<br>')}</td></tr>
                 </table>
               </td>
             </tr>
@@ -275,6 +415,8 @@ export function createApp() {
         trackingNumber ? `Tracking Number: ${trackingNumber}` : '',
         passportNumber ? `Passport Number: ${passportNumber}` : '',
         `Message: ${message}`,
+        `AI Answer: ${payload.aiAnswer}`,
+        payload.aiRelatedTopics.length ? `AI Related Topics: ${payload.aiRelatedTopics.join(', ')}` : '',
       ].filter(Boolean).join('\n');
 
       await transporter.sendMail({
@@ -285,8 +427,12 @@ export function createApp() {
         html,
       });
 
+      await repo.updateContactMessageLogStatus(persistedLogId, 'sent', null);
+
       res.json({ ok: true });
-    } catch {
+    } catch (err) {
+      const emailError = err instanceof Error ? err.message : String(err);
+      await repo.updateContactMessageLogStatus(persistedLogId, 'failed', emailError);
       res.status(502).json({ error: 'Could not send contact email' });
     }
   });
@@ -311,6 +457,41 @@ export function createApp() {
       );
       const data = await upstream.json().catch(() => ({}));
       res.status(upstream.status).json(data);
+    } catch {
+      res.status(502).json({ error: 'Wassel AWB upstream error' });
+    }
+  });
+
+  // Wassel AWB tracking proxy (without destinationLog) — same as /api/wassel/track but strips destinationLog from each item
+  app.get('/api/wassel/track-without-logs', async (req, res) => {
+    const awbs = String(req.query.Awbs ?? '').trim();
+    if (!awbs) {
+      res.status(400).json({ error: 'Awbs query parameter is required' });
+      return;
+    }
+    try {
+      const upstream = await fetch(
+        `http://external.wassel.ps:4040/api/GetAwbDetails?Awbs=${encodeURIComponent(awbs)}`,
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: 'Basic ' + Buffer.from('ramallah_admin:Mo@2020!').toString('base64'),
+          },
+        }
+      );
+      const payload = await upstream.json().catch(() => ({})) as { data?: Record<string, unknown>[]; message?: unknown; isSuccess?: unknown };
+      const strippedData = Array.isArray(payload.data)
+        ? payload.data.map((item) => {
+            const { destinationLog: _omit, ...rest } = item as Record<string, unknown> & { destinationLog?: unknown };
+            return rest;
+          })
+        : payload.data;
+      res.status(upstream.status).json({
+        data: strippedData,
+        message: payload.message,
+        isSuccess: payload.isSuccess,
+      });
     } catch {
       res.status(502).json({ error: 'Wassel AWB upstream error' });
     }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Package, CreditCard, AlertCircle, Check, ArrowRight, FileText, CheckSquare, Square } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Package, CreditCard, AlertCircle, Check, ArrowRight, FileText, CheckSquare, Square, Database } from 'lucide-react';
 import { Shipment, Language } from '../../types';
 
 interface DashboardProps {
@@ -15,6 +16,7 @@ interface Invoice {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ lang }) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'shipments' | 'invoices'>('shipments');
   const [payModalOpen, setPayModalOpen] = useState(false);
   // Store selected invoices for multi-payment
@@ -131,7 +133,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang }) => {
           <h1 className="text-3xl font-bold text-wassel-blue">{t.welcome}</h1>
           <p className="text-gray-500 mt-1">{t.subtitle}</p>
         </div>
-        <div className="mt-4 md:mt-0 space-x-2 rtl:space-x-reverse">
+        <div className="mt-4 md:mt-0 space-x-2 rtl:space-x-reverse flex flex-wrap gap-2 items-center">
             <button 
                 onClick={() => setActiveTab('shipments')}
                 className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${activeTab === 'shipments' ? 'bg-wassel-blue text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
@@ -143,6 +145,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang }) => {
                 className={`px-4 py-2 rounded-md font-medium text-sm transition-colors ${activeTab === 'invoices' ? 'bg-wassel-blue text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
             >
                 {t.myInvoices}
+            </button>
+            <button
+                onClick={() => navigate(`/${lang}/admin/kb`)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-md font-medium text-sm bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                title={lang === 'ar' ? 'إدارة قاعدة المعرفة' : 'KB Admin'}
+            >
+                <Database size={14} />
+                {lang === 'ar' ? 'قاعدة المعرفة' : 'KB Admin'}
             </button>
         </div>
       </div>

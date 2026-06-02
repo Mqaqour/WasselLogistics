@@ -290,7 +290,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
 
                     {showResourcesNav && (
                       <button onClick={() => handleNavClick('resources')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 text-gray-100 hover:text-wassel-yellow hover:bg-white/5`}>
-                          <span>{lang === 'en' ? 'Resources' : 'المصادر'}</span>
+                                                    <span>{lang === 'en' ? 'Assistant' : 'المساعدة'}</span>
                       </button>
                     )}
 
@@ -518,7 +518,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
             <div className="border-t border-gray-700/50 pt-2">
                 {showResourcesNav && (
                   <button onClick={() => handleNavClick('resources')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
-                      {lang === 'en' ? 'Resources' : 'المصادر'}
+                                            {lang === 'en' ? 'Assistant' : 'المساعدة'}
                   </button>
                 )}
                 {showLatestUpdatesNav && (

@@ -1,4 +1,3 @@
-
 export type PageView = 'home' | 'tracking' | 'rates' | 'pickup' | 'login' | 'dashboard' | 'payment' | 'services' | 'payment-gateway' | 'corporate' | 'about' | 'management' | 'contact' | 'handmade' | 'resources' | 'industries' | 'latest_updates'
 | 'service-clearance' 
 | 'service-express' 
@@ -14,7 +13,9 @@ export type PageView = 'home' | 'tracking' | 'rates' | 'pickup' | 'login' | 'das
 | 'service-corp-warehousing'
 | 'service-corp-freight'
 | 'service-multimodal-freight'
-| 'booking_window';
+| 'booking_window'
+| 'register-new-app-west-bank'
+| 'kb-admin';
 
 export type Language = 'en' | 'ar';
 export type Theme = 'individuals' | 'corporate';

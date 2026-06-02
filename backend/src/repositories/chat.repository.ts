@@ -1,5 +1,5 @@
 import { getPool, sql } from '../config/database';
-import { ChatSession, ChatMessage, ChatEvent, MessageDTO } from '../types/chat.types';
+import { ChatSession, ChatMessage, ChatEvent, ContactMessageLog, MessageDTO } from '../types/chat.types';
 import { logger } from '../utils/logger';
 
 // ── In-memory fallback (used when SQL Server is unreachable) ──────────────────
@@ -222,4 +222,116 @@ export async function saveEvent(event: Omit<ChatEvent, 'id' | 'createdAt'>): Pro
       INSERT INTO chat_events (session_id, contact_id, event_type, raw_payload)
       VALUES (@sessionId, @contactId, @eventType, @rawPayload)
     `);
+}
+
+// ── Contact Logs ──────────────────────────────────────────────────────────────
+
+export async function createContactMessageLog(
+  log: Omit<ContactMessageLog, 'id' | 'createdAt' | 'updatedAt' | 'emailDeliveryStatus' | 'emailError'>
+): Promise<number | null> {
+  if (!(await isDbAvailable())) {
+    logger.warn('Could not save contact message log: database is unavailable.');
+    return null;
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('topic', sql.NVarChar(100), log.topic)
+      .input('name', sql.NVarChar(200), log.name)
+      .input('mobile', sql.NVarChar(50), log.mobile)
+      .input('email', sql.NVarChar(200), log.email)
+      .input('message', sql.NVarChar(sql.MAX), log.message)
+      .input('trackingNumber', sql.NVarChar(100), log.trackingNumber)
+      .input('passportNumber', sql.NVarChar(100), log.passportNumber)
+      .input('language', sql.NVarChar(10), log.language)
+      .input('aiAnswer', sql.NVarChar(sql.MAX), log.aiAnswer)
+      .input('aiRelatedTopics', sql.NVarChar(sql.MAX), log.aiRelatedTopics)
+      .query<{ id: number }>(`
+        INSERT INTO contact_message_logs
+          (topic, name, mobile, email, message, tracking_number, passport_number, language, ai_answer, ai_related_topics)
+        OUTPUT INSERTED.id
+        VALUES
+          (@topic, @name, @mobile, @email, @message, @trackingNumber, @passportNumber, @language, @aiAnswer, @aiRelatedTopics)
+      `);
+
+    return result.recordset[0]?.id ?? null;
+  } catch (error) {
+    logger.warn(`Could not save contact message log: ${String(error)}`);
+    return null;
+  }
+}
+
+export async function updateContactMessageLogStatus(
+  id: number,
+  status: 'pending' | 'sent' | 'failed',
+  emailError: string | null
+): Promise<void> {
+  if (!(await isDbAvailable())) {
+    logger.warn(`Could not update contact message log status for ${id}: database is unavailable.`);
+    return;
+  }
+
+  try {
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.Int, id)
+      .input('status', sql.NVarChar(20), status)
+      .input('emailError', sql.NVarChar(sql.MAX), emailError)
+      .query(`
+        UPDATE contact_message_logs
+        SET email_delivery_status = @status,
+            email_error = @emailError,
+            updated_at = SYSDATETIME()
+        WHERE id = @id
+      `);
+  } catch (error) {
+    logger.warn(`Could not update contact message log status for ${id}: ${String(error)}`);
+  }
+}
+
+export async function updateContactMessageLog(
+  id: number,
+  log: Omit<ContactMessageLog, 'id' | 'createdAt' | 'updatedAt' | 'emailDeliveryStatus' | 'emailError'>
+): Promise<boolean> {
+  if (!(await isDbAvailable())) {
+    logger.warn(`Could not update contact message log ${id}: database is unavailable.`);
+    return false;
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .input('topic', sql.NVarChar(100), log.topic)
+      .input('name', sql.NVarChar(200), log.name)
+      .input('mobile', sql.NVarChar(50), log.mobile)
+      .input('email', sql.NVarChar(200), log.email)
+      .input('message', sql.NVarChar(sql.MAX), log.message)
+      .input('trackingNumber', sql.NVarChar(100), log.trackingNumber)
+      .input('passportNumber', sql.NVarChar(100), log.passportNumber)
+      .input('language', sql.NVarChar(10), log.language)
+      .input('aiAnswer', sql.NVarChar(sql.MAX), log.aiAnswer)
+      .input('aiRelatedTopics', sql.NVarChar(sql.MAX), log.aiRelatedTopics)
+      .query(`
+        UPDATE contact_message_logs
+        SET topic = @topic,
+            name = @name,
+            mobile = @mobile,
+            email = @email,
+            message = @message,
+            tracking_number = @trackingNumber,
+            passport_number = @passportNumber,
+            language = @language,
+            ai_answer = @aiAnswer,
+            ai_related_topics = @aiRelatedTopics,
+            updated_at = SYSDATETIME()
+        WHERE id = @id
+      `);
+
+    return (result.rowsAffected?.[0] ?? 0) > 0;
+  } catch (error) {
+    logger.warn(`Could not update contact message log ${id}: ${String(error)}`);
+    return false;
+  }
 }

@@ -28,6 +28,24 @@ function buildUrl(path: string): string {
   return BACKEND_URL ? `${BACKEND_URL}${path}` : path;
 }
 
+export type KbTopic = {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+};
+
+export async function getKbTopics(language: 'ar' | 'en'): Promise<KbTopic[]> {
+  const url = new URL(buildUrl('/api/topics'), window.location.origin);
+  url.searchParams.set('language', language);
+
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Topics request failed (${res.status})`);
+
+  const data = await res.json() as { topics: KbTopic[] };
+  return Array.isArray(data.topics) ? data.topics : [];
+}
+
 export async function suggestKbQuestions(query: string, language: 'ar' | 'en'): Promise<QuestionSuggestionItem[]> {
   const url = new URL(buildUrl('/api/questions/suggest'), window.location.origin);
   url.searchParams.set('query', query);

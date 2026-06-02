@@ -335,6 +335,319 @@ export async function insertQuestion(dto: CreateQuestionDto): Promise<number | n
   return questionId;
 }
 
+// ── Admin: list all questions ─────────────────────────────────────────────────
+
+export async function fetchAllQuestionsAdmin(
+  language: string,
+  topicCode?: string,
+): Promise<Array<{
+  questionId: number; topicCode: string; topicName: string;
+  intentKey: string; priority: number; isActive: boolean;
+  questionText: string; answerText: string;
+}>> {
+  const pool = await getPool();
+
+  const req = pool.request().input('lang', sql.NVarChar(5), language);
+  let topicFilter = '';
+  if (topicCode) {
+    req.input('topicCode', sql.NVarChar(100), topicCode);
+    topicFilter = 'AND t.code = @topicCode';
+  }
+
+  const result = await req.query<{
+    questionId: number; topicCode: string; topicName: string;
+    intentKey: string; priority: number; isActive: boolean;
+    questionText: string; answerText: string;
+  }>(`
+    SELECT
+      q.id                        AS questionId,
+      t.code                      AS topicCode,
+      ISNULL(tt.name, t.code)     AS topicName,
+      q.intent_key                AS intentKey,
+      q.priority                  AS priority,
+      q.is_active                 AS isActive,
+      ISNULL(qt.question_text,'') AS questionText,
+      ISNULL(at2.answer_text,'')  AS answerText
+    FROM  kb_questions              q
+    JOIN  kb_topics                 t   ON t.id = q.topic_id
+    LEFT JOIN kb_topic_translations  tt  ON tt.topic_id = t.id
+                                       AND tt.language_code = @lang
+    LEFT JOIN kb_question_translations qt ON qt.question_id = q.id
+                                       AND qt.language_code = @lang
+    LEFT JOIN kb_answer_translations  at2 ON at2.question_id = q.id
+                                       AND at2.language_code = @lang
+    WHERE 1=1 ${topicFilter}
+    ORDER BY t.code, q.priority DESC, q.id
+  `);
+
+  return result.recordset;
+}
+
+// ── Admin: delete question ────────────────────────────────────────────────────
+
+export async function deleteQuestionById(id: number): Promise<boolean> {
+  const pool = await getPool();
+  await pool.request().input('qid', sql.Int, id).query(`DELETE FROM kb_question_keywords WHERE question_id = @qid`);
+  await pool.request().input('qid', sql.Int, id).query(`DELETE FROM kb_question_tags WHERE question_id = @qid`);
+  await pool.request().input('qid', sql.Int, id).query(`DELETE FROM kb_question_translations WHERE question_id = @qid`);
+  await pool.request().input('qid', sql.Int, id).query(`DELETE FROM kb_answer_translations WHERE question_id = @qid`);
+  const r = await pool.request().input('qid', sql.Int, id).query(`DELETE FROM kb_questions WHERE id = @qid`);
+  return (r.rowsAffected[0] ?? 0) > 0;
+}
+
+// ── Admin: delete topic (cascades to questions) ───────────────────────────────
+
+export async function deleteTopicById(id: number): Promise<boolean> {
+  const pool = await getPool();
+  const qRows = await pool.request()
+    .input('tid', sql.Int, id)
+    .query<{ id: number }>(`SELECT id FROM kb_questions WHERE topic_id = @tid`);
+  for (const row of qRows.recordset) {
+    await deleteQuestionById(row.id);
+  }
+  await pool.request().input('tid', sql.Int, id).query(`DELETE FROM kb_topic_translations WHERE topic_id = @tid`);
+  const r = await pool.request().input('tid', sql.Int, id).query(`DELETE FROM kb_topics WHERE id = @tid`);
+  return (r.rowsAffected[0] ?? 0) > 0;
+}
+
+// ── Admin: tags CRUD ──────────────────────────────────────────────────────────
+
+export async function fetchAllTags(): Promise<Array<{ id: number; languageCode: string; name: string }>> {
+  const pool = await getPool();
+  const r = await pool.request().query<{ id: number; languageCode: string; name: string }>(`
+    SELECT id, language_code AS languageCode, name FROM kb_tags ORDER BY language_code, name
+  `);
+  return r.recordset;
+}
+
+export async function insertTag(languageCode: string, name: string): Promise<number> {
+  const pool = await getPool();
+  const r = await pool.request()
+    .input('lang', sql.NVarChar(5),   languageCode)
+    .input('name', sql.NVarChar(300), name)
+    .query<{ id: number }>(`
+      INSERT INTO kb_tags (language_code, name)
+      OUTPUT INSERTED.id
+      VALUES (@lang, @name)
+    `);
+  return r.recordset[0].id;
+}
+
+export async function deleteTagById(id: number): Promise<boolean> {
+  const pool = await getPool();
+  await pool.request().input('id', sql.Int, id).query(`DELETE FROM kb_question_tags WHERE tag_id = @id`);
+  const r = await pool.request().input('id', sql.Int, id).query(`DELETE FROM kb_tags WHERE id = @id`);
+  return (r.rowsAffected[0] ?? 0) > 0;
+}
+
+export async function fetchTagsForQuestion(questionId: number): Promise<Array<{ id: number; languageCode: string; name: string }>> {
+  const pool = await getPool();
+  const r = await pool.request()
+    .input('qid', sql.Int, questionId)
+    .query<{ id: number; languageCode: string; name: string }>(`
+      SELECT t.id, t.language_code AS languageCode, t.name
+      FROM kb_tags t
+      JOIN kb_question_tags qt ON qt.tag_id = t.id
+      WHERE qt.question_id = @qid
+    `);
+  return r.recordset;
+}
+
+export async function linkTagToQuestion(questionId: number, tagId: number): Promise<void> {
+  const pool = await getPool();
+  await pool.request()
+    .input('qid',   sql.Int, questionId)
+    .input('tagId', sql.Int, tagId)
+    .query(`
+      IF NOT EXISTS (SELECT 1 FROM kb_question_tags WHERE question_id=@qid AND tag_id=@tagId)
+        INSERT INTO kb_question_tags (question_id, tag_id) VALUES (@qid, @tagId)
+    `);
+}
+
+export async function unlinkTagFromQuestion(questionId: number, tagId: number): Promise<void> {
+  const pool = await getPool();
+  await pool.request()
+    .input('qid',   sql.Int, questionId)
+    .input('tagId', sql.Int, tagId)
+    .query(`DELETE FROM kb_question_tags WHERE question_id=@qid AND tag_id=@tagId`);
+}
+
+// ── Admin: fetch question for edit ───────────────────────────────────────────
+
+export interface QuestionEditData {
+  id: number;
+  intentKey: string;
+  priority: number;
+  isActive: boolean;
+  topicCode: string;
+  translations: Array<{
+    languageCode: string;
+    questionText: string;
+    answerText: string;
+    keywords: string[];
+  }>;
+}
+
+export async function fetchQuestionForEdit(id: number): Promise<QuestionEditData | null> {
+  const pool = await getPool();
+
+  const baseResult = await pool.request()
+    .input('qid', sql.Int, id)
+    .query<{ id: number; intentKey: string; priority: number; isActive: boolean; topicCode: string }>(`
+      SELECT q.id, q.intent_key AS intentKey, q.priority, q.is_active AS isActive, t.code AS topicCode
+      FROM kb_questions q JOIN kb_topics t ON t.id = q.topic_id
+      WHERE q.id = @qid
+    `);
+
+  const base = baseResult.recordset[0];
+  if (!base) return null;
+
+  const transResult = await pool.request()
+    .input('qid', sql.Int, id)
+    .query<{ languageCode: string; questionText: string; answerText: string }>(`
+      SELECT qt.language_code AS languageCode, qt.question_text AS questionText,
+             ISNULL(at2.answer_text, '') AS answerText
+      FROM kb_question_translations qt
+      LEFT JOIN kb_answer_translations at2
+        ON at2.question_id = qt.question_id AND at2.language_code = qt.language_code
+      WHERE qt.question_id = @qid
+    `);
+
+  const kwResult = await pool.request()
+    .input('qid', sql.Int, id)
+    .query<{ languageCode: string; keyword: string }>(`
+      SELECT language_code AS languageCode, keyword
+      FROM kb_question_keywords WHERE question_id = @qid
+    `);
+
+  const kwByLang = new Map<string, string[]>();
+  for (const kw of kwResult.recordset) {
+    const list = kwByLang.get(kw.languageCode) ?? [];
+    list.push(kw.keyword);
+    kwByLang.set(kw.languageCode, list);
+  }
+
+  return {
+    id: base.id, intentKey: base.intentKey, priority: base.priority,
+    isActive: !!base.isActive, topicCode: base.topicCode,
+    translations: transResult.recordset.map(t => ({
+      languageCode: t.languageCode, questionText: t.questionText, answerText: t.answerText,
+      keywords: kwByLang.get(t.languageCode) ?? [],
+    })),
+  };
+}
+
+// ── Admin: update question ────────────────────────────────────────────────────
+
+export async function updateQuestion(
+  id: number,
+  dto: {
+    priority?: number;
+    isActive?: boolean;
+    translations?: Array<{ languageCode: string; questionText: string; answerText: string; keywords: string[] }>;
+  },
+): Promise<boolean> {
+  const pool = await getPool();
+
+  const exists = await pool.request().input('qid', sql.Int, id)
+    .query<{ id: number }>(`SELECT id FROM kb_questions WHERE id = @qid`);
+  if (exists.recordset.length === 0) return false;
+
+  if (dto.priority !== undefined || dto.isActive !== undefined) {
+    const sets: string[] = [];
+    const req = pool.request().input('qid', sql.Int, id);
+    if (dto.priority !== undefined) { req.input('priority', sql.Int, dto.priority); sets.push('priority = @priority'); }
+    if (dto.isActive !== undefined) { req.input('isActive', sql.Bit, dto.isActive); sets.push('is_active = @isActive'); }
+    if (sets.length) await req.query(`UPDATE kb_questions SET ${sets.join(', ')} WHERE id = @qid`);
+  }
+
+  if (dto.translations) {
+    for (const t of dto.translations) {
+      await pool.request()
+        .input('qid', sql.Int, id).input('lang', sql.NVarChar(5), t.languageCode)
+        .input('qtext', sql.NVarChar(2000), t.questionText)
+        .query(`
+          IF EXISTS (SELECT 1 FROM kb_question_translations WHERE question_id=@qid AND language_code=@lang)
+            UPDATE kb_question_translations SET question_text=@qtext WHERE question_id=@qid AND language_code=@lang
+          ELSE INSERT INTO kb_question_translations (question_id, language_code, question_text) VALUES (@qid, @lang, @qtext)
+        `);
+
+      await pool.request()
+        .input('qid', sql.Int, id).input('lang', sql.NVarChar(5), t.languageCode)
+        .input('atext', sql.NVarChar(sql.MAX), t.answerText)
+        .query(`
+          IF EXISTS (SELECT 1 FROM kb_answer_translations WHERE question_id=@qid AND language_code=@lang)
+            UPDATE kb_answer_translations SET answer_text=@atext WHERE question_id=@qid AND language_code=@lang
+          ELSE INSERT INTO kb_answer_translations (question_id, language_code, answer_text) VALUES (@qid, @lang, @atext)
+        `);
+
+      await pool.request().input('qid', sql.Int, id).input('lang', sql.NVarChar(5), t.languageCode)
+        .query(`DELETE FROM kb_question_keywords WHERE question_id=@qid AND language_code=@lang`);
+
+      for (const kw of t.keywords) {
+        const k = kw.trim();
+        if (k) {
+          await pool.request()
+            .input('qid', sql.Int, id).input('lang', sql.NVarChar(5), t.languageCode).input('kw', sql.NVarChar(300), k)
+            .query(`INSERT INTO kb_question_keywords (question_id, language_code, keyword) VALUES (@qid, @lang, @kw)`);
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+// ── Admin: fetch topic with all translations ──────────────────────────────────
+
+export async function fetchTopicWithTranslations(id: number): Promise<{
+  id: number; code: string; isActive: boolean;
+  translations: Array<{ languageCode: string; name: string; description: string | null }>;
+} | null> {
+  const pool = await getPool();
+
+  const baseResult = await pool.request().input('tid', sql.Int, id)
+    .query<{ id: number; code: string; isActive: boolean }>(`
+      SELECT id, code, is_active AS isActive FROM kb_topics WHERE id = @tid
+    `);
+  const base = baseResult.recordset[0];
+  if (!base) return null;
+
+  const transResult = await pool.request().input('tid', sql.Int, id)
+    .query<{ languageCode: string; name: string; description: string | null }>(`
+      SELECT language_code AS languageCode, name, description
+      FROM kb_topic_translations WHERE topic_id = @tid
+    `);
+
+  return { id: base.id, code: base.code, isActive: !!base.isActive, translations: transResult.recordset };
+}
+
+// ── Admin: update topic translations ─────────────────────────────────────────
+
+export async function updateTopicTranslations(
+  id: number,
+  translations: Array<{ languageCode: string; name: string; description?: string | null }>,
+): Promise<boolean> {
+  const pool = await getPool();
+
+  const exists = await pool.request().input('tid', sql.Int, id)
+    .query<{ id: number }>(`SELECT id FROM kb_topics WHERE id = @tid`);
+  if (exists.recordset.length === 0) return false;
+
+  for (const t of translations) {
+    await pool.request()
+      .input('tid', sql.Int, id).input('lang', sql.NVarChar(5), t.languageCode)
+      .input('name', sql.NVarChar(500), t.name).input('desc', sql.NVarChar(2000), t.description ?? null)
+      .query(`
+        IF EXISTS (SELECT 1 FROM kb_topic_translations WHERE topic_id=@tid AND language_code=@lang)
+          UPDATE kb_topic_translations SET name=@name, description=@desc WHERE topic_id=@tid AND language_code=@lang
+        ELSE INSERT INTO kb_topic_translations (topic_id, language_code, name, description) VALUES (@tid, @lang, @name, @desc)
+      `);
+  }
+
+  return true;
+}
+
 // ── Suggestion log ────────────────────────────────────────────────────────────
 
 /**

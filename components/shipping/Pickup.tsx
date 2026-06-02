@@ -23,8 +23,8 @@ const PALESTINIAN_CITIES = [
 ];
 
 export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
-    const SMS_PROXY_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || 'http://localhost:3001'}/api/sms/send-verification`;
-    const PICKUP_REQUEST_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || 'http://localhost:3001'}/api/pickup/request`;
+    const SMS_PROXY_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/sms/send-verification`;
+    const PICKUP_REQUEST_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/pickup/request`;
 
   const [submitted, setSubmitted] = useState(false);
   

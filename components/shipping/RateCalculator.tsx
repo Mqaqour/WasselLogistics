@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Plane, Truck, Globe, Map, FileText, Package, ArrowRight } from 'lucide-react';
+import { Globe, Map, FileText, Package, ArrowRight } from 'lucide-react';
 import { RateResult, Language } from '../../types';
 import { PlacesAutocomplete, PlaceDetails } from './PlacesAutocomplete';
 
@@ -237,12 +237,6 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       
       // Open in new window
       window.open(`/?${params.toString()}`, 'WasselBooking', 'width=900,height=800,scrollbars=yes,resizable=yes');
-  };
-
-  // Helper to get logo
-  const getProviderLogo = (provider: string) => {
-    if (provider.includes('Wassel')) return BRAND_LOGO;
-    return null;
   };
 
   return (
@@ -484,46 +478,31 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       {results && results.length > 0 && (
         <div className="mt-10 space-y-4">
           <h3 className="text-xl font-bold text-wassel-blue mb-4">{t.availableOptions}</h3>
-          {results.map((rate, idx) => {
-            const logo = getProviderLogo(rate.provider);
+          {(() => {
+            const lowestRate = results.reduce((best, current) =>
+              current.price < best.price ? current : best,
+            results[0]);
+
             return (
-              <div key={idx} className="bg-white p-4 rounded-lg shadow border border-gray-100 flex flex-col md:flex-row justify-between items-center hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-4 mb-4 md:mb-0 w-full md:w-auto">
-                  <div className={`w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-lg p-1 border border-gray-100 ${rate.provider.includes('Wassel') ? 'bg-white' : 'bg-white'}`}>
-                     {logo ? (
-                       <img 
-                          src={logo} 
-                          alt={rate.provider} 
-                          className="max-w-full max-h-full object-contain" 
-                          onError={(e) => {
-                             e.currentTarget.style.display = 'none';
-                          }}
-                       />
-                     ) : (
-                        rate.provider.includes('Wassel') ? <Truck className="w-8 h-8 text-wassel-blue" /> : <Plane className="w-8 h-8 text-wassel-yellow" />
-                     )}
-                  </div>
-                  <div>
-                      <h4 className="text-lg font-bold text-wassel-blue">{rate.provider}</h4>
-                      <p className="text-sm text-gray-500">{rate.service}</p>
-                      <p className="text-xs text-green-600 mt-1 flex items-center">
-                          <span className="w-2 h-2 bg-green-500 rounded-full rtl:ml-1 ltr:mr-1"></span>
-                          {t.estDelivery} {rate.deliveryDate}
-                      </p>
-                  </div>
+              <div className="bg-white p-4 rounded-lg shadow border border-gray-100 flex flex-col md:flex-row justify-between items-center hover:shadow-md transition-shadow">
+                <div className="mb-4 md:mb-0 w-full md:w-auto">
+                  <p className="text-xs text-green-600 mt-1 flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full rtl:ml-1 ltr:mr-1"></span>
+                    {t.estDelivery} {lowestRate.deliveryDate}
+                  </p>
                 </div>
                 <div className="rtl:text-left ltr:text-right w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-end">
-                  <p className="text-2xl font-bold text-wassel-blue">{rate.price.toFixed(2)} <span className="text-sm font-normal text-gray-500">{rate.currency}</span></p>
-                  <button 
-                    onClick={() => handleBookClick(rate)}
+                  <p className="text-2xl font-bold text-wassel-blue">{lowestRate.price.toFixed(2)} <span className="text-sm font-normal text-gray-500">{lowestRate.currency}</span></p>
+                  <button
+                    onClick={() => handleBookClick(lowestRate)}
                     className="mt-0 md:mt-2 px-4 py-2 bg-wassel-yellow text-wassel-blue rounded-md text-sm font-bold hover:bg-wassel-lightYellow transition-colors flex items-center gap-1 shadow-sm"
                   >
-                      {t.selectBook} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+                    {t.selectBook} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
                   </button>
                 </div>
               </div>
             );
-          })}
+          })()}
         </div>
       )}
     </div>

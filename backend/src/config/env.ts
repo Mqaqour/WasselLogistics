@@ -50,10 +50,10 @@ export const env = {
   AZURE_OPENAI_API_KEY:      optional('AZURE_OPENAI_API_KEY', ''),
   AZURE_OPENAI_DEPLOYMENT:   optional('AZURE_OPENAI_DEPLOYMENT', ''),
   AZURE_OPENAI_API_VERSION:  optional('AZURE_OPENAI_API_VERSION', '2024-02-01'),
-  AI_PROJECT_ENDPOINT:       optional('AI_PROJECT_ENDPOINT', ''),
+  AI_PROJECT_ENDPOINT:       optional('AI_PROJECT_ENDPOINT', 'https://wasselaifoundry.services.ai.azure.com/api/projects/Wassel-default'),
   AI_PROJECT_API_KEY:        optional('AI_PROJECT_API_KEY', ''),
-  AI_AGENT_NAME:             optional('AI_AGENT_NAME', ''),
-  AI_AGENT_VERSION:          optional('AI_AGENT_VERSION', '1'),
+  AI_AGENT_NAME:             optional('AI_AGENT_NAME', 'WSLAIV52'),
+  AI_AGENT_VERSION:          optional('AI_AGENT_VERSION', '4'),
   CHAT_RATE_LIMIT_PER_MINUTE: parseInt(optional('CHAT_RATE_LIMIT_PER_MINUTE', '20'), 10),
 
   // Respond.io handoff

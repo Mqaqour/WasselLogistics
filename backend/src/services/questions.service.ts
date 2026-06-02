@@ -19,6 +19,20 @@ import {
   insertTopic,
   insertQuestion,
   logSuggestion,
+  fetchAllQuestionsAdmin,
+  deleteQuestionById,
+  deleteTopicById,
+  fetchAllTags,
+  insertTag,
+  deleteTagById,
+  fetchTagsForQuestion,
+  linkTagToQuestion,
+  unlinkTagFromQuestion,
+  fetchQuestionForEdit,
+  updateQuestion as updateQuestionRepo,
+  fetchTopicWithTranslations,
+  updateTopicTranslations,
+  QuestionEditData,
 } from '../repositories/questions.repository';
 import {
   QuestionSuggestionDto,
@@ -54,6 +68,51 @@ export interface IQuestionSuggestionService {
 
   /** Create a new question. Returns the new id or null on duplicate. */
   createQuestion(dto: CreateQuestionDto): Promise<number | null>;
+
+  /** Admin: list all questions (optionally filtered by topicCode). */
+  listQuestions(language: string, topicCode?: string): Promise<Array<{
+    questionId: number; topicCode: string; topicName: string;
+    intentKey: string; priority: number; isActive: boolean;
+    questionText: string; answerText: string;
+  }>>;
+
+  /** Admin: delete a question by id. */
+  deleteQuestion(id: number): Promise<boolean>;
+
+  /** Admin: delete a topic (and its questions) by id. */
+  deleteTopic(id: number): Promise<boolean>;
+
+  /** Admin: list all tags. */
+  listTags(): Promise<Array<{ id: number; languageCode: string; name: string }>>;
+
+  /** Admin: create a tag. */
+  createTag(languageCode: string, name: string): Promise<number>;
+
+  /** Admin: delete a tag. */
+  deleteTag(id: number): Promise<boolean>;
+
+  /** Admin: list tags linked to a question. */
+  getTagsForQuestion(questionId: number): Promise<Array<{ id: number; languageCode: string; name: string }>>;
+
+  /** Admin: link/unlink tag to question. */
+  linkTag(questionId: number, tagId: number): Promise<void>;
+  unlinkTag(questionId: number, tagId: number): Promise<void>;
+
+  /** Admin: fetch full question data for editing (both languages + keywords). */
+  getQuestionForEdit(id: number): Promise<QuestionEditData | null>;
+
+  /** Admin: update question fields, translations, and keywords. */
+  updateQuestion(id: number, dto: {
+    priority?: number;
+    isActive?: boolean;
+    translations?: Array<{ languageCode: string; questionText: string; answerText: string; keywords: string[] }>;
+  }): Promise<boolean>;
+
+  /** Admin: get topic with all language translations. */
+  getTopicById(id: number): Promise<{ id: number; code: string; isActive: boolean; translations: Array<{ languageCode: string; name: string; description: string | null }> } | null>;
+
+  /** Admin: update topic translations. */
+  updateTopic(id: number, translations: Array<{ languageCode: string; name: string; description?: string | null }>): Promise<boolean>;
 }
 
 // ── Implementation ────────────────────────────────────────────────────────────
@@ -82,7 +141,16 @@ export class QuestionSuggestionService implements IQuestionSuggestionService {
     }
 
     // 3. Load all scoring candidates from the DB
-    const { rows, keywords, tags } = await fetchScoringCandidates(lang);
+    let rows: Awaited<ReturnType<typeof fetchScoringCandidates>>['rows'] = [];
+    let keywords: Awaited<ReturnType<typeof fetchScoringCandidates>>['keywords'] = [];
+    let tags: Awaited<ReturnType<typeof fetchScoringCandidates>>['tags'] = [];
+
+    try {
+      ({ rows, keywords, tags } = await fetchScoringCandidates(lang));
+    } catch (err) {
+      logger.warn(`Question suggestions unavailable, returning empty list: ${String(err)}`);
+      return { query, language: lang, suggestions: [] };
+    }
 
     // Build lookup maps for keywords and tags keyed by questionId
     const kwMap = new Map<number, string[]>();
@@ -250,6 +318,58 @@ export class QuestionSuggestionService implements IQuestionSuggestionService {
 
   async createQuestion(dto: CreateQuestionDto): Promise<number | null> {
     return insertQuestion(dto);
+  }
+
+  async listQuestions(language: string, topicCode?: string) {
+    return fetchAllQuestionsAdmin(language, topicCode);
+  }
+
+  async deleteQuestion(id: number): Promise<boolean> {
+    return deleteQuestionById(id);
+  }
+
+  async deleteTopic(id: number): Promise<boolean> {
+    return deleteTopicById(id);
+  }
+
+  async listTags() {
+    return fetchAllTags();
+  }
+
+  async createTag(languageCode: string, name: string): Promise<number> {
+    return insertTag(languageCode, name);
+  }
+
+  async deleteTag(id: number): Promise<boolean> {
+    return deleteTagById(id);
+  }
+
+  async getTagsForQuestion(questionId: number) {
+    return fetchTagsForQuestion(questionId);
+  }
+
+  async linkTag(questionId: number, tagId: number): Promise<void> {
+    return linkTagToQuestion(questionId, tagId);
+  }
+
+  async unlinkTag(questionId: number, tagId: number): Promise<void> {
+    return unlinkTagFromQuestion(questionId, tagId);
+  }
+
+  async getQuestionForEdit(id: number): Promise<QuestionEditData | null> {
+    return fetchQuestionForEdit(id);
+  }
+
+  async updateQuestion(id: number, dto: Parameters<typeof updateQuestionRepo>[1]): Promise<boolean> {
+    return updateQuestionRepo(id, dto);
+  }
+
+  async getTopicById(id: number) {
+    return fetchTopicWithTranslations(id);
+  }
+
+  async updateTopic(id: number, translations: Array<{ languageCode: string; name: string; description?: string | null }>): Promise<boolean> {
+    return updateTopicTranslations(id, translations);
   }
 }
 
