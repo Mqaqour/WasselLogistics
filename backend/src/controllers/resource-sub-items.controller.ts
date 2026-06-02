@@ -26,6 +26,16 @@ export async function listSubItems(req: Request, res: Response): Promise<void> {
     const result = await request.query(query);
     res.json({ items: result.recordset });
   } catch (err) {
+    // DB unavailable — return empty list so the page still loads
+    const anyErr = err as { code?: string; message?: string };
+    const isDbError = anyErr?.code === 'ECONNREFUSED' ||
+      anyErr?.code === 'ESOCKET' ||
+      anyErr?.code === 'ETIMEOUT' ||
+      String(anyErr?.message ?? '').toLowerCase().includes('connection');
+    if (isDbError) {
+      res.json({ items: [] });
+      return;
+    }
     res.status(500).json({ error: 'Failed to fetch sub-items' });
   }
 }
