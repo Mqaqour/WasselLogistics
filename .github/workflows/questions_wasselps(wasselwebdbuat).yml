@@ -53,6 +53,35 @@ jobs:
           cp -R backend/dist/* deploy/dist/
           cp -R dist/* deploy/dist/public/
           printf "require('./dist/server.js');\n" > deploy/server.js
+          cat > deploy/web.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <handlers>
+                <add name="iisnode" path="server.js" verb="*" modules="iisnode" />
+              </handlers>
+              <rewrite>
+                <rules>
+                  <rule name="NodeInspector" patternSyntax="ECMAScript" stopProcessing="true">
+                    <match url="^server.js\/debug[\/]?" />
+                  </rule>
+                  <rule name="StaticContent" stopProcessing="true">
+                    <action type="Rewrite" url="dist/public{REQUEST_URI}" />
+                    <conditions>
+                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+                      <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+                      <add input="{REQUEST_URI}" pattern="^\/(assets|favicon\.ico|robots\.txt)" />
+                    </conditions>
+                  </rule>
+                  <rule name="DynamicContent">
+                    <action type="Rewrite" url="server.js" />
+                  </rule>
+                </rules>
+              </rewrite>
+              <iisnode loggingEnabled="true" />
+            </system.webServer>
+          </configuration>
+          EOF
 
       - name: Install production dependencies in deployment package
         run: npm ci --omit=dev --prefix deploy
