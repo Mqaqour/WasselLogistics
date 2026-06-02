@@ -55,7 +55,32 @@ export function createApp() {
   };
 
   // Security headers
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://cdn.respond.io',
+          'https://maps.googleapis.com',
+          'https://maps.gstatic.com',
+        ],
+        scriptSrcElem: [
+          "'self'",
+          'https://cdn.respond.io',
+          'https://maps.googleapis.com',
+          'https://maps.gstatic.com',
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+        connectSrc: ["'self'", 'https://api.respond.io', 'https://maps.googleapis.com', 'https://maps.gstatic.com', 'wss:'],
+        frameSrc: ["'self'", 'https://*.respond.io', 'https://www.google.com', 'https://maps.google.com'],
+      },
+    },
+  }));
 
   // CORS — supports single URL or comma-separated list in FRONTEND_URL
   const allowedOrigins = env.FRONTEND_URL
