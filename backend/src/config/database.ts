@@ -1,5 +1,4 @@
 import sql from 'mssql';
-import sqlNative from 'mssql/msnodesqlv8';
 import { env } from './env';
 import { logger } from '../utils/logger';
 
@@ -52,6 +51,7 @@ export async function getPool(): Promise<sql.ConnectionPool> {
     return pool;
   }
   if (useTrustedLocalDb) {
+    const { default: sqlNative } = await import('mssql/msnodesqlv8');
     pool = await new (sqlNative as any).ConnectionPool(localDbConfig).connect();
   } else {
     pool = await new sql.ConnectionPool(config).connect();
