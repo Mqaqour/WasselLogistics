@@ -8,6 +8,6 @@
   --color-corp-primary: #3D3D3D;
   --color-corp-secondary: #FFCD00;
   --color-corp-dark: #262626;
-  --font-family-sans: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
-  --font-family-arabic: "IBM Plex Sans Arabic", sans-serif;
+  --font-sans: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
+  --font-arabic: "IBM Plex Sans Arabic", sans-serif;
 }
