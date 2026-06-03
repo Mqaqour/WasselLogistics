@@ -15,6 +15,35 @@ export interface LoginIpBlockRow {
   lastAttemptAt: Date | null;
 }
 
+interface LoginIpBlockRecord {
+  ipAddress: string;
+  failedAttempts: number;
+  blockedUntil: Date | string | null;
+  notificationSentAt: Date | string | null;
+  lastAttemptAt: Date | string | null;
+}
+
+function toNullableDate(value: Date | string | null | undefined): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
+  const normalized = hasTimezone ? trimmed : `${trimmed.replace(' ', 'T')}Z`;
+  const parsed = new Date(normalized);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export async function findActiveUserByUsername(username: string): Promise<PortalUserRow | null> {
   const pool = await getPool();
   const result = await pool.request()
@@ -37,7 +66,7 @@ export async function findIpBlock(ipAddress: string): Promise<LoginIpBlockRow | 
   const pool = await getPool();
   const result = await pool.request()
     .input('ipAddress', sql.NVarChar(64), ipAddress)
-    .query<LoginIpBlockRow>(`
+    .query<LoginIpBlockRecord>(`
       SELECT TOP (1)
         ip_address AS ipAddress,
         failed_attempts AS failedAttempts,
@@ -48,7 +77,19 @@ export async function findIpBlock(ipAddress: string): Promise<LoginIpBlockRow | 
       WHERE ip_address = @ipAddress
     `);
 
-  return result.recordset[0] ?? null;
+  const row = result.recordset[0];
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    ipAddress: row.ipAddress,
+    failedAttempts: row.failedAttempts,
+    blockedUntil: toNullableDate(row.blockedUntil),
+    notificationSentAt: toNullableDate(row.notificationSentAt),
+    lastAttemptAt: toNullableDate(row.lastAttemptAt),
+  };
 }
 
 export async function saveIpBlock(
