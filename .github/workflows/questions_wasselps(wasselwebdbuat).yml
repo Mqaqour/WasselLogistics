@@ -77,7 +77,46 @@ jobs:
 
       - name: Install production dependencies in deployment package
         run: npm ci --omit=dev --prefix deploy
-      
+
+      - name: Write backend runtime env file
+        env:
+          _DB_PASSWORD:        ${{ secrets.DB_PASSWORD }}
+          _QUICKRATE_API_KEY:  ${{ secrets.QUICKRATE_API_KEY }}
+          _RESPOND_API_TOKEN:  ${{ secrets.RESPOND_API_TOKEN }}
+          _AI_PROJECT_API_KEY: ${{ secrets.AI_PROJECT_API_KEY }}
+          _SMTP_PASSWORD:      ${{ secrets.SMTP_PASSWORD }}
+          _FRONTEND_URL:       ${{ secrets.VITE_CHAT_BACKEND_URL }}
+        run: |
+          $lines = @(
+            "DB_SERVER=wassel.database.windows.net",
+            "DB_DATABASE=wasselwebdbuat",
+            "DB_USERNAME=sqladmin",
+            "DB_PASSWORD=$env:_DB_PASSWORD",
+            "DB_PORT=1433",
+            "DB_ENCRYPT=true",
+            "DB_TRUST_SERVER_CERTIFICATE=false",
+            "QUICKRATE_API_KEY=$env:_QUICKRATE_API_KEY",
+            "QUICKRATE_BASE_URL=https://quickrate.wassel.ps",
+            "QUICKRATE_RESULT_MODE=lowest",
+            "RESPOND_CHANNEL_ID=08d7f8165160db9866145bc7dcbb031",
+            "RESPOND_API_TOKEN=$env:_RESPOND_API_TOKEN",
+            "RESPOND_WEBHOOK_URL=https://app.respond.io/custom/channel/webhook/",
+            "AI_PROVIDER=azure",
+            "AI_PROJECT_ENDPOINT=https://wasselaifoundry.services.ai.azure.com/api/projects/Wassel-default",
+            "AI_PROJECT_API_KEY=$env:_AI_PROJECT_API_KEY",
+            "AI_AGENT_NAME=WSLAIV52",
+            "AI_AGENT_VERSION=4",
+            "FRONTEND_URL=$env:_FRONTEND_URL",
+            "NODE_ENV=production",
+            "SMTP_HOST=smtp.mandrillapp.com",
+            "SMTP_PORT=587",
+            "SMTP_USER=automate@wassel.ps",
+            "SMTP_PASSWORD=$env:_SMTP_PASSWORD",
+            "PICKUP_NOTIFY_EMAIL=Mqaqour@wassel.ps"
+          )
+          $lines | Set-Content -Path deploy\.env
+
+
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp

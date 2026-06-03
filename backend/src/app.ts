@@ -84,6 +84,7 @@ export function createApp() {
           'https://app.respond.io',
           'https://maps.googleapis.com',
           'https://maps.gstatic.com',
+          'https://places.googleapis.com',
           'wss:',
         ],
         frameSrc: ["'self'", 'https://*.respond.io', 'https://www.google.com', 'https://maps.google.com'],
