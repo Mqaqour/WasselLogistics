@@ -5,6 +5,16 @@ type ResourceSearchResult = {
   relatedTopics: string[];
 };
 
+export type AssistantConversationTurn = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+type ResourceSearchOptions = {
+  conversationId?: string;
+  conversationHistory?: AssistantConversationTurn[];
+};
+
 // Kept for compatibility; this app currently uses only resource-search.
 export const getGeminiResponse = async (): Promise<string> => {
   return "This chat endpoint is not enabled in the frontend. Use the website chat widget.";
@@ -33,14 +43,21 @@ const buildFallback = (query: string, isRateLimited: boolean): ResourceSearchRes
   };
 };
 
-export const getResourceSearchResponse = async (query: string): Promise<ResourceSearchResult> => {
+export const getResourceSearchResponse = async (
+  query: string,
+  options?: ResourceSearchOptions,
+): Promise<ResourceSearchResult> => {
   try {
     const res = await fetch(buildUrl('/api/ai/resource-search'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({
+        query,
+        conversationId: options?.conversationId,
+        conversationHistory: options?.conversationHistory,
+      }),
     });
 
     if (!res.ok) {
