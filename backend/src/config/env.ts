@@ -67,4 +67,9 @@ export const env = {
   SMTP_PASSWORD: optional('SMTP_PASSWORD', ''),
   PICKUP_NOTIFY_EMAIL: optional('PICKUP_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
   CONTACT_NOTIFY_EMAIL: optional('CONTACT_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
+
+  // Portal login security
+  LOGIN_MAX_ATTEMPTS: parseInt(optional('LOGIN_MAX_ATTEMPTS', '3'), 10),
+  LOGIN_BLOCK_HOURS: parseInt(optional('LOGIN_BLOCK_HOURS', '24'), 10),
+  LOGIN_ALERT_EMAILS: optional('LOGIN_ALERT_EMAILS', 'mqaqour@wassel.ps,oziq@wassel.ps'),
 };

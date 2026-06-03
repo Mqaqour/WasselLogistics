@@ -14,12 +14,14 @@ import topicsRoutes from './routes/topics.routes';
 import tagsRoutes from './routes/tags.routes';
 import aiRoutes from './routes/ai.routes';
 import kbAiRoutes from './routes/kb-ai.routes';
+import authRoutes from './routes/auth.routes';
 import resourceCategoriesRoutes from './routes/resource-categories.routes';
 import resourceSubItemsRoutes   from './routes/resource-sub-items.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export function createApp() {
   const app = express();
+  app.set('trust proxy', 1);
   const frontendCandidates = [
     path.resolve(__dirname, 'public'),
     path.resolve(__dirname, '../dist/public'),
@@ -124,6 +126,7 @@ export function createApp() {
   app.use('/api/chat',      chatRoutes);
   app.use('/api/respondio', respondioRoutes);
   app.use('/api/ai',        aiRoutes);
+  app.use('/api/auth',      authRoutes);
   app.use('/respond',       respondioRoutes); // respond.io outgoing webhook calls /respond/message
 
   // Knowledge Base — Questions, Topics & Tags
