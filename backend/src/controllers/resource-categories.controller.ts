@@ -42,6 +42,16 @@ export async function listCategories(
 
     res.json({ categories: result.recordset });
   } catch (err) {
+    // DB unavailable — return empty list so the page still loads
+    const anyErr = err as { code?: string; message?: string };
+    const isDbError = anyErr?.code === 'ECONNREFUSED' ||
+      anyErr?.code === 'ESOCKET' ||
+      anyErr?.code === 'ETIMEOUT' ||
+      String(anyErr?.message ?? '').toLowerCase().includes('connection');
+    if (isDbError) {
+      res.json({ categories: [] });
+      return;
+    }
     next(err);
   }
 }

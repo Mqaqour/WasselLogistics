@@ -37,6 +37,8 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
     const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
     const [otpCooldown, setOtpCooldown] = useState(0);
     const [showPhoneConfirm, setShowPhoneConfirm] = useState(false);
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [otpVerificationError, setOtpVerificationError] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [city, setCity] = useState('');
 
@@ -109,12 +111,33 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
         setShowPhoneConfirm(true);
   };
 
+    const handlePhoneAction = () => {
+        if (isOtpSent) {
+            setShowOtpModal(true);
+            return;
+        }
+
+        handleSendOtp();
+    };
+
+    const handlePhoneChange = (value: string) => {
+        setPhone(value);
+        setOtp('');
+        setGeneratedOtp('');
+        setIsOtpSent(false);
+        setIsVerified(false);
+        setShowOtpModal(false);
+        setOtpVerificationError('');
+    };
+
     const confirmAndSendOtp = async () => {
         const normalizedPhone = normalizePhone(phone);
         if (normalizedPhone.length < 9) return;
 
         const code = `${Math.floor(1000 + Math.random() * 9000)}`;
         setIsSendingOtp(true);
+        setOtp('');
+        setOtpVerificationError('');
 
         try {
             const response = await fetch(SMS_PROXY_URL, {
@@ -134,7 +157,7 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
             setIsOtpSent(true);
             setOtpCooldown(60);
             setShowPhoneConfirm(false);
-            alert(t.smsSentSuccess);
+            setShowOtpModal(true);
         } catch (error) {
             console.error('Failed to send verification SMS:', error);
             alert(t.smsSendError);
@@ -147,8 +170,10 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
             if (otp.trim() === generatedOtp) {
           setIsVerified(true);
           setIsOtpSent(false);
+          setShowOtpModal(false);
+          setOtpVerificationError('');
       } else {
-          alert(t.verifyError);
+          setOtpVerificationError(t.verifyError);
       }
   };
 
@@ -202,6 +227,8 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
       setIsOtpSent(false);
       setOtpCooldown(0);
       setShowPhoneConfirm(false);
+      setShowOtpModal(false);
+      setOtpVerificationError('');
       setCity('');
   };
 
@@ -250,7 +277,7 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
                             required 
                             disabled={isVerified}
                             value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
+                            onChange={(e) => handlePhoneChange(e.target.value)}
                             className={`flex-1 min-w-0 block w-full px-3 py-2 rounded-none rtl:rounded-r-md ltr:rounded-l-md border ${isVerified ? 'border-green-300 bg-green-50 text-green-900' : 'border-gray-300'} focus:ring-wassel-yellow focus:border-wassel-yellow`} 
                         />
                         {isVerified ? (
@@ -260,36 +287,16 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
                         ) : (
                             <button 
                                 type="button" 
-                                onClick={handleSendOtp}
-                                disabled={isSendingOtp || isOtpSent || otpCooldown > 0 || phone.length < 2}
+                                onClick={handlePhoneAction}
+                                disabled={isSendingOtp || (!isOtpSent && otpCooldown > 0) || phone.length < 2}
                                 className="inline-flex items-center px-4 py-2 border border-gray-300 rtl:rounded-l-md ltr:rounded-r-md shadow-sm text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-wassel-yellow"
                             >
                                 {isSendingOtp
                                   ? t.sendingCode
-                                  : (isOtpSent ? t.codeSent : (otpCooldown > 0 ? `${t.resendIn} ${otpCooldown}s` : t.sendCode))}
+                                  : (isOtpSent ? t.enterCode : (otpCooldown > 0 ? `${t.resendIn} ${otpCooldown}s` : t.sendCode))}
                             </button>
                         )}
                     </div>
-                    
-                    {/* OTP Input Section */}
-                    {isOtpSent && !isVerified && (
-                        <div className="mt-3 flex gap-2 animate-enter">
-                            <input 
-                                type="text" 
-                                placeholder={t.enterCode}
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value)}
-                                className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow text-center tracking-widest" 
-                            />
-                            <button 
-                                type="button"
-                                onClick={handleVerifyOtp}
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-wassel-blue hover:bg-wassel-darkBlue"
-                            >
-                                {t.verify}
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
@@ -391,6 +398,58 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
                                 className="flex-1 rounded-md bg-wassel-blue px-4 py-2 text-sm font-semibold text-white hover:bg-wassel-darkBlue disabled:opacity-60"
                             >
                                 {isSendingOtp ? t.sendingCode : t.confirmSend}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showOtpModal && isOtpSent && !isVerified && (
+                <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowOtpModal(false)}></div>
+                    <div className="relative w-full max-w-md rounded-xl bg-white shadow-2xl p-6">
+                        <h3 className="text-xl font-bold text-wassel-blue">{t.enterCode}</h3>
+                        <p className="mt-3 text-gray-600">{t.codeSent}</p>
+                        <p className="mt-2 text-lg font-bold text-gray-900" dir="ltr">{normalizePhone(phone)}</p>
+
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            maxLength={4}
+                            placeholder={t.enterCode}
+                            value={otp}
+                            onChange={(e) => {
+                                setOtp(e.target.value);
+                                setOtpVerificationError('');
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && otp.trim().length > 0) {
+                                    handleVerifyOtp();
+                                }
+                            }}
+                            className="mt-5 block w-full border border-gray-300 rounded-md shadow-sm py-3 px-3 focus:ring-wassel-yellow focus:border-wassel-yellow text-center tracking-widest text-lg font-semibold"
+                        />
+
+                        {otpVerificationError && (
+                            <p className="mt-2 text-sm font-medium text-red-600">{otpVerificationError}</p>
+                        )}
+
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowOtpModal(false)}
+                                className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                                {t.cancel}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleVerifyOtp}
+                                disabled={otp.trim().length === 0}
+                                className="flex-1 rounded-md bg-wassel-blue px-4 py-2 text-sm font-semibold text-white hover:bg-wassel-darkBlue disabled:opacity-60"
+                            >
+                                {t.verify}
                             </button>
                         </div>
                     </div>

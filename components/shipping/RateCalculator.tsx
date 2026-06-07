@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Globe, Map, FileText, Package, ArrowRight } from 'lucide-react';
+import { Globe, Map, FileText, Package } from 'lucide-react';
 import { RateResult, Language } from '../../types';
 import { PlacesAutocomplete, PlaceDetails } from './PlacesAutocomplete';
 
@@ -65,7 +65,6 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       calculating: lang === 'en' ? 'Calculating Best Rates...' : 'جاري حساب أفضل الأسعار...',
       availableOptions: lang === 'en' ? 'Available Options' : 'الخيارات المتاحة',
       estDelivery: lang === 'en' ? 'Est. Delivery:' : 'وقت التوصيل المتوقع:',
-      selectBook: lang === 'en' ? 'Select & Book' : 'اختيار وحجز',
       businessDays: lang === 'en' ? 'Business Days' : 'أيام عمل',
       tomorrow: lang === 'en' ? 'Tomorrow' : 'غداً',
       selectCity: lang === 'en' ? 'Select City' : 'اختر المدينة',
@@ -218,25 +217,6 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       setResults(rates);
       setLoading(false);
     }, 800);
-  };
-
-  const handleBookClick = (rate: RateResult) => {
-      const bookingOrigin = type === 'domestic' ? domesticOriginCity : origin;
-      const params = new URLSearchParams({
-          mode: 'booking',
-          provider: rate.provider,
-          service: rate.service,
-          price: rate.price.toString(),
-          currency: rate.currency,
-          deliveryDate: rate.deliveryDate,
-          weight: weight.toString(),
-            origin: bookingOrigin,
-          destination: destination,
-          lang: lang
-      });
-      
-      // Open in new window
-      window.open(`/?${params.toString()}`, 'WasselBooking', 'width=900,height=800,scrollbars=yes,resizable=yes');
   };
 
   return (
@@ -493,12 +473,6 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
                 </div>
                 <div className="rtl:text-left ltr:text-right w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-end">
                   <p className="text-2xl font-bold text-wassel-blue">{lowestRate.price.toFixed(2)} <span className="text-sm font-normal text-gray-500">{lowestRate.currency}</span></p>
-                  <button
-                    onClick={() => handleBookClick(lowestRate)}
-                    className="mt-0 md:mt-2 px-4 py-2 bg-wassel-yellow text-wassel-blue rounded-md text-sm font-bold hover:bg-wassel-lightYellow transition-colors flex items-center gap-1 shadow-sm"
-                  >
-                    {t.selectBook} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
-                  </button>
                 </div>
               </div>
             );

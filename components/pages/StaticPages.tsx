@@ -23,6 +23,11 @@ type ContactAiSuggestion = {
     relatedTopics: string[];
 };
 
+type ContactSuggestionResult = {
+    suggestion: ContactAiSuggestion;
+    logId: number;
+};
+
 export const About: React.FC<PageProps> = ({ lang }) => {
   const t = {
     title: lang === 'en' ? 'About Us' : 'من نحن',
@@ -280,7 +285,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         return data.logId;
     };
 
-    const sendContactMessage = async () => {
+    const sendContactMessage = async (suggestion?: ContactAiSuggestion | null, logId?: number | null) => {
         setIsSubmitting(true);
         setSubmitError('');
         try {
@@ -290,8 +295,8 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                 body: JSON.stringify({
                     ...formData,
                     language: lang,
-                    logId: contactLogId,
-                    aiSuggestion: agentSuggestion,
+                    logId: logId ?? contactLogId,
+                    aiSuggestion: suggestion ?? agentSuggestion,
                 }),
             });
             if (!res.ok) {
@@ -306,7 +311,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         }
     };
 
-    const runAgentSuggestion = async () => {
+    const runAgentSuggestion = async (): Promise<ContactSuggestionResult | null> => {
         setIsGeneratingSuggestion(true);
         setAgentError('');
 
@@ -381,7 +386,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                     const persistedLogId = await persistAiSuggestionLog(kbSuggestion);
                     setContactLogId(persistedLogId);
                     setAgentSuggestion(kbSuggestion);
-                    return;
+                    return { suggestion: kbSuggestion, logId: persistedLogId };
                 }
             }
 
@@ -392,6 +397,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
             const persistedLogId = await persistAiSuggestionLog(suggestion);
             setContactLogId(persistedLogId);
             setAgentSuggestion(suggestion);
+            return { suggestion, logId: persistedLogId };
         } catch {
             try {
                 const kbSuggestion = await runKbFallbackSuggestion();
@@ -399,12 +405,13 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                     const persistedLogId = await persistAiSuggestionLog(kbSuggestion);
                     setContactLogId(persistedLogId);
                     setAgentSuggestion(kbSuggestion);
-                    return;
+                    return { suggestion: kbSuggestion, logId: persistedLogId };
                 }
             } catch {
                 // ignore secondary fallback errors
             }
             setAgentError(lang === 'en' ? 'Could not generate AI suggestions right now.' : 'تعذر توليد اقتراحات الذكاء الاصطناعي حالياً.');
+            return null;
         } finally {
             setIsGeneratingSuggestion(false);
         }
@@ -416,12 +423,11 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
             return;
         }
 
-        if (!agentSuggestion) {
-            await runAgentSuggestion();
-            return;
-        }
+        const suggestionResult = agentSuggestion
+            ? { suggestion: agentSuggestion, logId: contactLogId }
+            : await runAgentSuggestion();
 
-        await sendContactMessage();
+        await sendContactMessage(suggestionResult?.suggestion ?? null, suggestionResult?.logId ?? contactLogId);
     };
 
     const t = {

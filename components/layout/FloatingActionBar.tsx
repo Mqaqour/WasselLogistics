@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, Package, Calculator, CreditCard, Truck, Search, X, Sparkles, ArrowRight, Loader2, CornerDownLeft } from 'lucide-react';
 import { Language } from '../../types';
 import { suggestKbQuestions, getKbQuestionAnswer, QuestionSuggestionItem } from '../../services/questionsKbService';
-import { getResourceSearchResponse } from '../../services/geminiService';
+import { AssistantConversationTurn, getResourceSearchResponse } from '../../services/geminiService';
 import { FormattedAnswer } from '../FormattedAnswer';
+
+const ASSISTANT_CONVERSATION_STORAGE_KEY = 'assistant-search-conversation-id';
 
 interface FloatingActionBarProps {
     lang: Language;
@@ -16,6 +18,34 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
     onAction, 
     activeAction 
 }) => {
+    const assistantConversationIdRef = useRef<string>('');
+
+    const getAssistantConversationId = (): string => {
+        if (assistantConversationIdRef.current) {
+            return assistantConversationIdRef.current;
+        }
+
+        const fromStorage = window.sessionStorage.getItem(ASSISTANT_CONVERSATION_STORAGE_KEY)?.trim() ?? '';
+        if (fromStorage) {
+            assistantConversationIdRef.current = fromStorage;
+            return fromStorage;
+        }
+
+        const generated =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : `assistant-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+        window.sessionStorage.setItem(ASSISTANT_CONVERSATION_STORAGE_KEY, generated);
+        assistantConversationIdRef.current = generated;
+        return generated;
+    };
+
+    const resetAssistantConversationId = () => {
+        assistantConversationIdRef.current = '';
+        window.sessionStorage.removeItem(ASSISTANT_CONVERSATION_STORAGE_KEY);
+    };
+
     // Temporary release toggles for floating shortcuts.
     const showQuickSearch = false;
     const showPayShortcut = false;
@@ -33,6 +63,29 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
     // AI answer state
     const [aiAnswer, setAiAnswer] = useState<{ query: string; answer: string } | null>(null);
     const [aiLoading, setAiLoading] = useState(false);
+    const [loadingDotCount, setLoadingDotCount] = useState(0);
+    const [assistantHistory, setAssistantHistory] = useState<AssistantConversationTurn[]>([]);
+
+    useEffect(() => {
+        if (!aiLoading) {
+            setLoadingDotCount(0);
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            setLoadingDotCount((prev) => (prev + 1) % 4);
+        }, 320);
+
+        return () => window.clearInterval(interval);
+    }, [aiLoading]);
+
+    const inputPlaceholder = aiLoading
+        ? `${lang === 'en' ? 'Answering' : 'جاري الإجابة'}${'.'.repeat(loadingDotCount || 1)}`
+        : lang === 'en'
+            ? 'Search or ask a question…'
+            : 'ابحث أو اسأل سؤالاً…';
+
+    const loadingStatusLabel = `${lang === 'en' ? 'Answering your request' : 'جاري الإجابة على طلبك'}${'.'.repeat(loadingDotCount || 1)}`;
 
     const resetSearch = () => {
         setSearchValue('');
@@ -42,11 +95,13 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
         setAiTopicSuggestions([]);
         setAiAnswer(null);
         setAiLoading(false);
+        setAssistantHistory([]);
     };
 
     const closeOverlay = () => {
         setIsSearchOpen(false);
         resetSearch();
+        resetAssistantConversationId();
     };
 
     // Focus input when overlay opens
@@ -90,7 +145,9 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
 
                 // Fallback: show AI-related topic suggestions when KB has no direct matches.
                 if (items.length === 0 && searchValue.trim().length >= 4) {
-                    const aiFallback = await getResourceSearchResponse(searchValue.trim());
+                    const aiFallback = await getResourceSearchResponse(searchValue.trim(), {
+                        conversationId: getAssistantConversationId(),
+                    });
                     if (!cancelled) {
                         setAiTopicSuggestions(Array.isArray(aiFallback.relatedTopics) ? aiFallback.relatedTopics.slice(0, 4) : []);
                     }
@@ -99,7 +156,9 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
                 if (!cancelled) {
                     setKbSuggestions([]);
                     try {
-                        const aiFallback = await getResourceSearchResponse(searchValue.trim());
+                        const aiFallback = await getResourceSearchResponse(searchValue.trim(), {
+                            conversationId: getAssistantConversationId(),
+                        });
                         if (!cancelled) {
                             setAiTopicSuggestions(Array.isArray(aiFallback.relatedTopics) ? aiFallback.relatedTopics.slice(0, 4) : []);
                         }
@@ -132,15 +191,33 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
     };
 
     const handleAskAi = async (query: string) => {
-        if (!query.trim()) return;
+        const trimmedQuery = query.trim();
+        if (!trimmedQuery) return;
+
+        const userTurn: AssistantConversationTurn = { role: 'user', content: trimmedQuery };
+        const historyToSend = [...assistantHistory, userTurn];
+
         setKbSuggestions([]);
         setAiAnswer(null);
         setAiLoading(true);
+        setSearchValue('');
+
         try {
-            const resp = await getResourceSearchResponse(query);
-            setAiAnswer({ query, answer: resp.answer });
+            const resp = await getResourceSearchResponse(trimmedQuery, {
+                conversationId: getAssistantConversationId(),
+                conversationHistory: historyToSend,
+            });
+
+            const assistantTurn: AssistantConversationTurn = { role: 'assistant', content: resp.answer };
+            setAssistantHistory([...historyToSend, assistantTurn]);
+            setAiAnswer({ query: trimmedQuery, answer: resp.answer });
         } catch {
-            setAiAnswer({ query, answer: lang === 'en' ? "Sorry, I couldn't reach the knowledge base right now." : 'عذراً، لم أتمكن من الوصول إلى قاعدة المعرفة حالياً.' });
+            const fallbackAnswer = lang === 'en'
+                ? "Sorry, I couldn't reach the knowledge base right now."
+                : 'عذراً، لم أتمكن من الوصول إلى قاعدة المعرفة حالياً.';
+            const assistantTurn: AssistantConversationTurn = { role: 'assistant', content: fallbackAnswer };
+            setAssistantHistory([...historyToSend, assistantTurn]);
+            setAiAnswer({ query: trimmedQuery, answer: fallbackAnswer });
         } finally {
             setAiLoading(false);
         }
@@ -227,7 +304,10 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
                             type="button"
                             title={lang === 'en' ? 'Open quick search' : 'فتح البحث السريع'}
                             aria-label={lang === 'en' ? 'Open quick search' : 'فتح البحث السريع'}
-                            onClick={() => setIsSearchOpen(true)}
+                            onClick={() => {
+                                resetAssistantConversationId();
+                                setIsSearchOpen(true);
+                            }}
                             className="group relative flex min-h-[56px] min-w-[56px] flex-col items-center justify-center sm:min-w-[64px] transition-all duration-300 hover:scale-105 opacity-90 hover:opacity-100"
                         >
                             <div className="p-2 transition-colors group-hover:bg-white/5 rounded-xl relative">
@@ -257,6 +337,7 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
                                 aria-label={item.label}
                                 onClick={() => {
                                     if (item.id === 'assistant') {
+                                        resetAssistantConversationId();
                                         setIsSearchOpen(true);
                                         return;
                                     }
@@ -337,9 +418,9 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
                                     ref={inputRef}
                                     type="text"
                                     value={searchValue}
-                                    onChange={(e) => { setSearchValue(e.target.value); setAiAnswer(null); }}
-                                    placeholder={lang === 'en' ? 'Search or ask a question…' : 'ابحث أو اسأل سؤالاً…'}
-                                    className="w-full py-5 pl-14 rtl:pr-14 rtl:pl-10 pr-14 text-xl md:text-2xl text-gray-800 placeholder-gray-300 focus:outline-none bg-transparent"
+                                    onChange={(e) => { setSearchValue(e.target.value); }}
+                                    placeholder={inputPlaceholder}
+                                    className="w-full py-5 pl-14 rtl:pr-14 rtl:pl-10 pr-14 text-xl md:text-2xl text-gray-800 placeholder-gray-400 focus:outline-none bg-transparent"
                                     readOnly={aiLoading}
                                 />
                                 {searchValue && !aiLoading && (
@@ -355,23 +436,32 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
                                 )}
                             </form>
 
+                            {aiLoading && (
+                                <div
+                                    role="status"
+                                    aria-live="polite"
+                                    className="px-5 py-3 bg-blue-50 border-b border-blue-100 flex items-center gap-3"
+                                >
+                                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                                    <span className="text-sm md:text-base font-semibold text-blue-800">{loadingStatusLabel}</span>
+                                    <span aria-hidden="true" className="inline-flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse [animation-delay:120ms]"></span>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse [animation-delay:240ms]"></span>
+                                    </span>
+                                </div>
+                            )}
+
                             {/* AI Answer Panel */}
-                            {(aiAnswer || aiLoading) && (
+                            {aiAnswer && (
                                 <div className="p-5 max-h-[45vh] overflow-y-auto">
-                                    {aiLoading ? (
-                                        <div className="flex items-center gap-2 text-gray-500">
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            {lang === 'en' ? 'Answering…' : 'جاري الإجابة…'}
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            <p className="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wide">
-                                                {lang === 'en' ? 'AI Answer — verify before acting' : 'إجابة AI — يرجى التحقق قبل التصرف'}
-                                            </p>
-                                            <h4 className="text-lg font-bold text-gray-900 mb-3">{aiAnswer?.query}</h4>
-                                            <FormattedAnswer text={aiAnswer?.answer ?? ''} className="text-base" />
-                                        </div>
-                                    )}
+                                    <div>
+                                        <p className="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wide">
+                                            {lang === 'en' ? 'AI Answer — verify before acting' : 'إجابة AI — يرجى التحقق قبل التصرف'}
+                                        </p>
+                                        <h4 className="text-lg font-bold text-gray-900 mb-3">{aiAnswer?.query}</h4>
+                                        <FormattedAnswer text={aiAnswer?.answer ?? ''} className="text-base" />
+                                    </div>
                                 </div>
                             )}
 

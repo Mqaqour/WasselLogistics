@@ -14,12 +14,14 @@ import topicsRoutes from './routes/topics.routes';
 import tagsRoutes from './routes/tags.routes';
 import aiRoutes from './routes/ai.routes';
 import kbAiRoutes from './routes/kb-ai.routes';
+import authRoutes from './routes/auth.routes';
 import resourceCategoriesRoutes from './routes/resource-categories.routes';
 import resourceSubItemsRoutes   from './routes/resource-sub-items.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 export function createApp() {
   const app = express();
+  app.set('trust proxy', 1);
   const frontendCandidates = [
     path.resolve(__dirname, 'public'),
     path.resolve(__dirname, '../dist/public'),
@@ -55,7 +57,42 @@ export function createApp() {
   };
 
   // Security headers
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://cdn.respond.io',
+          'https://maps.googleapis.com',
+          'https://maps.gstatic.com',
+        ],
+        scriptSrcElem: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://cdn.respond.io',
+          'https://maps.googleapis.com',
+          'https://maps.gstatic.com',
+        ],
+        scriptSrcAttr: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+        connectSrc: [
+          "'self'",
+          'https://api.respond.io',
+          'https://app.respond.io',
+          'https://maps.googleapis.com',
+          'https://maps.gstatic.com',
+          'https://places.googleapis.com',
+          'wss:',
+        ],
+        frameSrc: ["'self'", 'https://*.respond.io', 'https://www.google.com', 'https://maps.google.com'],
+      },
+    },
+  }));
 
   // CORS — supports single URL or comma-separated list in FRONTEND_URL
   const allowedOrigins = env.FRONTEND_URL
@@ -89,6 +126,7 @@ export function createApp() {
   app.use('/api/chat',      chatRoutes);
   app.use('/api/respondio', respondioRoutes);
   app.use('/api/ai',        aiRoutes);
+  app.use('/api/auth',      authRoutes);
   app.use('/respond',       respondioRoutes); // respond.io outgoing webhook calls /respond/message
 
   // Knowledge Base — Questions, Topics & Tags

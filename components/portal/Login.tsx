@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail } from 'lucide-react';
+import { Lock, User } from 'lucide-react';
 import { Language } from '../../types';
 
 interface LoginProps {
@@ -8,33 +8,74 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin, lang }) => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const t = {
-    title: lang === 'en' ? 'Sign in to your account' : 'تسجيل الدخول',
-    subtitle: lang === 'en' ? 'Access your shipments and billing' : 'الوصول إلى شحناتك والفواتير',
-    emailPlaceholder: lang === 'en' ? 'Email address' : 'البريد الإلكتروني',
+    title: lang === 'en' ? 'Portal Login' : 'تسجيل الدخول',
+    subtitle: lang === 'en' ? 'Enter your username and password' : 'أدخل اسم المستخدم وكلمة المرور',
+    username: lang === 'en' ? 'Username' : 'اسم المستخدم',
+    usernamePlaceholder: lang === 'en' ? 'Username' : 'اسم المستخدم',
+    password: lang === 'en' ? 'Password' : 'كلمة المرور',
     passwordPlaceholder: lang === 'en' ? 'Password' : 'كلمة المرور',
-    rememberMe: lang === 'en' ? 'Remember me' : 'تذكرني',
-    forgotPassword: lang === 'en' ? 'Forgot your password?' : 'نسيت كلمة المرور؟',
-    signIn: lang === 'en' ? 'Sign in' : 'دخول',
-    signingIn: lang === 'en' ? 'Signing in...' : 'جاري الدخول...',
+    signIn: lang === 'en' ? 'Login' : 'دخول',
+    signingIn: lang === 'en' ? 'Logging in...' : 'جاري الدخول...',
+    invalid: lang === 'en' ? 'Invalid username or password.' : 'اسم المستخدم أو كلمة المرور غير صحيحة.',
+    blocked: lang === 'en'
+      ? 'This IP is blocked for 24 hours because of repeated failed login attempts.'
+      : 'تم حظر هذا العنوان لمدة 24 ساعة بسبب محاولات دخول متكررة.',
+    unavailable: lang === 'en'
+      ? 'Login service is unavailable. Please try again later.'
+      : 'خدمة تسجيل الدخول غير متاحة حالياً. حاول مرة أخرى لاحقاً.',
+    attemptsLeft: lang === 'en' ? 'attempts left' : 'محاولات متبقية',
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data?.ok) {
+        onLogin();
+        return;
+      }
+
+      if (response.status === 423) {
+        setError(t.blocked);
+        return;
+      }
+
+      if (response.status === 401) {
+        const remaining = typeof data?.remainingAttempts === 'number'
+          ? ` ${data.remainingAttempts} ${t.attemptsLeft}.`
+          : '';
+        setError(`${t.invalid}${remaining}`);
+        return;
+      }
+
+      setError(t.unavailable);
+    } catch {
+      setError(t.unavailable);
+    } finally {
       setLoading(false);
-      onLogin();
-    }, 1000);
+    }
   };
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-white">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg border border-gray-100">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 sm:p-10 rounded-xl shadow-lg border border-gray-100">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
             {t.title}
@@ -43,51 +84,60 @@ export const Login: React.FC<LoginProps> = ({ onLogin, lang }) => {
             {t.subtitle}
           </p>
         </div>
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div className="relative">
-                <Mail className="absolute top-3 rtl:right-3 ltr:left-3 h-5 w-5 text-gray-400" />
-              <input
-                type="email"
-                required
-                className="appearance-none rounded-none rounded-t-md relative block w-full rtl:pr-10 ltr:pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
-                placeholder={t.emailPlaceholder}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="relative">
-                <Lock className="absolute top-3 rtl:right-3 ltr:left-3 h-5 w-5 text-gray-400" />
-              <input
-                type="password"
-                required
-                className="appearance-none rounded-none rounded-b-md relative block w-full rtl:pr-10 ltr:pl-10 px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
-                placeholder={t.passwordPlaceholder}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+          <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+            <table className="w-full border-collapse">
+              <tbody className="divide-y divide-gray-200">
+                <tr>
+                  <th scope="row" className="w-32 bg-gray-50 px-4 py-4 text-start text-sm font-semibold text-gray-700">
+                    {t.username}
+                  </th>
+                  <td className="px-4 py-3">
+                    <div className="relative">
+                      <User className="absolute top-3 rtl:right-3 ltr:left-3 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        autoComplete="username"
+                        required
+                        className="block w-full rounded-md border border-gray-300 bg-white rtl:pr-10 ltr:pl-10 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        placeholder={t.usernamePlaceholder}
+                        value={username}
+                        onChange={(event) => setUsername(event.target.value)}
+                        aria-invalid={!!error}
+                      />
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row" className="w-32 bg-gray-50 px-4 py-4 text-start text-sm font-semibold text-gray-700">
+                    {t.password}
+                  </th>
+                  <td className="px-4 py-3">
+                    <div className="relative">
+                      <Lock className="absolute top-3 rtl:right-3 ltr:left-3 h-5 w-5 text-gray-400" />
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        className="block w-full rounded-md border border-gray-300 bg-white rtl:pr-10 ltr:pl-10 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        placeholder={t.passwordPlaceholder}
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        aria-invalid={!!error}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
-              />
-              <label htmlFor="remember-me" className="rtl:mr-2 ltr:ml-2 block text-sm text-gray-900">
-                {t.rememberMe}
-              </label>
-            </div>
-
-            <div className="text-sm">
-              <a href="#" className="font-medium text-orange-600 hover:text-orange-500">
-                {t.forgotPassword}
-              </a>
-            </div>
-          </div>
+          {error && (
+            <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {error}
+            </p>
+          )}
 
           <div>
             <button

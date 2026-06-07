@@ -77,11 +77,21 @@ export async function getTopics(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  const language = String(req.query.language ?? 'ar').trim();
   try {
-    const language = String(req.query.language ?? 'ar').trim();
-    const topics   = await questionSuggestionService.getTopics(language);
+    const topics = await questionSuggestionService.getTopics(language);
     res.json({ language, topics });
   } catch (err) {
+    // DB unavailable — return empty list so the page still loads
+    const anyErr = err as { code?: string; message?: string };
+    const isDbError = anyErr?.code === 'ECONNREFUSED' ||
+      anyErr?.code === 'ESOCKET' ||
+      anyErr?.code === 'ETIMEOUT' ||
+      String(anyErr?.message ?? '').toLowerCase().includes('connection');
+    if (isDbError) {
+      res.json({ language, topics: [] });
+      return;
+    }
     next(err);
   }
 }
