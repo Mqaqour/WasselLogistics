@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
 import { env } from './config/env';
 import * as repo from './repositories/chat.repository';
 import { ContactSubmitRequest } from './types/chat.types';
@@ -18,6 +20,13 @@ import { errorHandler } from './middleware/errorHandler';
 
 export function createApp() {
   const app = express();
+  const frontendCandidates = [
+    path.resolve(__dirname, 'public'),
+    path.resolve(__dirname, '../dist/public'),
+  ];
+  const frontendDistPath = frontendCandidates.find((candidate) =>
+    fs.existsSync(path.join(candidate, 'index.html'))
+  );
 
   const buildContactLogPayload = (body: ContactSubmitRequest) => {
     const isArabic = String(body.language ?? 'ar').trim().toLowerCase().startsWith('ar');
@@ -70,11 +79,6 @@ export function createApp() {
 
   // Body parsing
   app.use(express.json({ limit: '1mb' }));
-
-  // Root
-  app.get('/', (_req, res) => {
-    res.json({ name: 'Wassel Chat Backend', status: 'running', ts: new Date().toISOString() });
-  });
 
   // Health check
   app.get('/health', (_req, res) => {
@@ -527,6 +531,30 @@ export function createApp() {
       res.status(502).json({ error: 'QuickRate upstream error' });
     }
   });
+
+  // Serve the bundled frontend from the same host when present.
+  if (frontendDistPath) {
+    app.use(express.static(frontendDistPath));
+
+    app.get('*', (req, res, next) => {
+      if (
+        req.path.startsWith('/api/') ||
+        req.path === '/api' ||
+        req.path.startsWith('/respond') ||
+        req.path === '/health'
+      ) {
+        next();
+        return;
+      }
+
+      res.sendFile(path.join(frontendDistPath, 'index.html'));
+    });
+  } else {
+    // Fallback root response when frontend bundle is not packaged.
+    app.get('/', (_req, res) => {
+      res.json({ name: 'Wassel Chat Backend', status: 'running', ts: new Date().toISOString() });
+    });
+  }
 
   // Centralised error handler (must be last)
   app.use(errorHandler);

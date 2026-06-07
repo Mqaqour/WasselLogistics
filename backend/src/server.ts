@@ -13,8 +13,9 @@ async function main() {
 
   initSocketService(httpServer);
 
-  httpServer.listen(env.PORT, () => {
-    logger.info(`Wassel Chat Backend running on port ${env.PORT} [${env.NODE_ENV}]`);
+  const port = process.env.PORT ?? 3000;
+  httpServer.listen(port, () => {
+    logger.info(`Wassel Chat Backend running on port ${port} [${env.NODE_ENV}]`);
   });
 
   // Warm up DB in background so HTTP startup is never blocked by DB connectivity.

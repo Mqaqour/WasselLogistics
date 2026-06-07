@@ -17,7 +17,7 @@ function optional(key: string, defaultValue: string): string {
 
 export const env = {
   NODE_ENV: optional('NODE_ENV', 'development'),
-  PORT: parseInt(optional('PORT', '3000'), 10),
+  PORT: (process.env.PORT ?? '3000') as string | number,
 
   // respond.io
   RESPOND_CHANNEL_ID:   optional('RESPOND_CHANNEL_ID', ''),
