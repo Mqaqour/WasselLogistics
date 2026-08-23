@@ -29,6 +29,12 @@ import { ChatWidget } from './components/chat/ChatWidget';
 import { PageView, Language, Theme } from './types';
 import { Package, X, Truck } from 'lucide-react';
 
+// Code-split: the 3D scroll story (three.js/R3F/gsap) is only fetched once
+// this component actually renders, keeping it out of the main bundle.
+const WasselStorySection = React.lazy(() =>
+  import('./components/story/WasselStorySection').then((module) => ({ default: module.WasselStorySection }))
+);
+
 const BRAND_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
 
 export const App: React.FC = () => {
@@ -467,23 +473,30 @@ export const App: React.FC = () => {
         // Default / Individuals Home
         return (
           <div className="flex flex-col flex-1 animate-enter relative">
-            {/* --- GLOBAL HOME BACKGROUND IMAGE --- */}
-            <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none overflow-hidden bg-[#002B49]">
-                {!bgError ? (
-                    <img 
-                        src={`${import.meta.env.BASE_URL}assets/background.jpg`} 
-                        alt="Background" 
-                        className="w-full h-full object-cover object-top opacity-100"
-                        onError={() => setBgError(true)}
-                    />
-                ) : (
-                    <div className="w-full h-full bg-[#002B49]"></div>
-                )}
-            </div>
-
             {/* Hero Section */}
             <div className="relative z-10 bg-transparent overflow-hidden flex-1 min-h-[60vh] sm:min-h-[70vh] flex flex-col justify-center pt-32 lg:pt-44">
-              
+
+              {/* --- HERO BACKGROUND IMAGE ---
+                  Scoped to this section (not the full page) so object-fit:cover sizes
+                  against the hero's own ~60-70vh box, not the ~9-screen-tall page below it. */}
+              <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#002B49]">
+                  {!bgError ? (
+                      <img
+                          src={`${import.meta.env.BASE_URL}assets/background.jpg`}
+                          alt="Background"
+                          className="w-full h-full object-cover object-top opacity-100"
+                          onError={() => setBgError(true)}
+                      />
+                  ) : (
+                      <div className="w-full h-full bg-[#002B49]"></div>
+                  )}
+              </div>
+
+              {/* Legibility scrim: keeps headline/tracking-box readable over the busy
+                  fleet photo without hiding the vehicles on the right. */}
+              <div className="absolute inset-0 z-0 bg-gradient-to-r from-wassel-darkBlue/85 via-wassel-darkBlue/55 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 z-0 h-24 bg-gradient-to-t from-wassel-darkBlue/70 to-transparent" />
+
               {/* Subtle Pattern Background */}
               <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#002B49_1px,transparent_1px)] [background-size:16px_16px]"></div>
 
@@ -531,7 +544,7 @@ export const App: React.FC = () => {
                         </form>
 
                         <p className="text-center mt-3 text-white font-medium text-sm sm:text-base animate-slide-up delay-300">
-                             {lang === 'en' 
+                             {lang === 'en'
                                 ? 'Insert your Domestic shipment or FedEx or DHL shipments or Passport No or Clearance No'
                                 : 'أدخل رقم الشحنة المحلية أو شحنات FedEx أو DHL أو رقم الجواز أو رقم المعاملة الجمركية'}
                         </p>
@@ -541,6 +554,15 @@ export const App: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Cinematic 3D scroll story — company overview across all Wassel services */}
+            <React.Suspense fallback={null}>
+              <WasselStorySection
+                lang={lang}
+                onAction={handleAction}
+                onNavigateContact={() => setCurrentView('contact')}
+              />
+            </React.Suspense>
 
           </div>
         );

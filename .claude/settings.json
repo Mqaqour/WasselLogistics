@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm audit *)",
+      "Bash(node hero-debug4.mjs)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\oziq\\AppData\\Local\\Temp\\claude\\c--Users-oziq-Desktop-WasselLogistics\\6a5d949f-d71c-4d52-832a-651fc86340fe\\scratchpad"
+    ]
+  }
+}

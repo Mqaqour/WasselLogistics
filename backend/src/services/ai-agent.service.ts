@@ -1,4 +1,4 @@
-import { DefaultAzureCredential } from '@azure/identity';
+﻿import { DefaultAzureCredential } from '@azure/identity';
 import { AIProjectClient } from '@azure/ai-projects';
 import { env } from '../config/env';
 
@@ -36,19 +36,25 @@ type TrackingApiResponse = {
 };
 
 type IntentKey =
+  | 'local_delivery'
   | 'shipping_quote'
   | 'shipment_tracking'
   | 'jordan_passport_service'
   | 'international_driving_license'
   | 'no_objection_service'
+  | 'no_objection_fees'
   | 'branch_info'
   | 'working_hours'
   | 'general';
 
 type IntentFieldKey =
+  | 'originCity'
   | 'destinationCountry'
   | 'destinationPostalCode'
   | 'destinationCity'
+  | 'transactionType'
+  | 'identityType'
+  | 'shipmentType'
   | 'shipmentWeight'
   | 'shipmentContent'
   | 'packageType'
@@ -84,15 +90,62 @@ const conversationIntentState = new Map<string, ConversationIntentState>();
 const requiredFieldsByIntent: Record<IntentKey, IntentFieldKey[]> = {
   shipping_quote: ['shipmentWeight', 'shipmentContent'],
   shipment_tracking: ['trackingNumber'],
-  jordan_passport_service: ['serviceType'],
+  jordan_passport_service: ['transactionType', 'identityType'],
   international_driving_license: ['serviceType'],
   no_objection_service: ['serviceType'],
+  no_objection_fees: [],
   branch_info: [],
   working_hours: [],
   general: [],
+    local_delivery: ['originCity', 'destinationCity'],
 };
 
+const SHORT_GENERIC_FOLLOW_UP_TERMS = [
+  'الرسوم',
+  'تكلفة',
+  'التكلفة',
+  'السعر',
+  'المتطلبات',
+  'الاوراق',
+  'الأوراق',
+  'المدة',
+  'كيف',
+  'وين',
+  'نعم',
+  'تمام',
+  'fees',
+  'cost',
+  'price',
+  'requirements',
+  'documents',
+  'duration',
+  'how',
+  'where',
+  'yes',
+  'ok',
+];
+
 const QUICKRATE_FALLBACK_AR = 'لا يتوفر سعر مؤكد لهذه الشحنة ضمن البيانات الحالية.';
+const LOCAL_DELIVERY_FALLBACK_AR = (originCity: string, destinationCity: string): string => {
+  const origin = originCity || 'المدينة المحددة';
+  const destination = destinationCity || 'المدينة المحددة';
+  return `لا تتوفر لدينا تكلفة مؤكدة للتوصيل المحلي بين ${origin} و${destination} ضمن البيانات الحالية.\nيمكنك مراجعة صفحة التواصل في موقع واصل للحصول على مزيد من المساعدة.`;
+};
+
+const PALESTINIAN_CITY_ALIASES: Record<string, string[]> = {
+  'رام الله': ['رام الله', 'رامالله', 'ramallah'],
+  نابلس: ['نابلس', 'nablus'],
+  الخليل: ['الخليل', 'hebron'],
+  'بيت لحم': ['بيت لحم', 'بيتلحم', 'bethlehem'],
+  جنين: ['جنين', 'jenin'],
+  طولكرم: ['طولكرم', 'tulkarm'],
+  قلقيلية: ['قلقيلية', 'qalqilya', 'qalqilia'],
+  أريحا: ['أريحا', 'اريحا', 'jericho'],
+  سلفيت: ['سلفيت', 'salfit'],
+  طوباس: ['طوباس', 'tubas'],
+  القدس: ['القدس', 'قدس', 'jerusalem'],
+  غزة: ['غزة', 'gaza'],
+};
 
 const COUNTRY_CODES: Record<string, string> = {
   palestine: 'PS', 'west bank': 'PS', فلسطين: 'PS', 'الضفة الغربية': 'PS',
@@ -130,6 +183,13 @@ function isArabicText(text: string): boolean {
 function inferIntent(query: string): IntentKey {
   const normalized = query.toLowerCase();
 
+  if (
+    /\btrack|tracking|awb|shipment status\b/.test(normalized) ||
+    /(تتبع|تتبع الشحنة|رقم تتبع|حالة الشحنة)/.test(query)
+  ) {
+    return 'shipment_tracking';
+  }
+
   const hasShippingCue =
     /\bship|shipping|parcel|package|envelope|delivery|courier\b/.test(normalized)
     || /(شحن|طرد|مغلف|مظروف|شحنة|توصيل|ارسال|إرسال)/.test(query);
@@ -137,13 +197,11 @@ function inferIntent(query: string): IntentKey {
     /\bquote|rate|price|cost|shipping price|shipping rate\b/.test(normalized)
     || /(سعر|تكلفة|رسوم|تسعيرة)/.test(query);
   const hasWeightCue = /(\d+(?:\.\d+)?)\s?(kg|كيلو|كغم)/i.test(query);
-  const hasDestinationCue = /\bto\s+[\w\s]{2,}/i.test(query) || /(الى|إلى|رايح|وجهة)/.test(query);
+  const hasDestinationCue = /\bto\s+[\w\s]{2,}/i.test(query) || /(الى|إلى|رايح|وجهة|من\s+.+\s+ل)/.test(query);
 
-  if (
-    /\btrack|tracking|awb|shipment status\b/.test(normalized) ||
-    /(تتبع|تتبع الشحنة|رقم تتبع|حالة الشحنة)/.test(query)
-  ) {
-    return 'shipment_tracking';
+  const route = extractLocalRoute(query);
+  if (hasShippingCue && route.originCity && route.destinationCity) {
+    return 'local_delivery';
   }
 
   if (hasQuoteCue || (hasShippingCue && (hasWeightCue || hasDestinationCue))) {
@@ -179,8 +237,150 @@ function isClearlyNewRequest(query: string): boolean {
     || /(طلب جديد|استفسار جديد|سؤال اخر|سؤال آخر|موضوع جديد)/.test(query);
 }
 
+function isExplicitIntentStarter(query: string): boolean {
+  const normalized = query.toLowerCase();
+  return /\b(i want to ship|ship to|track|where is branch|branch location|passport cost|working hours)\b/.test(normalized)
+    || /(بدي\s*اشحن|بدي\s*أشحن|وين\s*فرع|بدي\s*أتتبع|بدي\s*اتتبع|كم\s*تكلفة\s*جواز|شو\s*دوامكم)/.test(query);
+}
+
+function normalizeForFollowUp(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[\u064B-\u0652]/g, '')
+    .replace(/[؟?.,!؛:\-_/\\()\[\]{}"'`~]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isShortGenericFollowUp(query: string): boolean {
+  const normalized = normalizeForFollowUp(query);
+  if (!normalized) {
+    return false;
+  }
+
+  const tokens = normalized.split(' ').filter(Boolean);
+  if (tokens.length > 3) {
+    return false;
+  }
+
+  return SHORT_GENERIC_FOLLOW_UP_TERMS.includes(normalized)
+    || tokens.every((token) => SHORT_GENERIC_FOLLOW_UP_TERMS.includes(token));
+}
+
+function isFeesLikeFollowUp(query: string): boolean {
+  const normalized = normalizeForFollowUp(query);
+  return /(رسوم|الرسوم|تكلفة|التكلفة|سعر|السعر|fees|cost|price)/i.test(normalized);
+}
+
+function resolveIntentWithCarryover(
+  query: string,
+  detectedIntent: IntentKey,
+  activeIntent: IntentKey,
+): IntentKey {
+  if (isShortGenericFollowUp(query) && activeIntent !== 'general' && !isClearlyNewRequest(query)) {
+    if (activeIntent === 'no_objection_service' && isFeesLikeFollowUp(query)) {
+      return 'no_objection_fees';
+    }
+    return activeIntent;
+  }
+
+  if (detectedIntent === 'general' && activeIntent !== 'general' && !isClearlyNewRequest(query)) {
+    return activeIntent;
+  }
+
+  return detectedIntent;
+}
+
+function getBaseIntent(intent: IntentKey): IntentKey {
+  if (intent === 'no_objection_fees') {
+    return 'no_objection_service';
+  }
+  return intent;
+}
+
+function extractJordanPassportSlots(query: string): Partial<Record<IntentFieldKey, string>> {
+  const fields: Partial<Record<IntentFieldKey, string>> = {};
+  const normalized = normalizeForFollowUp(query);
+
+  if (/(اصدار|إصدار|issuance|issue|new passport)/i.test(normalized)) {
+    fields.transactionType = 'issuance';
+  } else if (/(تجديد|renewal|renew)/i.test(normalized)) {
+    fields.transactionType = 'renewal';
+  }
+
+  if (/(خضرا|خضراء|هوية خضراء|green)/i.test(normalized)) {
+    fields.identityType = 'green';
+  } else if (/(زرقا|زرقاء|هوية زرقاء|مقدسي|مقدسية|maqdisi|blue)/i.test(normalized)) {
+    fields.identityType = 'blue';
+  }
+
+  return fields;
+}
+
+function buildJordanPassportFinalAnswer(
+  knownFields: Partial<Record<IntentFieldKey, string>>,
+  isArabic: boolean,
+): string {
+  const transactionType = (knownFields.transactionType ?? '').trim().toLowerCase();
+  const identityType = (knownFields.identityType ?? '').trim().toLowerCase();
+
+  const feeAr = identityType === 'blue'
+    ? '120 دينار أردني.'
+    : '270 دينار أردني.';
+
+  if (isArabic) {
+    const transactionLabel = transactionType === 'issuance' ? 'إصدار' : (transactionType === 'renewal' ? 'تجديد' : 'المعاملة المطلوبة');
+    const identityLabel = identityType === 'green' ? 'خضراء' : (identityType === 'blue' ? 'زرقاء / مقدسية' : 'غير محددة');
+
+    return [
+      `تمام، بما أن معاملتك ${transactionLabel} وهويتك ${identityLabel}، فهذه تفاصيل الخدمة:`,
+      '',
+      `- الرسوم: ${feeAr}`,
+      '- يجب أولاً تقديم معاملة الإصدار في دائرة الأحوال المدنية الأردنية في الأردن والحصول على بطاقة مراجعة.',
+      '- بعد الحصول على بطاقة المراجعة، يتم إرسال صورة البطاقة عبر القناة المعتمدة.',
+      '- بعد الموافقة، يتم الحضور إلى أحد فروع واصل لتسليم بطاقة المراجعة الأصلية ودفع الرسوم.',
+      '- مدة الإنجاز: من 7 إلى 10 أيام عمل من تاريخ تقديم بطاقة المراجعة في مكاتب واصل.',
+      '- استلام الجواز يكون من مركز واصل للخدمات الأردنية - كيو سنتر روابي فقط، بعد وصول رسالة نصية لصاحب العلاقة.',
+      '',
+      'يشترط توفر بطاقة مراجعة، وأي معاملة بدون بطاقة مراجعة غير متاحة من خلال واصل.',
+      '',
+      'ملاحظة: الاستلام يكون حصرياً لصاحب العلاقة أو قريب درجة أولى فقط: الأب، الأم، الأخ، الأخت، الابن، الابنة، الزوج، أو الزوجة.',
+    ].join('\n');
+  }
+
+  const feeEn = identityType === 'blue' ? '120 JOD.' : '270 JOD.';
+  return [
+    'Jordan passport service details:',
+    `- Fee: ${feeEn}`,
+    '- You must first submit the issuance transaction at the Jordan Civil Status Department in Jordan and obtain a review card.',
+    '- After obtaining the review card, send its copy through the approved channel.',
+    '- After approval, visit a Wassel branch with the original review card and pay the fees.',
+    '- Processing time: 7 to 10 business days after submitting the original review card at Wassel offices.',
+    '- Passport pickup is only from Wassel Jordanian Services Center - Q Center Rawabi, after SMS notification.',
+    '- A review card is mandatory; requests without a review card are not available through Wassel.',
+    '- Pickup is only by the applicant or first-degree relatives: father, mother, brother, sister, son, daughter, husband, wife.',
+  ].join('\n');
+}
+
 function extractIntentFields(query: string): Partial<Record<IntentFieldKey, string>> {
   const fields: Partial<Record<IntentFieldKey, string>> = {};
+  const passportSlots = extractJordanPassportSlots(query);
+
+  if (passportSlots.transactionType) {
+    fields.transactionType = passportSlots.transactionType;
+  }
+  if (passportSlots.identityType) {
+    fields.identityType = passportSlots.identityType;
+  }
+
+  const route = extractLocalRoute(query);
+  if (route.originCity) {
+    fields.originCity = route.originCity;
+  }
+  if (route.destinationCity) {
+    fields.destinationCity = route.destinationCity;
+  }
+
   const trackingId = detectTrackingId(query);
   if (trackingId) {
     fields.trackingNumber = trackingId;
@@ -216,6 +416,12 @@ function extractIntentFields(query: string): Partial<Record<IntentFieldKey, stri
     fields.shipmentContent = contentMatch[1].trim();
   }
 
+  if (/(طرد|parcel|package|box)/i.test(query)) {
+    fields.shipmentType = 'parcel';
+  } else if (/(مغلف|مظروف|document|envelope)/i.test(query)) {
+    fields.shipmentType = 'envelope';
+  }
+
   if (/\b(document|envelope|documents?)\b/i.test(query) || /(مغلف|مظروف|مستند|وثائق)/.test(query)) {
     fields.packageType = 'document';
   } else if (/\b(parcel|package|box|custom)\b/i.test(query) || /(طرد|صندوق|شحنة)/.test(query)) {
@@ -233,6 +439,37 @@ function extractIntentFields(query: string): Partial<Record<IntentFieldKey, stri
   }
 
   return fields;
+}
+
+function getPalestinianCityMentions(query: string): Array<{ city: string; index: number }> {
+  const normalized = query.toLowerCase();
+  const mentions: Array<{ city: string; index: number }> = [];
+
+  for (const [city, aliases] of Object.entries(PALESTINIAN_CITY_ALIASES)) {
+    let minIndex = -1;
+    for (const alias of aliases) {
+      const idx = normalized.indexOf(alias.toLowerCase());
+      if (idx >= 0 && (minIndex === -1 || idx < minIndex)) {
+        minIndex = idx;
+      }
+    }
+    if (minIndex >= 0) {
+      mentions.push({ city, index: minIndex });
+    }
+  }
+
+  return mentions.sort((a, b) => a.index - b.index);
+}
+
+function extractLocalRoute(query: string): { originCity?: string; destinationCity?: string } {
+  const mentions = getPalestinianCityMentions(query);
+  if (mentions.length >= 2) {
+    return {
+      originCity: mentions[0].city,
+      destinationCity: mentions[1].city,
+    };
+  }
+  return {};
 }
 
 function getConversationState(conversationId: string): ConversationIntentState {
@@ -277,6 +514,17 @@ function getIntentState(conversation: ConversationIntentState, intent: IntentKey
 }
 
 function getMissingRequiredFields(intent: IntentKey, knownFields: Partial<Record<IntentFieldKey, string>>): IntentFieldKey[] {
+  if (intent === 'local_delivery') {
+    const missing: IntentFieldKey[] = [];
+    if (!(knownFields.originCity ?? '').trim()) {
+      missing.push('originCity');
+    }
+    if (!(knownFields.destinationCity ?? '').trim()) {
+      missing.push('destinationCity');
+    }
+    return missing;
+  }
+
   if (intent !== 'shipping_quote') {
     return requiredFieldsByIntent[intent].filter((field) => {
       const value = knownFields[field];
@@ -299,6 +547,81 @@ function getMissingRequiredFields(intent: IntentKey, knownFields: Partial<Record
   }
 
   return missing;
+}
+
+async function fetchLocalDeliveryQuote(
+  knownFields: Partial<Record<IntentFieldKey, string>>,
+): Promise<{ price: number; currency: string } | null> {
+  const originCity = (knownFields.originCity ?? '').trim();
+  const destinationCity = (knownFields.destinationCity ?? '').trim();
+  if (!originCity || !destinationCity) {
+    return null;
+  }
+
+  const payload = {
+    originCity,
+    destinationCity,
+    shipmentType: (knownFields.shipmentType ?? knownFields.packageType ?? '').trim() || undefined,
+  };
+
+  const candidateUrls = [
+    `${env.QUICKRATE_BASE_URL}/api/external/local-delivery/quotes`,
+    `${env.QUICKRATE_BASE_URL}/api/external/domestic/shipping/quotes`,
+  ];
+
+  for (const url of candidateUrls) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': env.QUICKRATE_API_KEY,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json().catch(() => ({})) as {
+        price?: number | string;
+        currency?: string;
+        quote?: { price?: number | string; currency?: string };
+        quotes?: Array<{ price?: number | string; currency?: string }>;
+      };
+
+      let selectedPrice = Number(data.price);
+      let selectedCurrency = data.currency;
+
+      if (!Number.isFinite(selectedPrice) && data.quote) {
+        selectedPrice = Number(data.quote.price);
+        selectedCurrency = data.quote.currency ?? selectedCurrency;
+      }
+
+      if (!Number.isFinite(selectedPrice) && Array.isArray(data.quotes) && data.quotes.length > 0) {
+        const valid = data.quotes
+          .map((q) => ({ price: Number(q.price), currency: q.currency }))
+          .filter((q) => Number.isFinite(q.price));
+        if (valid.length > 0) {
+          const lowest = valid.reduce((best, cur) => (cur.price < best.price ? cur : best));
+          selectedPrice = lowest.price;
+          selectedCurrency = lowest.currency;
+        }
+      }
+
+      if (Number.isFinite(selectedPrice)) {
+        return {
+          price: selectedPrice,
+          currency: typeof selectedCurrency === 'string' && selectedCurrency.trim() ? selectedCurrency.trim() : 'ILS',
+        };
+      }
+    } catch {
+      // try next candidate endpoint
+    }
+  }
+
+  return null;
 }
 
 function getCountryCode(name: string): string {
@@ -406,6 +729,10 @@ async function fetchInternationalShippingQuote(
 function buildFollowUpQuestion(intent: IntentKey, missingFields: IntentFieldKey[], isArabic: boolean): string {
   const primaryField = missingFields[0];
   const fieldPrompts: Record<IntentFieldKey, { en: string; ar: string }> = {
+    originCity: {
+      en: 'Please share the pickup city to continue.',
+      ar: 'يرجى تزويدنا بمدينة الانطلاق للمتابعة.',
+    },
     destinationCountry: {
       en: 'Please share the destination country to continue.',
       ar: 'يرجى تزويدي بدولة الوجهة للمتابعة.',
@@ -417,6 +744,18 @@ function buildFollowUpQuestion(intent: IntentKey, missingFields: IntentFieldKey[
     destinationCity: {
       en: 'Please share the destination city to continue.',
       ar: 'يرجى تزويدي بمدينة الوجهة للمتابعة.',
+    },
+    transactionType: {
+      en: 'Is the passport request issuance or renewal?',
+      ar: 'هل المعاملة إصدار أم تجديد؟',
+    },
+    identityType: {
+      en: 'Is the identity green or blue/Maqdisi?',
+      ar: 'هل الهوية خضراء أم زرقاء/مقدسية؟',
+    },
+    shipmentType: {
+      en: 'Please share shipment type (parcel or envelope).',
+      ar: 'يرجى تحديد نوع الشحنة (طرد أو مغلف).',
     },
     shipmentWeight: {
       en: 'Please share the shipment weight (in kg) to continue.',
@@ -445,6 +784,10 @@ function buildFollowUpQuestion(intent: IntentKey, missingFields: IntentFieldKey[
   };
 
   const intentSuffix = {
+    local_delivery: {
+      en: 'This helps us check local delivery pricing between cities.',
+      ar: 'هذا يساعدنا على التحقق من تكلفة التوصيل المحلي بين المدن.',
+    },
     shipping_quote: {
       en: 'This helps us provide an accurate shipping estimate.',
       ar: 'هذا يساعدنا على تقديم تقدير شحن أدق.',
@@ -465,6 +808,10 @@ function buildFollowUpQuestion(intent: IntentKey, missingFields: IntentFieldKey[
       en: 'I will then guide you through no-objection service steps.',
       ar: 'بعد ذلك سأرشدك إلى خطوات خدمة عدم الممانعة.',
     },
+    no_objection_fees: {
+      en: '',
+      ar: '',
+    },
     branch_info: {
       en: '',
       ar: '',
@@ -479,26 +826,45 @@ function buildFollowUpQuestion(intent: IntentKey, missingFields: IntentFieldKey[
     },
   }[intent];
 
-  if (intent === 'shipping_quote') {
-    const shippingFieldLabels: Record<IntentFieldKey, { en: string; ar: string }> = {
-      destinationCountry: { en: 'Destination country', ar: 'الدولة أو المدينة الوجهة' },
-      destinationCity: { en: 'Destination city', ar: 'المدينة الوجهة' },
-      shipmentWeight: { en: 'Shipment weight after packaging', ar: 'وزن الطرد بعد التغليف' },
-      shipmentContent: { en: 'Shipment content', ar: 'محتوى الطرد' },
-      destinationPostalCode: { en: 'Destination postal code', ar: 'الرمز البريدي للوجهة' },
+  if (intent === 'local_delivery') {
+    const localFieldLabels: Record<IntentFieldKey, { en: string; ar: string }> = {
+      originCity: { en: 'Origin city', ar: 'مدينة الانطلاق' },
+      destinationCity: { en: 'Destination city', ar: 'مدينة الوجهة' },
+      transactionType: { en: 'Transaction type', ar: 'نوع المعاملة' },
+      identityType: { en: 'Identity type', ar: 'نوع الهوية' },
+      shipmentType: { en: 'Shipment type', ar: 'نوع الشحنة' },
+      destinationCountry: { en: 'Destination country', ar: 'الدولة الوجهة' },
+      destinationPostalCode: { en: 'Destination postal code', ar: 'الرمز البريدي' },
+      shipmentWeight: { en: 'Shipment weight', ar: 'وزن الشحنة' },
+      shipmentContent: { en: 'Shipment content', ar: 'محتوى الشحنة' },
+      packageType: { en: 'Package type', ar: 'نوع الطرد' },
+      packagingPreference: { en: 'Packaging preference', ar: 'تفضيل التغليف' },
       trackingNumber: { en: 'Tracking number', ar: 'رقم التتبع' },
       serviceType: { en: 'Service type', ar: 'نوع الخدمة' },
-      packageType: { en: 'Package type (parcel or envelope)', ar: 'نوع الشحنة (طرد أو مغلف)' },
-      packagingPreference: { en: 'Packaging preference', ar: 'تفضيل التغليف' },
     };
 
     const lines = missingFields
-      .map((field, index) => `${index + 1}. ${isArabic ? shippingFieldLabels[field].ar : shippingFieldLabels[field].en}`)
+      .map((field, index) => `${index + 1}. ${isArabic ? localFieldLabels[field].ar : localFieldLabels[field].en}`)
       .join('\n');
 
     return isArabic
-      ? `حتى نتمكن من عرض المعلومات المتاحة، يرجى تزويدنا بـ:\n${lines}`
-      : `To provide the available estimate, please share:\n${lines}`;
+      ? `حتى نتمكن من التحقق من تكلفة التوصيل المحلي، يرجى تزويدنا بـ:\n${lines}`
+      : `To check local delivery cost, please share:\n${lines}`;
+  }
+
+  if (intent === 'shipping_quote') {
+    return isArabic
+      ? 'يرجى تزويدنا بالدولة أو المدينة الوجهة، وزن الطرد، ومحتوى الطرد'
+      : 'Please share destination country or city, shipment weight, and shipment content.';
+  }
+
+  if (intent === 'jordan_passport_service') {
+    if (missingFields.includes('transactionType')) {
+      return isArabic ? 'هل المعاملة إصدار أم تجديد؟' : 'Is the passport request issuance or renewal?';
+    }
+    if (missingFields.includes('identityType')) {
+      return isArabic ? 'هل الهوية خضراء أم زرقاء/مقدسية؟' : 'Is the identity green or blue/Maqdisi?';
+    }
   }
 
   const base = isArabic ? fieldPrompts[primaryField].ar : fieldPrompts[primaryField].en;
@@ -507,6 +873,11 @@ function buildFollowUpQuestion(intent: IntentKey, missingFields: IntentFieldKey[
 }
 
 function buildInsufficientInfoFinalAnswer(intent: IntentKey, isArabic: boolean): string {
+    if (intent === 'local_delivery') {
+      return isArabic
+        ? 'حسب المعلومات المتوفرة لدينا حالياً، لا يمكن تأكيد تكلفة التوصيل المحلي ضمن البيانات الحالية.'
+        : 'Based on the currently available information, we cannot confirm local delivery cost.';
+    }
   if (intent === 'shipping_quote') {
     return QUICKRATE_FALLBACK_AR;
   }
@@ -524,6 +895,10 @@ function buildInsufficientInfoFinalAnswer(intent: IntentKey, isArabic: boolean):
 
 function buildIntentRelatedTopics(intent: IntentKey, isArabic: boolean): string[] {
   const topics: Record<IntentKey, { en: string[]; ar: string[] }> = {
+    local_delivery: {
+      en: ['Local delivery', 'Pickup request', 'Branch support'],
+      ar: ['التوصيل المحلي', 'طلب استلام', 'الدعم عبر الفروع'],
+    },
     shipping_quote: {
       en: ['Shipping rates', 'Delivery time', 'Packaging guidance'],
       ar: ['أسعار الشحن', 'مدة التوصيل', 'إرشادات التغليف'],
@@ -541,6 +916,10 @@ function buildIntentRelatedTopics(intent: IntentKey, isArabic: boolean): string[
       ar: ['الرخصة الدولية', 'الوثائق المطلوبة', 'مدة المعالجة'],
     },
     no_objection_service: {
+      en: ['No-objection service', 'Required documents', 'Application steps'],
+      ar: ['خدمة عدم الممانعة', 'الوثائق المطلوبة', 'خطوات التقديم'],
+    },
+    no_objection_fees: {
       en: ['No-objection service', 'Required documents', 'Application steps'],
       ar: ['خدمة عدم الممانعة', 'الوثائق المطلوبة', 'خطوات التقديم'],
     },
@@ -774,12 +1153,11 @@ export async function getResourceSearchResponse(query: string, options?: Resourc
     : [];
   const detectedIntent = inferIntent(query);
 
-  const resolvedIntent = (detectedIntent === 'general' && conversation.activeIntent !== 'general' && !isClearlyNewRequest(query))
-    ? conversation.activeIntent
-    : detectedIntent;
+  const resolvedIntent = resolveIntentWithCarryover(query, detectedIntent, conversation.activeIntent);
+  const resolvedBaseIntent = getBaseIntent(resolvedIntent);
 
-  if (isClearlyNewRequest(query) || conversation.activeIntent !== resolvedIntent) {
-    conversation.activeIntent = resolvedIntent;
+  if (isClearlyNewRequest(query) || isExplicitIntentStarter(query) || conversation.activeIntent === 'general') {
+    conversation.activeIntent = resolvedBaseIntent;
   }
 
   const intentState = getIntentState(conversation, resolvedIntent);
@@ -811,6 +1189,50 @@ export async function getResourceSearchResponse(query: string, options?: Resourc
     return {
       answer: buildInsufficientInfoFinalAnswer(resolvedIntent, isArabic),
       relatedTopics: buildIntentRelatedTopics(resolvedIntent, isArabic),
+    };
+  }
+
+  if (resolvedIntent === 'no_objection_fees') {
+    intentState.completed = true;
+    return {
+      answer: 'لا تتوفر لدينا تفاصيل مؤكدة حول رسوم خدمة عدم الممانعة ضمن البيانات الحالية.',
+      relatedTopics: buildIntentRelatedTopics('no_objection_service', true),
+    };
+  }
+
+  if (resolvedIntent === 'jordan_passport_service') {
+    intentState.completed = true;
+    return {
+      answer: buildJordanPassportFinalAnswer(intentState.knownFields, isArabic),
+      relatedTopics: buildIntentRelatedTopics(resolvedIntent, isArabic),
+    };
+  }
+
+  if (resolvedIntent === 'local_delivery') {
+    const localQuote = await fetchLocalDeliveryQuote(intentState.knownFields);
+    intentState.completed = true;
+
+    const originCity = (intentState.knownFields.originCity ?? '').trim();
+    const destinationCity = (intentState.knownFields.destinationCity ?? '').trim();
+
+    if (!localQuote) {
+      return {
+        answer: LOCAL_DELIVERY_FALLBACK_AR(originCity, destinationCity),
+        relatedTopics: buildIntentRelatedTopics(resolvedIntent, true),
+      };
+    }
+
+    const shipmentType = (intentState.knownFields.shipmentType ?? '').trim();
+
+    return {
+      answer: [
+        'عرض تكلفة توصيل محلي:',
+        `من: ${originCity}`,
+        `إلى: ${destinationCity}`,
+        shipmentType ? `نوع الشحنة: ${shipmentType}` : '',
+        `السعر المبدئي: ${localQuote.price.toFixed(2)} ${localQuote.currency}`,
+      ].filter(Boolean).join('\n'),
+      relatedTopics: buildIntentRelatedTopics(resolvedIntent, true),
     };
   }
 
