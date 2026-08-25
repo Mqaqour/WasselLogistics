@@ -40,6 +40,24 @@ export interface ChatEvent {
   createdAt: Date;
 }
 
+export interface ContactMessageLog {
+  id: number;
+  topic: string;
+  name: string;
+  mobile: string;
+  email: string | null;
+  message: string;
+  trackingNumber: string | null;
+  passportNumber: string | null;
+  language: string | null;
+  aiAnswer: string | null;
+  aiRelatedTopics: string | null;
+  emailDeliveryStatus: 'pending' | 'sent' | 'failed';
+  emailError: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // ── API DTOs ──────────────────────────────────────────────────────────────────
 
 export interface StartChatRequest {
@@ -142,4 +160,20 @@ export interface ApiError {
     code: string;
     message: string;
   };
+}
+
+export interface ContactSubmitRequest {
+  logId?: number;
+  topic: string;
+  name: string;
+  mobile: string;
+  email?: string;
+  message: string;
+  trackingNumber?: string;
+  passportNumber?: string;
+  language?: string;
+  aiSuggestion?: {
+    answer: string;
+    relatedTopics: string[];
+  } | null;
 }

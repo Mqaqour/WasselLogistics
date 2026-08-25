@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, MapPin, Truck, CheckCircle, Clock, Bell, AlertTriangle, FileText, CreditCard, Package, MessageCircle, X, Send, Globe, Scale, Tag, ArrowRight, DollarSign, Copy, RefreshCw } from 'lucide-react';
 import { TrackingEvent, Language } from '../../types';
 
@@ -27,9 +28,9 @@ interface ShipmentInfo {
     weight: string;
 }
 
-const WASSEL_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || 'http://localhost:3001'}/api/wassel/track`;
+const WASSEL_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/wassel/track`;
 
-const JO_PASSPORT_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || 'http://localhost:3001'}/api/jopassport/track`;
+const JO_PASSPORT_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/jopassport/track`;
 
 const isJordanPassportNumber = (id: string): boolean => {
   const upper = id.trim().toUpperCase();
@@ -235,6 +236,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [notified, setNotified] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [selectedCarrier, setSelectedCarrier] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [copiedTracking, setCopiedTracking] = useState(false);
@@ -357,6 +359,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
     setShipmentInfo(null);
     setRequiredAction(null);
     setNotFound(false);
+    setSelectedCarrier(null);
     setAwbRecord(null);
     setPendingBillDetails(undefined);
 
@@ -523,9 +526,89 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
       {(awbRecord || notFound) && (
         <div className="max-w-5xl mx-auto animate-slide-up space-y-6">
           {notFound ? (
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{t.noData}</h3>
-              <p className="text-gray-500 mb-5">{t.noDataDesc}</p>
+            <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+              <h3 className="text-xl font-bold text-gray-900 mb-1 text-center">{t.noData}</h3>
+              <p className="text-gray-500 mb-6 text-center text-sm">{t.noDataDesc}</p>
+
+              {/* Carrier selector */}
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-gray-700 mb-3 text-center">
+                  {lang === 'en' ? 'What type of shipment are you tracking?' : 'ما نوع الشحنة التي تريد تتبعها؟'}
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {([
+                    { key: 'wassel',   labelAr: 'واصل',       labelEn: 'Wassel'   },
+                    { key: 'dhl',      labelAr: 'DHL',         labelEn: 'DHL'      },
+                    { key: 'fedex',    labelAr: 'FedEx',       labelEn: 'FedEx'    },
+                    { key: 'passport', labelAr: 'جواز سفر أردني', labelEn: 'Jordan Passport' },
+                  ] as const).map(c => (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setSelectedCarrier(selectedCarrier === c.key ? null : c.key)}
+                      className={`rounded-xl border-2 px-3 py-3 text-sm font-bold transition-colors ${
+                        selectedCarrier === c.key
+                          ? 'border-wassel-blue bg-wassel-blue text-white'
+                          : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-wassel-blue hover:bg-blue-50'
+                      }`}
+                    >
+                      {lang === 'en' ? c.labelEn : c.labelAr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Per-carrier format hint */}
+              {selectedCarrier && (
+                <div className="mb-6 rounded-xl bg-blue-50 border border-blue-100 p-4 text-sm text-blue-800">
+                  {selectedCarrier === 'passport' && (
+                    <div>
+                      <p className="font-bold mb-1">
+                        {lang === 'en' ? 'Jordan Passport format:' : 'صيغة رقم جواز السفر الأردني:'}
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>{lang === 'en' ? 'Starts with QW or RA' : 'يبدأ بـ QW أو RA'}</li>
+                        <li>{lang === 'en' ? 'Followed by 9 digits' : 'يليه 9 أرقام'}</li>
+                        <li>{lang === 'en' ? 'Ends with JO' : 'ينتهي بـ JO'}</li>
+                        <li dir="ltr" className="font-mono">{lang === 'en' ? 'Example: QW123456789JO' : 'مثال: QW123456789JO'}</li>
+                      </ul>
+                    </div>
+                  )}
+                  {selectedCarrier === 'dhl' && (
+                    <div>
+                      <p className="font-bold mb-1">
+                        {lang === 'en' ? 'DHL tracking number format:' : 'صيغة رقم تتبع DHL:'}
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>{lang === 'en' ? 'Usually starts with JJD' : 'عادةً يبدأ بـ JJD'}</li>
+                        <li>{lang === 'en' ? '14 characters in total' : 'يتكون من 14 خانة إجمالاً'}</li>
+                        <li dir="ltr" className="font-mono">{lang === 'en' ? 'Example: JJD01234567890' : 'مثال: JJD01234567890'}</li>
+                      </ul>
+                    </div>
+                  )}
+                  {selectedCarrier === 'fedex' && (
+                    <div>
+                      <p className="font-bold mb-1">
+                        {lang === 'en' ? 'FedEx tracking number format:' : 'صيغة رقم تتبع FedEx:'}
+                      </p>
+                      <p className="text-blue-600 italic">
+                        {lang === 'en' ? 'Format details coming soon.' : 'سيتم إضافة تفاصيل الصيغة قريباً.'}
+                      </p>
+                    </div>
+                  )}
+                  {selectedCarrier === 'wassel' && (
+                    <div>
+                      <p className="font-bold mb-1">
+                        {lang === 'en' ? 'Wassel tracking number format:' : 'صيغة رقم تتبع واصل:'}
+                      </p>
+                      <p className="text-blue-600 italic">
+                        {lang === 'en' ? 'Format details coming soon.' : 'سيتم إضافة تفاصيل الصيغة قريباً.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button onClick={handleRefreshTracking} className="inline-flex items-center rounded-lg bg-wassel-blue px-4 py-2 text-sm font-semibold text-white hover:bg-wassel-darkBlue transition-colors">
                   <RefreshCw className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
@@ -718,8 +801,8 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
         </div>
       )}
 
-      {/* NEW: Contact Us About This Modal */}
-      {showContactForm && (
+      {/* NEW: Contact Us About This Modal — rendered via portal to escape overflow-y-auto parent */}
+      {showContactForm && createPortal(
         <div className="fixed z-[80] inset-0 overflow-y-auto" role="dialog" aria-modal="true">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
                 <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={resetContactForm}></div>
@@ -817,7 +900,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
                 </div>
             </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

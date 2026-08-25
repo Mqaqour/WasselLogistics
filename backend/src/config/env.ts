@@ -17,7 +17,7 @@ function optional(key: string, defaultValue: string): string {
 
 export const env = {
   NODE_ENV: optional('NODE_ENV', 'development'),
-  PORT: parseInt(optional('PORT', '3000'), 10),
+  PORT: (process.env.PORT ?? '3000') as string | number,
 
   // respond.io
   RESPOND_CHANNEL_ID:   optional('RESPOND_CHANNEL_ID', ''),
@@ -50,10 +50,10 @@ export const env = {
   AZURE_OPENAI_API_KEY:      optional('AZURE_OPENAI_API_KEY', ''),
   AZURE_OPENAI_DEPLOYMENT:   optional('AZURE_OPENAI_DEPLOYMENT', ''),
   AZURE_OPENAI_API_VERSION:  optional('AZURE_OPENAI_API_VERSION', '2024-02-01'),
-  AI_PROJECT_ENDPOINT:       optional('AI_PROJECT_ENDPOINT', ''),
+  AI_PROJECT_ENDPOINT:       optional('AI_PROJECT_ENDPOINT', 'https://wasselaifoundry.services.ai.azure.com/api/projects/Wassel-default'),
   AI_PROJECT_API_KEY:        optional('AI_PROJECT_API_KEY', ''),
-  AI_AGENT_NAME:             optional('AI_AGENT_NAME', ''),
-  AI_AGENT_VERSION:          optional('AI_AGENT_VERSION', '1'),
+  AI_AGENT_NAME:             optional('AI_AGENT_NAME', 'WSLAIV52'),
+  AI_AGENT_VERSION:          optional('AI_AGENT_VERSION', '4'),
   CHAT_RATE_LIMIT_PER_MINUTE: parseInt(optional('CHAT_RATE_LIMIT_PER_MINUTE', '20'), 10),
 
   // Respond.io handoff
@@ -67,4 +67,9 @@ export const env = {
   SMTP_PASSWORD: optional('SMTP_PASSWORD', ''),
   PICKUP_NOTIFY_EMAIL: optional('PICKUP_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
   CONTACT_NOTIFY_EMAIL: optional('CONTACT_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
+
+  // Portal login security
+  LOGIN_MAX_ATTEMPTS: parseInt(optional('LOGIN_MAX_ATTEMPTS', '3'), 10),
+  LOGIN_BLOCK_HOURS: parseInt(optional('LOGIN_BLOCK_HOURS', '24'), 10),
+  LOGIN_ALERT_EMAILS: optional('LOGIN_ALERT_EMAILS', 'mqaqour@wassel.ps,oziq@wassel.ps'),
 };

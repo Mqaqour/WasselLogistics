@@ -1,10 +1,32 @@
 import React, { useState } from 'react';
 import { Language } from '../../types';
-import { Mail, Phone, MapPin, Clock, Send, CheckCircle, Loader2, Globe, AlertTriangle } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, Send, CheckCircle, Loader2, Globe, AlertTriangle, MessageCircle } from 'lucide-react';
+import { getResourceSearchResponse } from '../../services/geminiService';
+import { suggestKbQuestions, getKbQuestionAnswer } from '../../services/questionsKbService';
 
 interface PageProps {
   lang: Language;
 }
+
+type ContactFormData = {
+    topic: string;
+    name: string;
+    mobile: string;
+    email: string;
+    message: string;
+    trackingNumber: string;
+    passportNumber: string;
+};
+
+type ContactAiSuggestion = {
+    answer: string;
+    relatedTopics: string[];
+};
+
+type ContactSuggestionResult = {
+    suggestion: ContactAiSuggestion;
+    logId: number;
+};
 
 export const About: React.FC<PageProps> = ({ lang }) => {
   const t = {
@@ -202,7 +224,8 @@ export const Management: React.FC<PageProps> = ({ lang }) => (
 );
 
 export const Contact: React.FC<PageProps> = ({ lang }) => {
-    const [formData, setFormData] = useState({
+    const showContactAiSuggestedQuestions = false;
+    const [formData, setFormData] = useState<ContactFormData>({
         topic: '',
         name: '',
         mobile: '',
@@ -214,16 +237,67 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSent, setIsSent] = useState(false);
     const [submitError, setSubmitError] = useState('');
+    const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
+    const [agentError, setAgentError] = useState('');
+    const [agentSuggestion, setAgentSuggestion] = useState<ContactAiSuggestion | null>(null);
+    const [contactLogId, setContactLogId] = useState<number | null>(null);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const topics = [
+        { id: 'general', en: 'General Inquiry', ar: 'استفسار عام', field: 'none' },
+        { id: 'shipment', en: 'Shipment Inquiry', ar: 'استفسار عن شحنة', field: 'tracking' },
+        { id: 'passport', en: 'Jordan Passport Services', ar: 'خدمات الجوازات الأردنية', field: 'passport' },
+        { id: 'complaint', en: 'Complaint', ar: 'شكوى', field: 'tracking' },
+        { id: 'claiming', en: 'Claiming', ar: 'مطالبة', field: 'tracking' }
+    ];
+
+    const currentTopic = topics.find(t => t.id === formData.topic);
+
+    const updateField = (key: keyof ContactFormData, value: string) => {
+        setFormData((prev) => ({ ...prev, [key]: value }));
+        if (agentSuggestion) {
+            setAgentSuggestion(null);
+        }
+        setContactLogId(null);
+        setAgentError('');
+    };
+
+    const persistAiSuggestionLog = async (suggestion: ContactAiSuggestion): Promise<number> => {
+        const res = await fetch('/api/contact/log-ai-suggestion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ...formData,
+                language: lang,
+                aiSuggestion: suggestion,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error((err as { error?: string }).error ?? 'Failed to persist AI suggestion');
+        }
+
+        const data = await res.json() as { logId?: number };
+        if (typeof data.logId !== 'number' || data.logId <= 0) {
+            throw new Error('Contact log id is missing from AI persistence response');
+        }
+
+        return data.logId;
+    };
+
+    const sendContactMessage = async (suggestion?: ContactAiSuggestion | null, logId?: number | null) => {
         setIsSubmitting(true);
         setSubmitError('');
         try {
             const res = await fetch('/api/contact/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    language: lang,
+                    logId: logId ?? contactLogId,
+                    aiSuggestion: suggestion ?? agentSuggestion,
+                }),
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
@@ -235,6 +309,125 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const runAgentSuggestion = async (): Promise<ContactSuggestionResult | null> => {
+        setIsGeneratingSuggestion(true);
+        setAgentError('');
+
+        const resolveQueryLanguage = (input: string): 'ar' | 'en' => {
+            if (/[\u0600-\u06FF]/.test(input)) return 'ar';
+            if (/[A-Za-z]/.test(input)) return 'en';
+            return lang === 'ar' ? 'ar' : 'en';
+        };
+
+        const runKbFallbackSuggestion = async (): Promise<{ answer: string; relatedTopics: string[] } | null> => {
+            const topicKeywords: Record<string, string> = {
+                general: lang === 'en' ? 'general inquiry support' : 'استفسار عام دعم',
+                shipment: lang === 'en' ? 'shipment tracking delivery status' : 'تتبع شحنة حالة التسليم',
+                passport: lang === 'en' ? 'jordan passport renewal issuance' : 'الجواز الأردني تجديد إصدار',
+                complaint: lang === 'en' ? 'complaint shipment issue delay' : 'شكوى تأخير مشكلة شحنة',
+                claiming: lang === 'en' ? 'claim damaged lost shipment' : 'مطالبة شحنة مفقودة متضررة',
+            };
+
+            const queryParts = [
+                topicKeywords[formData.topic] ?? '',
+                formData.message,
+                formData.trackingNumber,
+                formData.passportNumber,
+            ].filter(Boolean);
+
+            const query = queryParts.join(' ').trim();
+            if (!query) return null;
+
+            const queryLang = resolveQueryLanguage(query);
+            const suggestions = await suggestKbQuestions(query, queryLang);
+            if (!suggestions.length) return null;
+
+            const topAnswer = await getKbQuestionAnswer(suggestions[0].questionId, queryLang);
+            const relatedTopics = Array.from(new Set(suggestions.slice(0, 4).map((item) => item.question))).filter(Boolean);
+
+            return {
+                answer: topAnswer.answer,
+                relatedTopics,
+            };
+        };
+
+        try {
+            const topicName = lang === 'en' ? (currentTopic?.en ?? 'General Inquiry') : (currentTopic?.ar ?? 'استفسار عام');
+            const prompt = [
+                lang === 'en'
+                    ? 'You are helping customer support draft an email before sending.'
+                    : 'أنت تساعد فريق الدعم على تحسين رسالة العميل قبل الإرسال.',
+                lang === 'en'
+                    ? 'Read the provided form data and return practical suggestions.'
+                    : 'اقرأ بيانات النموذج وقدّم اقتراحات عملية.',
+                lang === 'en'
+                    ? 'Include: 1) short answer to user case, 2) 3-4 suggested follow-up questions based on topic.'
+                    : 'قدّم: 1) إجابة مختصرة حسب الحالة، 2) من 3 إلى 4 أسئلة متابعة مقترحة حسب الموضوع.',
+                '',
+                lang === 'en' ? `Topic: ${topicName}` : `الموضوع: ${topicName}`,
+                lang === 'en' ? `Name: ${formData.name}` : `الاسم: ${formData.name}`,
+                lang === 'en' ? `Mobile: ${formData.mobile}` : `الموبايل: ${formData.mobile}`,
+                lang === 'en' ? `Email: ${formData.email || '-'}` : `البريد الإلكتروني: ${formData.email || '-'}`,
+                lang === 'en' ? `Tracking Number: ${formData.trackingNumber || '-'}` : `رقم التتبع: ${formData.trackingNumber || '-'}`,
+                lang === 'en' ? `Passport Number: ${formData.passportNumber || '-'}` : `رقم الجواز: ${formData.passportNumber || '-'}`,
+                lang === 'en' ? `User message: ${formData.message}` : `رسالة العميل: ${formData.message}`,
+            ].join('\n');
+
+            const result = await getResourceSearchResponse(prompt);
+
+            const genericFallbackRegex = /couldn't find an answer|please browse our categories|تعذر العثور على إجابة|تصفح المواضيع/i;
+            const looksLikeFallback = result.relatedTopics.length === 0 || genericFallbackRegex.test(result.answer);
+
+            if (looksLikeFallback) {
+                const kbSuggestion = await runKbFallbackSuggestion();
+                if (kbSuggestion) {
+                    const persistedLogId = await persistAiSuggestionLog(kbSuggestion);
+                    setContactLogId(persistedLogId);
+                    setAgentSuggestion(kbSuggestion);
+                    return { suggestion: kbSuggestion, logId: persistedLogId };
+                }
+            }
+
+            const suggestion = {
+                answer: result.answer,
+                relatedTopics: result.relatedTopics,
+            };
+            const persistedLogId = await persistAiSuggestionLog(suggestion);
+            setContactLogId(persistedLogId);
+            setAgentSuggestion(suggestion);
+            return { suggestion, logId: persistedLogId };
+        } catch {
+            try {
+                const kbSuggestion = await runKbFallbackSuggestion();
+                if (kbSuggestion) {
+                    const persistedLogId = await persistAiSuggestionLog(kbSuggestion);
+                    setContactLogId(persistedLogId);
+                    setAgentSuggestion(kbSuggestion);
+                    return { suggestion: kbSuggestion, logId: persistedLogId };
+                }
+            } catch {
+                // ignore secondary fallback errors
+            }
+            setAgentError(lang === 'en' ? 'Could not generate AI suggestions right now.' : 'تعذر توليد اقتراحات الذكاء الاصطناعي حالياً.');
+            return null;
+        } finally {
+            setIsGeneratingSuggestion(false);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (isSubmitting || isGeneratingSuggestion) {
+            return;
+        }
+
+        const suggestionResult = agentSuggestion
+            ? { suggestion: agentSuggestion, logId: contactLogId }
+            : await runAgentSuggestion();
+
+        await sendContactMessage(suggestionResult?.suggestion ?? null, suggestionResult?.logId ?? contactLogId);
     };
 
     const t = {
@@ -256,6 +449,9 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         selectTopic: lang === 'en' ? 'Select a topic...' : 'اختر موضوعاً...',
         btnSubmit: lang === 'en' ? 'Send Message' : 'إرسال الرسالة',
         sending: lang === 'en' ? 'Sending...' : 'جاري الإرسال...',
+        generatingSuggestion: lang === 'en' ? 'Generating AI suggestions...' : 'جاري توليد الاقتراحات الذكية...',
+        continueSend: lang === 'en' ? 'Continue Sending Email' : 'متابعة إرسال الرسالة',
+        aiSuggestedQuestions: lang === 'en' ? 'Suggested Questions' : 'الأسئلة المقترحة',
         successTitle: lang === 'en' ? 'Message Sent Successfully!' : 'تم إرسال الرسالة بنجاح!',
         successDesc: lang === 'en' ? 'Thank you for contacting us. Our team will review your message and respond as soon as possible.' : 'شكراً لتواصلك معنا. سيقوم فريقنا بمراجعة رسالتك والرد في أقرب وقت ممكن.',
         sendNew: lang === 'en' ? 'Send Another Message' : 'إرسال رسالة أخرى',
@@ -265,16 +461,6 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         office: lang === 'en' ? 'Office' : 'المكتب',
         hours: lang === 'en' ? 'Working Hours' : 'ساعات العمل'
     };
-
-    const topics = [
-        { id: 'general', en: 'General Inquiry', ar: 'استفسار عام', field: 'none' },
-        { id: 'shipment', en: 'Shipment Inquiry', ar: 'استفسار عن شحنة', field: 'tracking' },
-        { id: 'passport', en: 'Jordan Passport Services', ar: 'خدمات الجوازات الأردنية', field: 'passport' },
-        { id: 'complaint', en: 'Complaint', ar: 'شكوى', field: 'tracking' },
-        { id: 'claiming', en: 'Claiming', ar: 'مطالبة', field: 'tracking' }
-    ];
-
-    const currentTopic = topics.find(t => t.id === formData.topic);
 
     const branchGroups = [
         {
@@ -313,15 +499,6 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                 }
             ]
         },
-        {
-            category: lang === 'en' ? 'Logistics Agent' : 'الوكيل اللوجستي',
-            items: [
-                { 
-                    name: lang === 'en' ? 'Bethlehem - Ayyad Logistics (Agent)' : 'بيت لحم - عياد لوجستيكس (وكيل)', 
-                    address: lang === 'en' ? 'Beit Sahour - Astih St.' : 'بيت ساحور - شارع اسطيح'
-                }
-            ]
-        }
     ];
 
     return (
@@ -363,6 +540,24 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                     <div>
                                         <h3 className="font-bold text-base mb-1">{t.email}</h3>
                                         <p className="text-blue-100 text-sm">info@wassel.ps</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-4">
+                                    <div className="p-2 bg-white/10 rounded-lg shrink-0">
+                                        <MessageCircle className="w-5 h-5 text-wassel-yellow" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-base mb-1">{lang === 'en' ? 'WhatsApp' : 'واتساب'}</h3>
+                                        <a
+                                            href="https://wa.me/972594775000"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            dir="ltr"
+                                            className="text-blue-100 text-sm hover:text-wassel-yellow transition-colors"
+                                        >
+                                            +972 59 477 5000
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -435,7 +630,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                             id="topic"
                                             required 
                                             value={formData.topic}
-                                            onChange={(e) => setFormData({...formData, topic: e.target.value})}
+                                            onChange={(e) => updateField('topic', e.target.value)}
                                             className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border"
                                         >
                                             <option value="" disabled>{t.selectTopic}</option>
@@ -454,7 +649,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                                 id="trackingNumber"
                                                 required 
                                                 value={formData.trackingNumber}
-                                                onChange={(e) => setFormData({...formData, trackingNumber: e.target.value})}
+                                                onChange={(e) => updateField('trackingNumber', e.target.value)}
                                                 className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border bg-blue-50"
                                             />
                                         </div>
@@ -468,7 +663,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                                 id="passportNumber"
                                                 required 
                                                 value={formData.passportNumber}
-                                                onChange={(e) => setFormData({...formData, passportNumber: e.target.value})}
+                                                onChange={(e) => updateField('passportNumber', e.target.value)}
                                                 className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border bg-blue-50"
                                             />
                                         </div>
@@ -481,7 +676,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                             id="name"
                                             required 
                                             value={formData.name}
-                                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                            onChange={(e) => updateField('name', e.target.value)}
                                             className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border"
                                         />
                                     </div>
@@ -494,7 +689,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                                 id="mobile"
                                                 required 
                                                 value={formData.mobile}
-                                                onChange={(e) => setFormData({...formData, mobile: e.target.value})}
+                                                onChange={(e) => updateField('mobile', e.target.value)}
                                                 className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border"
                                             />
                                         </div>
@@ -504,7 +699,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                                 type="email" 
                                                 id="email"
                                                 value={formData.email}
-                                                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                                onChange={(e) => updateField('email', e.target.value)}
                                                 className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border"
                                             />
                                         </div>
@@ -517,14 +712,47 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                             rows={5}
                                             required 
                                             value={formData.message}
-                                            onChange={(e) => setFormData({...formData, message: e.target.value})}
+                                            onChange={(e) => updateField('message', e.target.value)}
                                             className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border"
                                         ></textarea>
                                     </div>
 
+                                    {(isGeneratingSuggestion || agentSuggestion || agentError) && (
+                                        <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-3">
+                                            {isGeneratingSuggestion && (
+                                                <div className="flex items-center gap-2 text-sm text-gray-700">
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    {t.generatingSuggestion}
+                                                </div>
+                                            )}
+
+                                            {!isGeneratingSuggestion && agentSuggestion && (
+                                                <>
+                                                    <p className="text-base text-gray-800 whitespace-pre-wrap leading-relaxed">{agentSuggestion.answer}</p>
+                                                    {showContactAiSuggestedQuestions && agentSuggestion.relatedTopics.length > 0 && (
+                                                        <div className="space-y-2">
+                                                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t.aiSuggestedQuestions}</p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {agentSuggestion.relatedTopics.map((topic, idx) => (
+                                                                    <span key={`${topic}-${idx}`} className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-blue-200 text-xs font-medium text-wassel-blue">
+                                                                        {topic}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+
+                                            {!isGeneratingSuggestion && agentError && (
+                                                <p className="text-sm text-red-600">{agentError}</p>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <button 
                                         type="submit" 
-                                        disabled={isSubmitting}
+                                        disabled={isSubmitting || isGeneratingSuggestion}
                                         className="w-full bg-wassel-blue text-white font-bold py-4 rounded-xl shadow-lg hover:bg-wassel-darkBlue transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
                                     >
                                         {isSubmitting ? (
@@ -532,10 +760,15 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                                 <Loader2 className="w-5 h-5 animate-spin" />
                                                 {t.sending}
                                             </>
+                                        ) : isGeneratingSuggestion ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                {t.generatingSuggestion}
+                                            </>
                                         ) : (
                                             <>
                                                 <Send className="w-5 h-5 rtl:rotate-180" />
-                                                {t.btnSubmit}
+                                                {agentSuggestion ? t.continueSend : t.btnSubmit}
                                             </>
                                         )}
                                     </button>

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Plane, Truck, Globe, Map, FileText, Package, ArrowRight } from 'lucide-react';
+import { Globe, Map, FileText, Package } from 'lucide-react';
 import { RateResult, Language } from '../../types';
 import { PlacesAutocomplete, PlaceDetails } from './PlacesAutocomplete';
 
@@ -65,7 +65,6 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       calculating: lang === 'en' ? 'Calculating Best Rates...' : 'جاري حساب أفضل الأسعار...',
       availableOptions: lang === 'en' ? 'Available Options' : 'الخيارات المتاحة',
       estDelivery: lang === 'en' ? 'Est. Delivery:' : 'وقت التوصيل المتوقع:',
-      selectBook: lang === 'en' ? 'Select & Book' : 'اختيار وحجز',
       businessDays: lang === 'en' ? 'Business Days' : 'أيام عمل',
       tomorrow: lang === 'en' ? 'Tomorrow' : 'غداً',
       selectCity: lang === 'en' ? 'Select City' : 'اختر المدينة',
@@ -166,21 +165,36 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
           setCarrierErrors(data.carrierErrors);
         }
 
-        const rates: RateResult[] = (data.quotes ?? []).map((q: {
-          carrier: string;
-          serviceType: string;
-          price: number;
-          currency: string;
-          etaDays: string;
-        }) => ({
-          provider: q.carrier,
-          service: q.serviceType,
-          price: q.price,
-          currency: q.currency,
-          deliveryDate: new Date(q.etaDays).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB', {
-            year: 'numeric', month: 'short', day: 'numeric',
-          }),
-        }));
+        const rawQuotes: unknown[] = Array.isArray(data.quotes) ? data.quotes : [];
+
+        const rates: RateResult[] = rawQuotes.reduce<RateResult[]>((acc, q) => {
+          const quote = q as {
+            carrier?: string;
+            serviceType?: string;
+            price?: number;
+            currency?: string;
+            etaDays?: string;
+          };
+
+          const price = Number(quote.price);
+          if (!Number.isFinite(price)) return acc;
+
+          const etaDate = quote.etaDays ? new Date(quote.etaDays) : null;
+          const deliveryDate = etaDate && !isNaN(etaDate.getTime())
+            ? etaDate.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB', {
+                year: 'numeric', month: 'short', day: 'numeric',
+              })
+            : (quote.etaDays ?? '');
+
+          acc.push({
+            provider: quote.carrier ?? '',
+            service: quote.serviceType ?? '',
+            price,
+            currency: quote.currency ?? '',
+            deliveryDate,
+          });
+          return acc;
+        }, []);
 
         setResults(rates);
       } catch {
@@ -218,31 +232,6 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       setResults(rates);
       setLoading(false);
     }, 800);
-  };
-
-  const handleBookClick = (rate: RateResult) => {
-      const bookingOrigin = type === 'domestic' ? domesticOriginCity : origin;
-      const params = new URLSearchParams({
-          mode: 'booking',
-          provider: rate.provider,
-          service: rate.service,
-          price: rate.price.toString(),
-          currency: rate.currency,
-          deliveryDate: rate.deliveryDate,
-          weight: weight.toString(),
-            origin: bookingOrigin,
-          destination: destination,
-          lang: lang
-      });
-      
-      // Open in new window
-      window.open(`/?${params.toString()}`, 'WasselBooking', 'width=900,height=800,scrollbars=yes,resizable=yes');
-  };
-
-  // Helper to get logo
-  const getProviderLogo = (provider: string) => {
-    if (provider.includes('Wassel')) return BRAND_LOGO;
-    return null;
   };
 
   return (
@@ -484,46 +473,25 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       {results && results.length > 0 && (
         <div className="mt-10 space-y-4">
           <h3 className="text-xl font-bold text-wassel-blue mb-4">{t.availableOptions}</h3>
-          {results.map((rate, idx) => {
-            const logo = getProviderLogo(rate.provider);
+          {(() => {
+            const lowestRate = results.reduce((best, current) =>
+              current.price < best.price ? current : best,
+            results[0]);
+
             return (
-              <div key={idx} className="bg-white p-4 rounded-lg shadow border border-gray-100 flex flex-col md:flex-row justify-between items-center hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-4 mb-4 md:mb-0 w-full md:w-auto">
-                  <div className={`w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-lg p-1 border border-gray-100 ${rate.provider.includes('Wassel') ? 'bg-white' : 'bg-white'}`}>
-                     {logo ? (
-                       <img 
-                          src={logo} 
-                          alt={rate.provider} 
-                          className="max-w-full max-h-full object-contain" 
-                          onError={(e) => {
-                             e.currentTarget.style.display = 'none';
-                          }}
-                       />
-                     ) : (
-                        rate.provider.includes('Wassel') ? <Truck className="w-8 h-8 text-wassel-blue" /> : <Plane className="w-8 h-8 text-wassel-yellow" />
-                     )}
-                  </div>
-                  <div>
-                      <h4 className="text-lg font-bold text-wassel-blue">{rate.provider}</h4>
-                      <p className="text-sm text-gray-500">{rate.service}</p>
-                      <p className="text-xs text-green-600 mt-1 flex items-center">
-                          <span className="w-2 h-2 bg-green-500 rounded-full rtl:ml-1 ltr:mr-1"></span>
-                          {t.estDelivery} {rate.deliveryDate}
-                      </p>
-                  </div>
+              <div className="bg-white p-4 rounded-lg shadow border border-gray-100 flex flex-col md:flex-row justify-between items-center hover:shadow-md transition-shadow">
+                <div className="mb-4 md:mb-0 w-full md:w-auto">
+                  <p className="text-xs text-green-600 mt-1 flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full rtl:ml-1 ltr:mr-1"></span>
+                    {t.estDelivery} {lowestRate.deliveryDate}
+                  </p>
                 </div>
                 <div className="rtl:text-left ltr:text-right w-full md:w-auto flex flex-row md:flex-col justify-between items-center md:items-end">
-                  <p className="text-2xl font-bold text-wassel-blue">{rate.price.toFixed(2)} <span className="text-sm font-normal text-gray-500">{rate.currency}</span></p>
-                  <button 
-                    onClick={() => handleBookClick(rate)}
-                    className="mt-0 md:mt-2 px-4 py-2 bg-wassel-yellow text-wassel-blue rounded-md text-sm font-bold hover:bg-wassel-lightYellow transition-colors flex items-center gap-1 shadow-sm"
-                  >
-                      {t.selectBook} <ArrowRight className="w-4 h-4 rtl:rotate-180" />
-                  </button>
+                  <p className="text-2xl font-bold text-wassel-blue">{lowestRate.price.toFixed(2)} <span className="text-sm font-normal text-gray-500">{lowestRate.currency}</span></p>
                 </div>
               </div>
             );
-          })}
+          })()}
         </div>
       )}
     </div>

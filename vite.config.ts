@@ -10,10 +10,9 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
         proxy: {
           '/api/wassel': {
-            target: 'https://wassel.ps',
+            target: 'http://localhost:3001',
             changeOrigin: true,
             secure: false,
-            rewrite: (requestPath) => requestPath.replace(/^\/api\/wassel/, ''),
             configure: (proxy) => {
               proxy.on('proxyReq', (proxyReq) => {
                 proxyReq.removeHeader('origin');
@@ -78,12 +77,7 @@ export default defineConfig(({ mode }) => {
               });
             },
           },
-          '/api/chat': {
-            target: 'http://localhost:3001',
-            changeOrigin: true,
-            secure: false,
-          },
-          '/api/contact': {
+          '/api': {
             target: 'http://localhost:3001',
             changeOrigin: true,
             secure: false,

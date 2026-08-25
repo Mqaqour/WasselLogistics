@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Navbar,
   Tracking,
@@ -6,6 +7,7 @@ import {
   Pickup,
   Dashboard,
   Login,
+  KnowledgeBaseAdmin,
   ChatBot,
   Services,
   Corporate,
@@ -30,14 +32,145 @@ import { Package, X, Truck } from 'lucide-react';
 const BRAND_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
 
 export const App: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const localeFromPath = useMemo<Language | null>(() => {
+    const firstSegment = location.pathname.split('/').filter(Boolean)[0];
+    if (firstSegment === 'ar' || firstSegment === 'en') {
+      return firstSegment;
+    }
+    return null;
+  }, [location.pathname]);
+
+  const pathnameWithoutLocale = useMemo(() => {
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    const segments = path.split('/').filter(Boolean);
+    if (segments[0] === 'ar' || segments[0] === 'en') {
+      const stripped = `/${segments.slice(1).join('/')}`;
+      return stripped === '/' ? '/' : stripped.replace(/\/+$/, '');
+    }
+    return path;
+  }, [location.pathname]);
+
   const respondIoChannelId = import.meta.env.VITE_RESPONDIO_CHANNEL_ID?.trim();
   const shouldRenderLegacyChatBot = Boolean(respondIoChannelId);
 
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<PageView>('home');
   const [theme, setTheme] = useState<Theme>('individuals');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [lang, setLang] = useState<Language>('en');
+  const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem('wsl_logged_in') === '1');
+  const [lang, setLang] = useState<Language>(() => {
+    const firstSegment = window.location.pathname.split('/').filter(Boolean)[0];
+    return firstSegment === 'en' || firstSegment === 'ar' ? firstSegment : 'ar';
+  });
+
+  const viewToPath = useMemo<Record<PageView, string>>(() => ({
+    home: '/',
+    tracking: '/tracking',
+    rates: '/rates',
+    pickup: '/pickup',
+    login: '/login',
+    dashboard: '/dashboard',
+    payment: '/payment',
+    services: '/services',
+    'payment-gateway': '/payment-gateway',
+    corporate: '/corporate',
+    about: '/about',
+    management: '/management',
+    contact: '/contact',
+    handmade: '/handmade',
+    resources: '/resources',
+    industries: '/industries',
+    latest_updates: '/latest-updates',
+    'service-clearance': '/services/clearance',
+    'service-express': '/services/express',
+    'service-domestic': '/services/domestic',
+    'service-shop': '/services/shop',
+    'service-idp': '/services/idp',
+    'service-jordanian': '/services/jordanian-passports',
+    'service-pick-pack': '/services/pick-pack',
+    'service-corp-daily': '/services/corporate/daily-mail',
+    'service-corp-signing': '/services/corporate/document-signing',
+    'service-corp-bulk': '/services/corporate/bulk-distribution',
+    'service-corp-storage': '/services/corporate/storage',
+    'service-corp-warehousing': '/services/corporate/warehouse-management',
+    'service-corp-freight': '/services/corporate/heavy-freight',
+    'service-multimodal-freight': '/services/multimodal-freight',
+    booking_window: '/booking',
+    'register-new-app-west-bank': '/RegisterNewAppWestBank',
+    'kb-admin': '/admin/kb',
+  }), []);
+
+  const currentView = useMemo<PageView>(() => {
+    const path = pathnameWithoutLocale || '/';
+
+    if (path === '/resources' || path.startsWith('/resources/')) {
+      return 'resources';
+    }
+
+    const pathToView: Record<string, PageView> = {
+      '/': 'home',
+      '/tracking': 'tracking',
+      '/rates': 'rates',
+      '/pickup': 'pickup',
+      '/login': 'login',
+      '/dashboard': 'dashboard',
+      '/admin/kb': 'kb-admin',
+      '/payment': 'payment',
+      '/services': 'services',
+      '/payment-gateway': 'payment-gateway',
+      '/corporate': 'corporate',
+      '/about': 'about',
+      '/management': 'management',
+      '/contact': 'contact',
+      '/handmade': 'handmade',
+      '/industries': 'industries',
+      '/latest-updates': 'latest_updates',
+      '/latest_updates': 'latest_updates',
+      '/services/clearance': 'service-clearance',
+      '/services/express': 'service-express',
+      '/services/domestic': 'service-domestic',
+      '/services/shop': 'service-shop',
+      '/services/idp': 'service-idp',
+      '/services/jordanian-passports': 'service-jordanian',
+      '/services/pick-pack': 'service-pick-pack',
+      '/services/corporate/daily-mail': 'service-corp-daily',
+      '/services/corporate/document-signing': 'service-corp-signing',
+      '/services/corporate/bulk-distribution': 'service-corp-bulk',
+      '/services/corporate/storage': 'service-corp-storage',
+      '/services/corporate/warehouse-management': 'service-corp-warehousing',
+      '/services/corporate/heavy-freight': 'service-corp-freight',
+      '/services/multimodal-freight': 'service-multimodal-freight',
+      '/booking': 'booking_window',
+    };
+
+    return pathToView[path] ?? 'home';
+  }, [pathnameWithoutLocale]);
+
+  const setCurrentView = useCallback((view: PageView) => {
+    const nextPath = viewToPath[view] ?? '/';
+    const localizedPath = `/${lang}${nextPath === '/' ? '' : nextPath}`;
+    if (localizedPath !== location.pathname) {
+      navigate(localizedPath);
+    }
+  }, [navigate, location.pathname, viewToPath, lang]);
+
+  const handleSetLang = useCallback((nextLang: Language) => {
+    const basePath = pathnameWithoutLocale === '/' ? '' : pathnameWithoutLocale;
+    const localizedPath = `/${nextLang}${basePath}`;
+    const target = `${localizedPath}${location.search}`;
+
+    setLang(nextLang);
+    if (target !== `${location.pathname}${location.search}`) {
+      navigate(target);
+    }
+  }, [pathnameWithoutLocale, location.search, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (localeFromPath && localeFromPath !== lang) {
+      setLang(localeFromPath);
+    }
+  }, [localeFromPath, lang]);
   
   // State to pass data from Tracking to PaymentGateway
   // Updated to include billDetails for down payments
@@ -66,15 +199,18 @@ export const App: React.FC = () => {
   // Background Image State
   const [bgError, setBgError] = useState(false);
 
-  // Check URL params for Booking Window Mode
+  // Keep legacy booking query support while routing to /booking
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('mode') === 'booking') {
-        setCurrentView('booking_window');
-        const l = params.get('lang') as Language;
-        if(l) setLang(l);
+    const params = new URLSearchParams(location.search);
+    const queryLang = params.get('lang');
+    if (queryLang === 'ar' || queryLang === 'en') {
+      setLang(queryLang);
     }
-  }, []);
+
+    if (params.get('mode') === 'booking' && currentView !== 'booking_window') {
+      navigate(`/${lang}/booking${location.search}`, { replace: true });
+    }
+  }, [location.search, currentView, navigate, lang]);
 
   // Preloading Logic
   useEffect(() => {
@@ -171,11 +307,13 @@ export const App: React.FC = () => {
 
   const handleLogin = () => {
     setIsLoggedIn(true);
+    sessionStorage.setItem('wsl_logged_in', '1');
     setCurrentView('dashboard');
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    sessionStorage.removeItem('wsl_logged_in');
     setCurrentView('home');
   };
 
@@ -241,7 +379,7 @@ export const App: React.FC = () => {
 
   // --- SPECIAL RENDER FOR BOOKING WINDOW (No Layout) ---
   if (currentView === 'booking_window') {
-      const params = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams(location.search);
       const rateData = {
           provider: params.get('provider') || '' as any,
           service: params.get('service') || '',
@@ -252,7 +390,7 @@ export const App: React.FC = () => {
           origin: params.get('origin') || '',
           destination: params.get('destination') || ''
       }; 
-      return <BookingWindow lang={lang} initialRate={rateData} />;
+        return <BookingWindow lang={lang} initialRate={rateData} />;
   }
 
   // Determine effective theme logic
@@ -296,7 +434,7 @@ export const App: React.FC = () => {
       case 'handmade':
         return <Handmade lang={lang} />;
       case 'resources':
-        return <Resources lang={lang} />;
+        return <Resources lang={lang} onTrack={(id) => { setQuickTrackId(id); setTrackingMode('standard'); setActivePopup('tracking'); }} />;
       case 'latest_updates':
         return <LatestUpdates lang={lang} />;
       case 'industries':
@@ -313,6 +451,8 @@ export const App: React.FC = () => {
         return <Login onLogin={handleLogin} lang={lang} />;
       case 'dashboard':
         return isLoggedIn ? <Dashboard lang={lang} /> : <Login onLogin={handleLogin} lang={lang} />;
+      case 'kb-admin':
+        return isLoggedIn ? <KnowledgeBaseAdmin lang={lang} /> : <Login onLogin={handleLogin} lang={lang} />;
       case 'home':
       default:
         // Conditional Home View based on Theme
@@ -434,7 +574,7 @@ export const App: React.FC = () => {
         isLoggedIn={isLoggedIn} 
         onLogout={handleLogout} 
         lang={lang} 
-        setLang={setLang}
+        setLang={handleSetLang}
         theme={effectiveTheme}
         setTheme={setTheme}
       />
@@ -445,7 +585,7 @@ export const App: React.FC = () => {
       </main>
       
       {/* Floating Action Bar - Only show if NOT corporate and NOT in specific pages */}
-      {effectiveTheme !== 'corporate' && !['about', 'management', 'contact'].includes(currentView) && (
+      {effectiveTheme !== 'corporate' && !['about', 'management', 'contact', 'resources'].includes(currentView) && (
         <FloatingActionBar 
           lang={lang}
           onAction={handleAction}
@@ -477,7 +617,7 @@ export const App: React.FC = () => {
         <div className="fixed inset-0 z-[60] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
                  {/* Backdrop */}
-                 <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm" onClick={() => setActivePopup(null)}></div>
+                <div className="fixed inset-0 bg-gray-900/70 transition-opacity backdrop-blur-md" onClick={() => setActivePopup(null)}></div>
                  
                  <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 

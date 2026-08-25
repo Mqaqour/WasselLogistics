@@ -12,6 +12,7 @@ export * from './shipping/IDPOrderModal';
 
 export * from './portal/Dashboard';
 export * from './portal/Login';
+export * from './portal/KnowledgeBaseAdmin';
 
 export * from './support/ChatBot';
 
