@@ -275,10 +275,11 @@ export async function insertQuestion(dto: CreateQuestionDto): Promise<number | n
     .input('intentKey', sql.NVarChar(200), dto.intentKey)
     .input('priority',  sql.Int,          dto.priority ?? 5)
     .input('isActive',  sql.Bit,          dto.isActive ?? true)
+    .input('isRevised', sql.Bit,          dto.isRevised ?? false)
     .query<{ id: number }>(`
-      INSERT INTO kb_questions (topic_id, intent_key, priority, is_active)
+      INSERT INTO kb_questions (topic_id, intent_key, priority, is_active, is_revised)
       OUTPUT INSERTED.id
-      VALUES (@topicId, @intentKey, @priority, @isActive)
+      VALUES (@topicId, @intentKey, @priority, @isActive, @isRevised)
     `);
 
   const questionId = qResult.recordset[0].id;
@@ -342,7 +343,7 @@ export async function fetchAllQuestionsAdmin(
   topicCode?: string,
 ): Promise<Array<{
   questionId: number; topicCode: string; topicName: string;
-  intentKey: string; priority: number; isActive: boolean;
+  intentKey: string; priority: number; isActive: boolean; isRevised: boolean;
   questionText: string; answerText: string;
 }>> {
   const pool = await getPool();
@@ -356,7 +357,7 @@ export async function fetchAllQuestionsAdmin(
 
   const result = await req.query<{
     questionId: number; topicCode: string; topicName: string;
-    intentKey: string; priority: number; isActive: boolean;
+    intentKey: string; priority: number; isActive: boolean; isRevised: boolean;
     questionText: string; answerText: string;
   }>(`
     SELECT
@@ -366,6 +367,7 @@ export async function fetchAllQuestionsAdmin(
       q.intent_key                AS intentKey,
       q.priority                  AS priority,
       q.is_active                 AS isActive,
+      q.is_revised                AS isRevised,
       ISNULL(qt.question_text,'') AS questionText,
       ISNULL(at2.answer_text,'')  AS answerText
     FROM  kb_questions              q
@@ -479,6 +481,7 @@ export interface QuestionEditData {
   intentKey: string;
   priority: number;
   isActive: boolean;
+  isRevised: boolean;
   topicCode: string;
   translations: Array<{
     languageCode: string;
@@ -493,8 +496,8 @@ export async function fetchQuestionForEdit(id: number): Promise<QuestionEditData
 
   const baseResult = await pool.request()
     .input('qid', sql.Int, id)
-    .query<{ id: number; intentKey: string; priority: number; isActive: boolean; topicCode: string }>(`
-      SELECT q.id, q.intent_key AS intentKey, q.priority, q.is_active AS isActive, t.code AS topicCode
+    .query<{ id: number; intentKey: string; priority: number; isActive: boolean; isRevised: boolean; topicCode: string }>(`
+      SELECT q.id, q.intent_key AS intentKey, q.priority, q.is_active AS isActive, q.is_revised AS isRevised, t.code AS topicCode
       FROM kb_questions q JOIN kb_topics t ON t.id = q.topic_id
       WHERE q.id = @qid
     `);
@@ -529,7 +532,7 @@ export async function fetchQuestionForEdit(id: number): Promise<QuestionEditData
 
   return {
     id: base.id, intentKey: base.intentKey, priority: base.priority,
-    isActive: !!base.isActive, topicCode: base.topicCode,
+    isActive: !!base.isActive, isRevised: !!base.isRevised, topicCode: base.topicCode,
     translations: transResult.recordset.map(t => ({
       languageCode: t.languageCode, questionText: t.questionText, answerText: t.answerText,
       keywords: kwByLang.get(t.languageCode) ?? [],
@@ -544,6 +547,7 @@ export async function updateQuestion(
   dto: {
     priority?: number;
     isActive?: boolean;
+    isRevised?: boolean;
     translations?: Array<{ languageCode: string; questionText: string; answerText: string; keywords: string[] }>;
   },
 ): Promise<boolean> {
@@ -553,11 +557,12 @@ export async function updateQuestion(
     .query<{ id: number }>(`SELECT id FROM kb_questions WHERE id = @qid`);
   if (exists.recordset.length === 0) return false;
 
-  if (dto.priority !== undefined || dto.isActive !== undefined) {
+  if (dto.priority !== undefined || dto.isActive !== undefined || dto.isRevised !== undefined) {
     const sets: string[] = [];
     const req = pool.request().input('qid', sql.Int, id);
     if (dto.priority !== undefined) { req.input('priority', sql.Int, dto.priority); sets.push('priority = @priority'); }
     if (dto.isActive !== undefined) { req.input('isActive', sql.Bit, dto.isActive); sets.push('is_active = @isActive'); }
+    if (dto.isRevised !== undefined) { req.input('isRevised', sql.Bit, dto.isRevised); sets.push('is_revised = @isRevised'); }
     if (sets.length) await req.query(`UPDATE kb_questions SET ${sets.join(', ')} WHERE id = @qid`);
   }
 

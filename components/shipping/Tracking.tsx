@@ -37,6 +37,60 @@ const isJordanPassportNumber = (id: string): boolean => {
   return upper.length === 13 && (upper.startsWith('QW') || upper.startsWith('RA'));
 };
 
+const normalizePassportAddress = (value: unknown): string => {
+  return typeof value === 'string' ? value.trim() : '';
+};
+
+const getPassportStatusCode = (source: any): string => {
+  const code = typeof source?.delevn_status === 'string'
+    ? source.delevn_status
+    : typeof source?.status_id === 'string'
+      ? source.status_id
+      : '';
+
+  return code.trim().toUpperCase();
+};
+
+const getPassportStatusOverride = (
+  source: any,
+  fallbackLocation: string,
+  preferredAddress: string,
+  lang: Language
+): { status: string; location?: string } | null => {
+  const statusCode = getPassportStatusCode(source);
+
+  if (!statusCode) {
+    return null;
+  }
+
+  const address =
+    preferredAddress ||
+    normalizePassportAddress(source?.address) ||
+    normalizePassportAddress(source?.location_ar) ||
+    normalizePassportAddress(source?.location_en) ||
+    normalizePassportAddress(source?.location) ||
+    fallbackLocation;
+
+  if (!address) {
+    return null;
+  }
+
+  if (statusCode === '3_R') {
+    return {
+      status: lang === 'en' ? `Order arrived at ${address}` : `تم وصول الطلب إلى ${address}`,
+      location: address,
+    };
+  }
+
+  if (statusCode === '2_R') {
+    return {
+      status: lang === 'en' ? `In transit to ${address}` : `قيد النقل إلى ${address}`,
+    };
+  }
+
+  return null;
+};
+
 const parsePassportJson = (
   record: any,
   lang: Language
@@ -61,12 +115,15 @@ const parsePassportJson = (
       return 0;
     })
     .map((log: any) => {
-    const status = lang === 'en'
+    const baseStatus = lang === 'en'
       ? (log.status_front_en || log.status || '')
       : (log.status_front_ar || log.status_front_en || log.status || '');
-    const location = lang === 'en'
+    const baseLocation = lang === 'en'
       ? (log.location_en || log.location || '—')
       : (log.location_ar || log.location_en || log.location || '—');
+    const statusOverride = getPassportStatusOverride(log, baseLocation, normalizePassportAddress(record?.address), lang);
+    const status = statusOverride?.status || baseStatus;
+    const location = statusOverride?.location ?? baseLocation;
     const dateStr = log.date || '—';
     const timeStr = log.time || '—';
     const phase = lang === 'en'
@@ -86,16 +143,47 @@ const parsePassportJson = (
     } as TrackingEvent;
   });
 
+  const recordLocationOverride = getPassportStatusOverride(
+    record,
+    shipmentInfo.destination,
+    normalizePassportAddress(record?.address),
+    lang
+  );
+
+  if (recordLocationOverride) {
+    shipmentInfo.destination = recordLocationOverride.location;
+
+    if (trackingResult.length > 0) {
+      trackingResult[0] = {
+        ...trackingResult[0],
+        status: recordLocationOverride.status,
+        location: recordLocationOverride.location,
+        description: recordLocationOverride.status,
+        icon: getEventIcon(recordLocationOverride.status),
+      };
+    }
+  }
+
   if (trackingResult.length === 0) {
-    const currentStatus = lang === 'en'
+    const baseCurrentStatus = lang === 'en'
       ? (record.status_front_en || record.status_desc || record.status || '—')
       : (record.status_front_ar || record.status_desc || record.status || '—');
+    const baseCurrentLocation = lang === 'en'
+      ? (record.location_en || record.location || shipmentInfo.destination)
+      : (record.location_ar || record.location || shipmentInfo.destination);
+    const statusOverride = recordLocationOverride || getPassportStatusOverride(
+      record,
+      baseCurrentLocation,
+      normalizePassportAddress(record?.address),
+      lang
+    );
+    const currentStatus = statusOverride?.status || baseCurrentStatus;
+    const currentLocation = statusOverride?.location ?? baseCurrentLocation;
+
     if (currentStatus !== '—') {
       trackingResult.push({
         status: currentStatus,
-        location: lang === 'en'
-          ? (record.location_en || record.location || shipmentInfo.destination)
-          : (record.location_ar || record.location || shipmentInfo.destination),
+        location: currentLocation,
         timestamp: record.created_date || '—',
         description: currentStatus,
         icon: getEventIcon(currentStatus),

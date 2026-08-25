@@ -6,6 +6,7 @@ import { PlusCircle, Trash2, ChevronDown, ChevronUp, Loader2, Tag, RefreshCw, X,
 interface RichTextareaProps {
   value: string;
   onChange: (val: string) => void;
+  onUploadImage?: (file: File) => Promise<string>;
   rows?: number;
   className?: string;
   dir?: string;
@@ -13,13 +14,16 @@ interface RichTextareaProps {
   placeholder?: string;
 }
 
-const RichTextarea: React.FC<RichTextareaProps> = ({ value, onChange, rows = 4, className = '', dir, title, placeholder }) => {
+const RichTextarea: React.FC<RichTextareaProps> = ({ value, onChange, onUploadImage, rows = 4, className = '', dir, title, placeholder }) => {
   const ref = useRef<HTMLTextAreaElement>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
+  const imgUploadInputRef = useRef<HTMLInputElement>(null);
   const linkInputRef = useRef<HTMLInputElement>(null);
   const savedSelRef  = useRef({ start: 0, end: 0 });
   const [showImgInput,  setShowImgInput]  = useState(false);
   const [imgUrl,        setImgUrl]        = useState('');
+  const [imgUploadError, setImgUploadError] = useState('');
+  const [imgUploading, setImgUploading] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl,       setLinkUrl]       = useState('');
 
@@ -48,16 +52,44 @@ const RichTextarea: React.FC<RichTextareaProps> = ({ value, onChange, rows = 4, 
     }, 0);
   };
 
+  const insertImageAtSelection = (url: string) => {
+    const el = ref.current;
+    const pos = el ? el.selectionStart : savedSelRef.current.start;
+    const snippet = `![](${url})`;
+    onChange(value.slice(0, pos) + snippet + value.slice(pos));
+    setTimeout(() => { el?.focus(); }, 0);
+  };
+
   const insertImage = () => {
     const url = imgUrl.trim();
     if (!url) return;
-    const el = ref.current;
-    const pos = el ? el.selectionStart : value.length;
-    const snippet = `![](${url})`;
-    onChange(value.slice(0, pos) + snippet + value.slice(pos));
+    insertImageAtSelection(url);
     setImgUrl('');
+    setImgUploadError('');
     setShowImgInput(false);
-    setTimeout(() => { el?.focus(); }, 0);
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file || !onUploadImage) {
+      return;
+    }
+
+    setImgUploading(true);
+    setImgUploadError('');
+
+    try {
+      const url = await onUploadImage(file);
+      setImgUrl(url);
+      insertImageAtSelection(url);
+      setShowImgInput(false);
+    } catch (error) {
+      setImgUploadError(error instanceof Error ? error.message : 'Upload failed.');
+    } finally {
+      setImgUploading(false);
+    }
   };
 
   const insertLink = () => {
@@ -108,7 +140,15 @@ const RichTextarea: React.FC<RichTextareaProps> = ({ value, onChange, rows = 4, 
         <button
           type="button"
           title="Insert image"
-          onClick={() => { setShowImgInput(v => !v); setTimeout(() => imgInputRef.current?.focus(), 50); }}
+          onMouseDown={() => {
+            const el = ref.current;
+            if (el) savedSelRef.current = { start: el.selectionStart, end: el.selectionEnd };
+          }}
+          onClick={() => {
+            setImgUploadError('');
+            setShowImgInput(v => !v);
+            setTimeout(() => imgInputRef.current?.focus(), 50);
+          }}
           className="px-2 py-0.5 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600 leading-none"
         >
           🖼 صورة
@@ -154,21 +194,42 @@ const RichTextarea: React.FC<RichTextareaProps> = ({ value, onChange, rows = 4, 
             type="url"
             value={imgUrl}
             onChange={e => setImgUrl(e.target.value)}
-            placeholder="https://example.com/image.jpg"
+            placeholder="https://example.com/image.jpg or /uploads/projects/image.webp"
             className="flex-1 text-xs border border-gray-300 rounded px-2 py-1 outline-none focus:border-blue-400"
             onKeyDown={e => {
               if (e.key === 'Enter') { e.preventDefault(); insertImage(); }
-              if (e.key === 'Escape') { setShowImgInput(false); setImgUrl(''); }
+              if (e.key === 'Escape') { setShowImgInput(false); setImgUrl(''); setImgUploadError(''); }
             }}
           />
           <button type="button" onClick={insertImage}
             className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">
             إدراج
           </button>
-          <button type="button" onClick={() => { setShowImgInput(false); setImgUrl(''); }}
+          <button type="button" onClick={() => { setShowImgInput(false); setImgUrl(''); setImgUploadError(''); }}
             className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600">
             إلغاء
           </button>
+        </div>
+      )}
+      {showImgInput && (
+        <div className="flex items-center gap-2 mb-1">
+          <input
+            ref={imgUploadInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+          <button
+            type="button"
+            onClick={() => imgUploadInputRef.current?.click()}
+            disabled={!onUploadImage || imgUploading}
+            className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600 disabled:opacity-50"
+          >
+            {imgUploading ? 'Uploading...' : 'Upload image'}
+          </button>
+          <span className="text-[11px] text-gray-400">JPG, PNG, WebP</span>
+          {imgUploadError && <span className="text-[11px] text-red-500">{imgUploadError}</span>}
         </div>
       )}
       <textarea
@@ -202,6 +263,7 @@ interface KbAdminQuestion {
   intentKey: string;
   priority: number;
   isActive: boolean;
+  isRevised: boolean;
   questionText: string;
   answerText: string;
 }
@@ -217,6 +279,7 @@ interface QuestionEditData {
   intentKey: string;
   priority: number;
   isActive: boolean;
+  isRevised: boolean;
   topicCode: string;
   translations: Array<{ languageCode: string; questionText: string; answerText: string; keywords: string[] }>;
 }
@@ -252,6 +315,11 @@ interface ResourceCategory {
   image_url: string | null;
   sort_order: number;
   is_active: boolean;
+}
+
+interface UploadedProjectImageResponse {
+  url?: string;
+  error?: string;
 }
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -307,6 +375,17 @@ const api = {
     fetch(`/api/resource-categories/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   deleteResourceCategory: (id: number) =>
     fetch(`/api/resource-categories/${id}`, { method: 'DELETE' }).then(r => r.json()),
+  uploadProjectImage: async (file: File): Promise<UploadedProjectImageResponse> => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await fetch('/api/uploads/projects', {
+      method: 'POST',
+      body: formData,
+    });
+
+    return response.json();
+  },
 
   getSubItems: (categoryCode: string) =>
     fetch(`/api/resource-sub-items?categoryCode=${encodeURIComponent(categoryCode)}`).then(r => r.json()),
@@ -317,6 +396,14 @@ const api = {
   deleteSubItem: (id: number) =>
     fetch(`/api/resource-sub-items/${id}`, { method: 'DELETE' }).then(r => r.json()),
 };
+
+async function uploadProjectImageFile(file: File): Promise<string> {
+  const result = await api.uploadProjectImage(file);
+  if (!result.url) {
+    throw new Error(result.error ?? 'Image upload failed.');
+  }
+  return result.url;
+}
 
 // ── Shared style tokens ───────────────────────────────────────────────────────
 
@@ -373,7 +460,7 @@ function EditQuestionModal({ questionId, onClose, onSaved, flash }: {
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<QuestionEditData | null>(null);
   const [form, setForm] = useState({
-    priority: '5', isActive: true,
+    priority: '5', isActive: true, isRevised: false,
     questionAr: '', answerAr: '', keywordsAr: '',
     questionEn: '', answerEn: '', keywordsEn: '',
   });
@@ -384,7 +471,7 @@ function EditQuestionModal({ questionId, onClose, onSaved, flash }: {
       const ar = d.translations.find((t: { languageCode: string }) => t.languageCode === 'ar');
       const en = d.translations.find((t: { languageCode: string }) => t.languageCode === 'en');
       setForm({
-        priority: String(d.priority), isActive: d.isActive,
+        priority: String(d.priority), isActive: d.isActive, isRevised: d.isRevised,
         questionAr: ar?.questionText ?? '', answerAr: ar?.answerText ?? '',
         keywordsAr: ar?.keywords.join(', ') ?? '',
         questionEn: en?.questionText ?? '', answerEn: en?.answerText ?? '',
@@ -400,7 +487,12 @@ function EditQuestionModal({ questionId, onClose, onSaved, flash }: {
       { languageCode: 'ar', questionText: form.questionAr, answerText: form.answerAr, keywords: form.keywordsAr.split(',').map(s => s.trim()).filter(Boolean) },
       ...(form.questionEn || form.answerEn ? [{ languageCode: 'en', questionText: form.questionEn, answerText: form.answerEn, keywords: form.keywordsEn.split(',').map(s => s.trim()).filter(Boolean) }] : []),
     ];
-    const res = await api.updateQuestion(questionId, { priority: parseInt(form.priority, 10) || 5, isActive: form.isActive, translations });
+    const res = await api.updateQuestion(questionId, {
+      priority: parseInt(form.priority, 10) || 5,
+      isActive: form.isActive,
+      isRevised: form.isRevised,
+      translations,
+    });
     setSaving(false);
     if (res.updated) { flash('✓ تم حفظ التعديلات', true); onSaved(); onClose(); }
     else flash(res.error ?? 'فشل الحفظ', false);
@@ -420,10 +512,14 @@ function EditQuestionModal({ questionId, onClose, onSaved, flash }: {
               <input className={inputCls} type="number" dir="ltr" title="الأولوية" min={1} max={20} value={form.priority}
                 onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} />
             </div>
-            <div className="flex items-end gap-2 pb-1">
+            <div className="flex items-end gap-4 pb-1 flex-wrap">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
                 نشط
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={form.isRevised} onChange={e => setForm(f => ({ ...f, isRevised: e.target.checked }))} />
+                Revised
               </label>
             </div>
           </div>
@@ -436,7 +532,7 @@ function EditQuestionModal({ questionId, onClose, onSaved, flash }: {
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">الجواب *</label>
-              <RichTextarea rows={4} title="الجواب بالعربي" className={inputCls} value={form.answerAr} onChange={val => setForm(f => ({ ...f, answerAr: val }))} />
+              <RichTextarea rows={4} title="الجواب بالعربي" className={inputCls} value={form.answerAr} onChange={val => setForm(f => ({ ...f, answerAr: val }))} onUploadImage={uploadProjectImageFile} />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">كلمات مفتاحية (مفصولة بفاصلة)</label>
@@ -452,7 +548,7 @@ function EditQuestionModal({ questionId, onClose, onSaved, flash }: {
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Answer</label>
-              <RichTextarea rows={4} title="Answer in English" className={inputCls} dir="ltr" value={form.answerEn} onChange={val => setForm(f => ({ ...f, answerEn: val }))} />
+              <RichTextarea rows={4} title="Answer in English" className={inputCls} dir="ltr" value={form.answerEn} onChange={val => setForm(f => ({ ...f, answerEn: val }))} onUploadImage={uploadProjectImageFile} />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Keywords</label>
@@ -589,6 +685,9 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
   const [resForm,         setResForm]         = useState({
     code: '', titleAr: '', titleEn: '', descriptionAr: '', descriptionEn: '', imageUrl: '', sortOrder: '0',
   });
+  const resImageInputRef = useRef<HTMLInputElement>(null);
+  const [resImageUploading, setResImageUploading] = useState(false);
+  const [resImageError, setResImageError] = useState('');
 
   // Sub-items management (expand per category)
   const [expandedResCatCode,  setExpandedResCatCode]  = useState<string | null>(null);
@@ -602,6 +701,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
   const [expandedQ,   setExpandedQ]   = useState<number | null>(null);
   const [qTags,       setQTags]       = useState<KbAdminTag[]>([]);
   const [qTagsLoading, setQTagsLoading] = useState(false);
+  const [revisedSavingIds, setRevisedSavingIds] = useState<number[]>([]);
 
   // Expand topic row state
   const [expandedTopicCode,   setExpandedTopicCode]   = useState<string | null>(null);
@@ -615,6 +715,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
   const [showQForm, setShowQForm] = useState(false);
   const [qForm, setQForm] = useState({
     topicCode: '', intentKey: '', priority: '5',
+    isRevised: false,
     questionAr: '', answerAr: '', questionEn: '', answerEn: '',
     keywordsAr: '', keywordsEn: '',
   });
@@ -716,6 +817,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
       topicCode: qForm.topicCode,
       intentKey: qForm.intentKey.trim().replace(/\s+/g, '_').toLowerCase(),
       priority:  parseInt(qForm.priority, 10) || 5,
+      isRevised: qForm.isRevised,
       translations: [
         { languageCode: 'ar', questionText: qForm.questionAr, answerText: qForm.answerAr },
         ...(qForm.questionEn && qForm.answerEn
@@ -727,7 +829,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
     setLoading(false);
     if (res.questionId) {
       flash(`✓ تم إنشاء السؤال (id=${res.questionId})`, true);
-      setQForm({ topicCode: '', intentKey: '', priority: '5', questionAr: '', answerAr: '', questionEn: '', answerEn: '', keywordsAr: '', keywordsEn: '' });
+      setQForm({ topicCode: '', intentKey: '', priority: '5', isRevised: false, questionAr: '', answerAr: '', questionEn: '', answerEn: '', keywordsAr: '', keywordsEn: '' });
       setShowQForm(false);
       loadQuestions();
     } else flash(res.error ?? 'فشل الإنشاء', false);
@@ -743,6 +845,37 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
   };
 
   // ── Tag handlers ────────────────────────────────────────────────────────────
+  const handleToggleRevised = async (questionId: number, isRevised: boolean) => {
+    setRevisedSavingIds(ids => ids.includes(questionId) ? ids : [...ids, questionId]);
+
+    setQuestions(items => items.map(item => (
+      item.questionId === questionId ? { ...item, isRevised } : item
+    )));
+    setTopicQuestionsMap(map => Object.fromEntries(
+      Object.entries(map).map(([topicCode, items]) => [
+        topicCode,
+        items.map(item => item.questionId === questionId ? { ...item, isRevised } : item),
+      ])
+    ));
+
+    const res = await api.updateQuestion(questionId, { isRevised });
+
+    setRevisedSavingIds(ids => ids.filter(id => id !== questionId));
+
+    if (!res.updated) {
+      setQuestions(items => items.map(item => (
+        item.questionId === questionId ? { ...item, isRevised: !isRevised } : item
+      )));
+      setTopicQuestionsMap(map => Object.fromEntries(
+        Object.entries(map).map(([topicCode, items]) => [
+          topicCode,
+          items.map(item => item.questionId === questionId ? { ...item, isRevised: !isRevised } : item),
+        ])
+      ));
+      flash(res.error ?? 'ÙØ´Ù„ Ø­ÙØ¸ Ø­Ø§Ù„Ø© Revised', false);
+    }
+  };
+
   const handleCreateTag = async () => {
     if (!tagForm.name.trim()) return flash('اسم الوسم مطلوب', false);
     setLoading(true);
@@ -783,7 +916,31 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
 
   // ── Resource category handlers ────────────────────────────────────────────
 
-  const resetResForm = () => setResForm({ code: '', titleAr: '', titleEn: '', descriptionAr: '', descriptionEn: '', imageUrl: '', sortOrder: '0' });
+  const resetResForm = () => {
+    setResForm({ code: '', titleAr: '', titleEn: '', descriptionAr: '', descriptionEn: '', imageUrl: '', sortOrder: '0' });
+    setResImageError('');
+  };
+
+  const handleUploadResImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    setResImageUploading(true);
+    setResImageError('');
+
+    try {
+      const url = await uploadProjectImageFile(file);
+      setResForm(f => ({ ...f, imageUrl: url }));
+    } catch (error) {
+      setResImageError(error instanceof Error ? error.message : 'Image upload failed.');
+    } finally {
+      setResImageUploading(false);
+    }
+  };
 
   const handleSaveResCategory = async () => {
     if (!resForm.titleAr.trim()) return flash('العنوان بالعربي مطلوب', false);
@@ -1120,6 +1277,15 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                   </div>
                 </div>
 
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={qForm.isRevised}
+                    onChange={e => setQForm(f => ({ ...f, isRevised: e.target.checked }))}
+                  />
+                  Revised
+                </label>
+
                 {/* Arabic */}
                 <div className="rounded-lg border border-gray-100 p-4 space-y-3 bg-gray-50/40">
                   <p className="text-xs font-bold text-gray-500">العربي</p>
@@ -1131,7 +1297,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">الجواب *</label>
                     <RichTextarea title="الجواب بالعربي" rows={3} className={cls.input} value={qForm.answerAr}
-                      onChange={val => setQForm(f => ({ ...f, answerAr: val }))} />
+                      onChange={val => setQForm(f => ({ ...f, answerAr: val }))} onUploadImage={uploadProjectImageFile} />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">كلمات مفتاحية (مفصولة بفاصلة)</label>
@@ -1151,7 +1317,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Answer</label>
                     <RichTextarea title="الجواب بالإنجليزي" rows={3} className={cls.input} dir="ltr" value={qForm.answerEn}
-                      onChange={val => setQForm(f => ({ ...f, answerEn: val }))} />
+                      onChange={val => setQForm(f => ({ ...f, answerEn: val }))} onUploadImage={uploadProjectImageFile} />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Keywords (comma separated)</label>
@@ -1184,6 +1350,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                 <thead className="bg-gray-50">
                   <tr>
                     <th className={`${cls.th} w-8`}>ID</th>
+                    <th className={`${cls.th} text-center`}>Revised</th>
                     <th className={cls.th}>الموضوع</th>
                     <th className={cls.th}>مفتاح النية</th>
                     <th className={cls.th}>نص السؤال</th>
@@ -1197,6 +1364,15 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                     <React.Fragment key={q.questionId}>
                       <tr className="hover:bg-gray-50/60">
                         <td className={`${cls.td} text-gray-300 font-mono`}>{q.questionId}</td>
+                        <td className={`${cls.td} text-center`}>
+                          <input
+                            type="checkbox"
+                            title="Revised"
+                            checked={q.isRevised}
+                            disabled={revisedSavingIds.includes(q.questionId)}
+                            onChange={e => handleToggleRevised(q.questionId, e.target.checked)}
+                          />
+                        </td>
                         <td className={cls.td}>
                           <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded font-mono">{q.topicCode}</span>
                         </td>
@@ -1225,7 +1401,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                       {/* Expanded detail row */}
                       {expandedQ === q.questionId && (
                         <tr className="bg-blue-50/40">
-                          <td colSpan={7} className="px-6 py-4">
+                          <td colSpan={8} className="px-6 py-4">
                             <div className="space-y-3">
                               <div>
                                 <p className="text-xs font-semibold text-gray-500 mb-1">السؤال</p>
@@ -1235,7 +1411,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                                 <p className="text-xs font-semibold text-gray-500 mb-1">الجواب</p>
                                 <p className="text-sm text-gray-700 whitespace-pre-wrap">{q.answerText || '—'}</p>
                               </div>
-                              <div className="text-xs text-gray-400">الأولوية: {q.priority} · {q.isActive ? 'نشط' : 'غير نشط'}</div>
+                              <div className="text-xs text-gray-400">الأولوية: {q.priority} · {q.isActive ? 'نشط' : 'غير نشط'} · {q.isRevised ? 'Revised' : 'Not revised'}</div>
 
                               {/* Tags section */}
                               <div>
@@ -1286,7 +1462,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                     </React.Fragment>
                   ))}
                   {filtered.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-300">لا توجد أسئلة</td></tr>
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-300">لا توجد أسئلة</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1642,8 +1818,27 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-xs text-gray-500 mb-1">رابط الصورة (URL)</label>
-                    <input className={cls.input} dir="ltr" placeholder="https://... or /assets/my-image.png"
+                    <input className={cls.input} dir="ltr" placeholder="https://... or /assets/projects/my-image.png or /uploads/projects/my-image.webp"
                       value={resForm.imageUrl} onChange={e => setResForm(f => ({ ...f, imageUrl: e.target.value }))} />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <input
+                        ref={resImageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleUploadResImage}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => resImageInputRef.current?.click()}
+                        disabled={resImageUploading}
+                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-700 disabled:opacity-50"
+                      >
+                        {resImageUploading ? 'Uploading...' : 'Upload image'}
+                      </button>
+                      <span className="text-xs text-gray-400">Fixed assets: /assets/projects | Uploads: /uploads/projects</span>
+                    </div>
+                    {resImageError && <p className="mt-2 text-xs text-red-500">{resImageError}</p>}
                     {resForm.imageUrl.trim() && (
                       <img src={resForm.imageUrl.trim()} alt="preview" className="mt-2 h-24 rounded-lg object-cover border border-gray-200" />
                     )}
@@ -1711,6 +1906,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                               imageUrl: cat.image_url ?? '',
                               sortOrder: String(cat.sort_order),
                             });
+                            setResImageError('');
                             setShowResForm(true);
                           }}
                         >

@@ -72,7 +72,7 @@ export interface IQuestionSuggestionService {
   /** Admin: list all questions (optionally filtered by topicCode). */
   listQuestions(language: string, topicCode?: string): Promise<Array<{
     questionId: number; topicCode: string; topicName: string;
-    intentKey: string; priority: number; isActive: boolean;
+    intentKey: string; priority: number; isActive: boolean; isRevised: boolean;
     questionText: string; answerText: string;
   }>>;
 
@@ -105,6 +105,7 @@ export interface IQuestionSuggestionService {
   updateQuestion(id: number, dto: {
     priority?: number;
     isActive?: boolean;
+    isRevised?: boolean;
     translations?: Array<{ languageCode: string; questionText: string; answerText: string; keywords: string[] }>;
   }): Promise<boolean>;
 

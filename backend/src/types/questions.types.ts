@@ -27,6 +27,7 @@ export interface KbQuestion {
   intentKey: string;
   priority: number;
   isActive: boolean;
+  isRevised: boolean;
   createdAt: Date;
 }
 
@@ -124,6 +125,7 @@ export interface CreateQuestionDto {
   intentKey: string;
   priority?: number;
   isActive?: boolean;
+  isRevised?: boolean;
   translations: Array<{
     languageCode: string;
     questionText: string;

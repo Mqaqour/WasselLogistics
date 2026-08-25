@@ -14,6 +14,12 @@ Prerequisite: Node.js 18+
 2. Create `.env` from `.env.example`
 3. Start the frontend with `npm run dev`
 
+## Project Images
+
+- Fixed project images are stored in `public/assets/projects` and should use app-relative paths such as `/assets/projects/services.png`.
+- Admin-uploaded project images are served by the backend from `/uploads/projects/...`.
+- In production, configure the backend `UPLOADS_ROOT` env var to a persistent directory so uploaded files survive redeploys.
+
 ## respond.io Setup
 
 ### Website Chat Widget

@@ -682,13 +682,13 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
   );
 
   const groupImages: Record<string, string> = {
-    'services': `${import.meta.env.BASE_URL}assets/services.png`,
-    'shipping-guides': `${import.meta.env.BASE_URL}assets/shipping-guides.png`,
-    'packaging': `${import.meta.env.BASE_URL}assets/packaging.png`,
-    'prohibited-items': `${import.meta.env.BASE_URL}assets/prohibited-items.png`,
-    'customs-clearance': `${import.meta.env.BASE_URL}assets/customs-clearance.png`,
-    'accounts-payments': `${import.meta.env.BASE_URL}assets/accounts-payments.png`,
-    'policies-terms': `${import.meta.env.BASE_URL}assets/policies-terms.png`,
+    'services': `${import.meta.env.BASE_URL}assets/projects/services.png`,
+    'shipping-guides': `${import.meta.env.BASE_URL}assets/projects/shipping-guides.png`,
+    'packaging': `${import.meta.env.BASE_URL}assets/projects/packaging.png`,
+    'prohibited-items': `${import.meta.env.BASE_URL}assets/projects/prohibited-items.png`,
+    'customs-clearance': `${import.meta.env.BASE_URL}assets/projects/customs-clearance.png`,
+    'accounts-payments': `${import.meta.env.BASE_URL}assets/projects/accounts-payments.png`,
+    'policies-terms': `${import.meta.env.BASE_URL}assets/projects/policies-terms.png`,
   };
 
   // Prefer API image_url if set, otherwise fall back to static mapping

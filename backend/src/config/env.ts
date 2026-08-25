@@ -68,6 +68,12 @@ export const env = {
   PICKUP_NOTIFY_EMAIL: optional('PICKUP_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
   CONTACT_NOTIFY_EMAIL: optional('CONTACT_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
 
+  // Uploaded media
+  UPLOADS_ROOT: optional('UPLOADS_ROOT', 'uploads'),
+  UPLOADS_PUBLIC_BASE: optional('UPLOADS_PUBLIC_BASE', '/uploads'),
+  PROJECT_UPLOADS_SUBDIR: optional('PROJECT_UPLOADS_SUBDIR', 'projects'),
+  PROJECT_IMAGE_MAX_BYTES: parseInt(optional('PROJECT_IMAGE_MAX_BYTES', '5242880'), 10),
+
   // Portal login security
   LOGIN_MAX_ATTEMPTS: parseInt(optional('LOGIN_MAX_ATTEMPTS', '3'), 10),
   LOGIN_BLOCK_HOURS: parseInt(optional('LOGIN_BLOCK_HOURS', '24'), 10),

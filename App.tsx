@@ -30,6 +30,7 @@ import { PageView, Language, Theme } from './types';
 import { Package, X, Truck } from 'lucide-react';
 
 const BRAND_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
+const TRACKING_QUERY_KEYS = ['trackingId', 'tracking', 'awb', 'Awbs', 'id'] as const;
 
 export const App: React.FC = () => {
   const location = useLocation();
@@ -108,9 +109,12 @@ export const App: React.FC = () => {
       return 'resources';
     }
 
+    if (path === '/tracking' || path.startsWith('/tracking/') || /^\/tracking=.+/.test(path)) {
+      return 'tracking';
+    }
+
     const pathToView: Record<string, PageView> = {
       '/': 'home',
-      '/tracking': 'tracking',
       '/rates': 'rates',
       '/pickup': 'pickup',
       '/login': 'login',
@@ -146,6 +150,29 @@ export const App: React.FC = () => {
 
     return pathToView[path] ?? 'home';
   }, [pathnameWithoutLocale]);
+
+  const trackingIdFromUrl = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+
+    for (const key of TRACKING_QUERY_KEYS) {
+      const value = params.get(key)?.trim();
+      if (value) {
+        return value;
+      }
+    }
+
+    const pathMatch = pathnameWithoutLocale.match(/^\/tracking(?:\/|=)(.+)$/);
+    if (pathMatch?.[1]) {
+      return decodeURIComponent(pathMatch[1]).trim();
+    }
+
+    const rawSearch = location.search.startsWith('?') ? location.search.slice(1) : location.search;
+    if (rawSearch.startsWith('=')) {
+      return decodeURIComponent(rawSearch.slice(1)).trim();
+    }
+
+    return '';
+  }, [location.search, pathnameWithoutLocale]);
 
   const setCurrentView = useCallback((view: PageView) => {
     const nextPath = viewToPath[view] ?? '/';
@@ -399,6 +426,7 @@ export const App: React.FC = () => {
 
   // Determine if the current view should be treated as a "Landing Page" (Transparent Header & Background)
   const isLandingPage = currentView === 'home' || currentView === 'handmade' || currentView === 'industries' || currentView === 'resources' || currentView === 'contact';
+  const resolvedTrackingId = trackingIdFromUrl || quickTrackId;
 
   const renderView = () => {
     // Specific Service Page Logic
@@ -410,7 +438,7 @@ export const App: React.FC = () => {
       case 'tracking':
         return <Tracking 
           lang={lang} 
-          initialTrackingId={quickTrackId}
+          initialTrackingId={resolvedTrackingId}
           onNavigateToPayment={(ref, service, billDetails) => {
             setPaymentParams({ ref, service, billDetails });
             setActivePopup('pay'); // Ensure popup switches to pay if tracking was in popup
@@ -643,7 +671,7 @@ export const App: React.FC = () => {
                             {activePopup === 'tracking' && (
                                 <Tracking 
                                     lang={lang} 
-                                    initialTrackingId={quickTrackId} 
+                                    initialTrackingId={resolvedTrackingId} 
                                     isPopup={true}
                                     mode={trackingMode}
                                     onNavigateToPayment={(ref, service, billDetails) => {

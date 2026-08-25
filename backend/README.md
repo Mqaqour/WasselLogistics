@@ -96,6 +96,11 @@ DB_TRUST_SERVER_CERTIFICATE=false
 PORT=3000
 NODE_ENV=production
 FRONTEND_URL=https://yourdomain.com
+
+UPLOADS_ROOT=uploads
+UPLOADS_PUBLIC_BASE=/uploads
+PROJECT_UPLOADS_SUBDIR=projects
+PROJECT_IMAGE_MAX_BYTES=5242880
 ```
 
 ### Frontend (`.env` in project root)
@@ -114,7 +119,21 @@ Run the SQL migration scripts in order against your SQL Server database:
 :r database/migrations/001_create_chat_sessions.sql
 :r database/migrations/002_create_chat_messages.sql
 :r database/migrations/003_create_chat_events.sql
+:r database/migrations/004_create_questions_knowledge_base.sql
+:r database/migrations/005_seed_resources_kb_catalog.sql
+:r database/migrations/006_create_contact_message_logs.sql
+:r database/migrations/007_require_ai_fields_in_contact_logs.sql
+:r database/migrations/008_create_resource_categories.sql
+:r database/migrations/009_create_resource_sub_items.sql
+:r database/migrations/010_create_portal_auth_tables.sql
+:r database/migrations/011_move_fixed_resource_images_to_projects_folder.sql
 ```
+
+## Project Images
+
+- Fixed project photos live in `public/assets/projects` and should be referenced with relative paths such as `/assets/projects/services.png`.
+- Admin-uploaded project photos are stored under `backend/uploads/projects` by default and are served from `/uploads/projects/...`.
+- For deployment, point `UPLOADS_ROOT` to a persistent directory or mounted volume so uploaded files survive redeploys. `UPLOADS_PUBLIC_BASE` controls the public URL prefix, and `PROJECT_IMAGE_MAX_BYTES` controls the upload size limit.
 
 ---
 

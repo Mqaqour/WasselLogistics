@@ -17,11 +17,32 @@ import kbAiRoutes from './routes/kb-ai.routes';
 import authRoutes from './routes/auth.routes';
 import resourceCategoriesRoutes from './routes/resource-categories.routes';
 import resourceSubItemsRoutes   from './routes/resource-sub-items.routes';
+import uploadsRoutes from './routes/uploads.routes';
 import { errorHandler } from './middleware/errorHandler';
+import { ensureUploadsDirectories, uploadsPublicBase, uploadsRoot } from './utils/uploads';
+
+const PASSPORT_TRACKING_PRIVATE_FIELDS = new Set(['person_name', 'mobile_no']);
+
+const sanitizePassportTrackingPayload = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(sanitizePassportTrackingPayload);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !PASSPORT_TRACKING_PRIVATE_FIELDS.has(key))
+        .map(([key, nestedValue]) => [key, sanitizePassportTrackingPayload(nestedValue)])
+    );
+  }
+
+  return value;
+};
 
 export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
+  ensureUploadsDirectories();
   const frontendCandidates = [
     path.resolve(__dirname, 'public'),
     path.resolve(__dirname, '../dist/public'),
@@ -117,6 +138,13 @@ export function createApp() {
   // Body parsing
   app.use(express.json({ limit: '1mb' }));
 
+  // Uploaded media
+  app.use(uploadsPublicBase, express.static(uploadsRoot, {
+    fallthrough: false,
+    index: false,
+    maxAge: env.NODE_ENV === 'production' ? '7d' : 0,
+  }));
+
   // Health check
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', ts: new Date().toISOString() });
@@ -136,6 +164,7 @@ export function createApp() {
   app.use('/api/kb',                  kbAiRoutes);
   app.use('/api/resource-categories', resourceCategoriesRoutes);
   app.use('/api/resource-sub-items',  resourceSubItemsRoutes);
+  app.use('/api/uploads',             uploadsRoutes);
 
   // Jordan Passport proxy — forwards to jopassports.wassel.ps
   app.post('/api/jopassport/track', async (req, res) => {
@@ -157,7 +186,7 @@ export function createApp() {
         body: formData.toString(),
       });
       const data = await upstream.json().catch(() => ({}));
-      res.status(upstream.status).json(data);
+      res.status(upstream.status).json(sanitizePassportTrackingPayload(data));
     } catch (err) {
       res.status(502).json({ error: 'Passport upstream error' });
     }
