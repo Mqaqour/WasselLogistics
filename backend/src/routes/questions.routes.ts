@@ -22,6 +22,9 @@ router.get('/', questionsController.listQuestions);
 /** GET /api/questions/:id/answer?language=ar */
 router.get('/:id/answer', questionsController.getQuestionAnswer);
 
+/** GET /api/questions/:id/related?language=ar — likely follow-up questions (same topic) */
+router.get('/:id/related', questionsController.getRelatedQuestions);
+
 /** GET /api/questions/:id/tags */
 router.get('/:id/tags', questionsController.getQuestionTags);
 

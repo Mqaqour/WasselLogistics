@@ -67,6 +67,39 @@ export async function getQuestionAnswer(
 }
 
 /**
+ * GET /api/questions/:id/related?language={ar|en}
+ *
+ * Returns other active questions from the same topic as :id — likely
+ * follow-up questions to show on a question's detail page.
+ */
+export async function getRelatedQuestions(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const id       = parseInt(req.params.id, 10);
+    const language = String(req.query.language ?? 'ar').trim();
+
+    if (isNaN(id) || id <= 0) {
+      res.status(400).json({ error: 'Invalid question id' });
+      return;
+    }
+
+    const current = await questionSuggestionService.getAnswer(id, language);
+    if (!current) {
+      res.status(404).json({ error: 'Question not found' });
+      return;
+    }
+
+    const related = await questionSuggestionService.getRelated(current.topicCode, id, language);
+    res.json({ topicCode: current.topicCode, topicName: current.topicName, related });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * GET /api/topics?language={ar|en}
  *
  * Returns all active topics with their translated names.

@@ -585,7 +585,7 @@ export const App: React.FC = () => {
       </main>
       
       {/* Floating Action Bar - Only show if NOT corporate and NOT in specific pages */}
-      {effectiveTheme !== 'corporate' && !['about', 'management', 'contact'].includes(currentView) && (
+      {effectiveTheme !== 'corporate' && !['about', 'management', 'contact', 'resources'].includes(currentView) && (
         <FloatingActionBar 
           lang={lang}
           onAction={handleAction}

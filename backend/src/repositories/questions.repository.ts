@@ -161,6 +161,44 @@ export async function fetchQuestionWithAnswer(
   };
 }
 
+/**
+ * Return other active questions in the same topic, excluding the given question.
+ * Used to surface likely follow-up questions on a question's detail page.
+ */
+export async function fetchRelatedQuestions(
+  topicCode: string,
+  excludeQuestionId: number,
+  language: string,
+  limit: number,
+): Promise<Array<{ questionId: number; topicCode: string; topicName: string; question: string }>> {
+  const pool = await getPool();
+
+  const result = await pool.request()
+    .input('topicCode', sql.NVarChar(100), topicCode)
+    .input('excludeId',  sql.Int,          excludeQuestionId)
+    .input('lang',       sql.NVarChar(5),  language)
+    .input('limit',      sql.Int,          limit)
+    .query<{ questionId: number; topicCode: string; topicName: string; question: string }>(`
+      SELECT TOP (@limit)
+        q.id                           AS questionId,
+        t.code                         AS topicCode,
+        ISNULL(tt.name, t.code)        AS topicName,
+        ISNULL(qt.question_text, N'')  AS question
+      FROM  kb_questions             q
+      JOIN  kb_topics                t   ON t.id = q.topic_id
+      LEFT JOIN kb_topic_translations    tt  ON tt.topic_id = t.id
+                                            AND tt.language_code = @lang
+      LEFT JOIN kb_question_translations qt  ON qt.question_id = q.id
+                                            AND qt.language_code = @lang
+      WHERE t.code = @topicCode
+        AND q.id != @excludeId
+        AND q.is_active = 1
+      ORDER BY q.priority DESC, q.id
+    `);
+
+  return result.recordset;
+}
+
 // ── Active topics ─────────────────────────────────────────────────────────────
 
 /**

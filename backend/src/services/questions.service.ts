@@ -20,6 +20,7 @@ import {
   insertQuestion,
   logSuggestion,
   fetchAllQuestionsAdmin,
+  fetchRelatedQuestions,
   deleteQuestionById,
   deleteTopicById,
   fetchAllTags,
@@ -59,6 +60,11 @@ export interface IQuestionSuggestionService {
 
   /** Return a single question with its full answer. */
   getAnswer(questionId: number, language: string): Promise<QuestionAnswerDto | null>;
+
+  /** Return other active questions from the same topic — likely follow-up questions. */
+  getRelated(topicCode: string, excludeQuestionId: number, language: string, limit?: number): Promise<Array<{
+    questionId: number; topicCode: string; topicName: string; question: string;
+  }>>;
 
   /** Return all active topics with translated names. */
   getTopics(language: string): Promise<Array<{ id: number; code: string; name: string; description: string | null }>>;
@@ -295,6 +301,14 @@ export class QuestionSuggestionService implements IQuestionSuggestionService {
 
   async getAnswer(questionId: number, language: string): Promise<QuestionAnswerDto | null> {
     return fetchQuestionWithAnswer(questionId, language);
+  }
+
+  // ── getRelated ─────────────────────────────────────────────────────────────
+
+  async getRelated(topicCode: string, excludeQuestionId: number, language: string, limit = 6): Promise<Array<{
+    questionId: number; topicCode: string; topicName: string; question: string;
+  }>> {
+    return fetchRelatedQuestions(topicCode, excludeQuestionId, language, limit);
   }
 
   // ── getTopics ──────────────────────────────────────────────────────────────

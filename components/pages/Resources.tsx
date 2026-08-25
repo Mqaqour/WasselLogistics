@@ -5,7 +5,7 @@ import { Search, Book, FileText, Box, AlertCircle, HelpCircle, ChevronRight, Dow
 import { Language } from '../../types';
 import { getResourceSearchResponse } from '../../services/geminiService';
 import { FAQ_DATA } from '../../data/faqs';
-import { suggestKbQuestions, getKbQuestionAnswer, getKbTopics, KbTopic, QuestionSuggestionItem } from '../../services/questionsKbService';
+import { suggestKbQuestions, getKbQuestionAnswer, getKbTopics, getRelatedKbQuestions, KbTopic, QuestionSuggestionItem, RelatedQuestionItem } from '../../services/questionsKbService';
 import { FormattedAnswer } from '../FormattedAnswer';
 
 interface ResourcesProps {
@@ -18,9 +18,7 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [aiData, setAiData] = useState<{ answer: string; relatedTopics: string[] } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedSuggestionId, setSelectedSuggestionId] = useState<number | null>(null);
   const [suggestions, setSuggestions] = useState<QuestionSuggestionItem[]>([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -37,6 +35,13 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
   const [openRelatedFaqId, setOpenRelatedFaqId] = useState<number | null>(null);
   const [relatedFaqAnswers, setRelatedFaqAnswers] = useState<Record<number, string>>({});
   const [loadingRelatedFaqId, setLoadingRelatedFaqId] = useState<number | null>(null);
+
+  // Selected KB question detail view (/{locale}/resources/question/{id}/{slug})
+  const [selectedQuestion, setSelectedQuestion] = useState<{ questionId: number; question: string; answer: string; topicName: string } | null>(null);
+  const [selectedQuestionLoading, setSelectedQuestionLoading] = useState(false);
+  const [selectedQuestionError, setSelectedQuestionError] = useState<string | null>(null);
+  const [followUpQuestions, setFollowUpQuestions] = useState<RelatedQuestionItem[]>([]);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
 
   // Resource category metadata from API (title, description, image, is_active)
   const [apiCategories, setApiCategories] = useState<Array<{
@@ -116,6 +121,12 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     backToItems: lang === 'en' ? 'Back to items' : 'العودة للعناصر',
     loadingAnswer: lang === 'en' ? 'Loading answer...' : 'جاري تحميل الإجابة...',
     failedAnswer: lang === 'en' ? "Sorry, we couldn't load this answer right now." : 'عذراً، تعذر تحميل هذه الإجابة حالياً.',
+    backToTopics: lang === 'en' ? 'Back to search' : 'العودة للبحث',
+    loadingQuestion: lang === 'en' ? 'Loading question...' : 'جاري تحميل السؤال...',
+    questionNotFound: lang === 'en' ? "We couldn't find this question." : 'تعذر العثور على هذا السؤال.',
+    youMightAskNext: lang === 'en' ? 'You might ask next' : 'قد تسأل بعد ذلك',
+    noFollowUpQuestions: lang === 'en' ? 'No follow-up questions found for this topic yet.' : 'لا توجد أسئلة متابعة لهذا الموضوع حالياً.',
+    loadingFollowUps: lang === 'en' ? 'Loading follow-up questions...' : 'جاري تحميل أسئلة المتابعة...',
   };
 
   const resourceGroups = [
@@ -871,41 +882,11 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     }
     
     setLoading(true);
-    setAiData(null);
-
-    // Only fetch from KB when the user explicitly selected a suggestion item.
-    const kbQuestionId = selectedSuggestionId;
-    const queryLanguage = resolveQueryLanguage(searchQuery);
-
-    if (kbQuestionId !== null) {
-      try {
-        const response = await getKbQuestionAnswer(kbQuestionId, queryLanguage);
-        setAiData({
-          answer: response.answer,
-          relatedTopics: [response.topicName],
-        });
-        setPaletteAiAnswer(null);
-        setIsSearchPaletteOpen(false);
-      } catch {
-        setAiData({
-          answer: lang === 'en'
-            ? "Sorry, I couldn't load the knowledge base answer right now."
-            : 'عذراً، تعذر تحميل إجابة قاعدة المعرفة حالياً.',
-          relatedTopics: [],
-        });
-        setPaletteAiAnswer(null);
-        setIsSearchPaletteOpen(false);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
 
     try {
         setPaletteAiLoading(true);
         setPaletteAiAnswer(null);
         const response = await getResourceSearchResponse(searchQuery);
-        setAiData(response);
         setPaletteAiAnswer({
           query: searchQuery,
           answer: response.answer,
@@ -917,7 +898,6 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
             answer: lang === 'en' ? "Sorry, I couldn't reach the knowledge base right now. Please try again." : "عذراً، لم أتمكن من الوصول إلى قاعدة المعرفة حالياً. يرجى المحاولة مرة أخرى.",
             relatedTopics: []
         };
-        setAiData(fallback);
         setPaletteAiAnswer({
           query: searchQuery,
           answer: fallback.answer,
@@ -936,54 +916,29 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     await executeSearch();
   };
 
-  const handleSuggestionSelect = async (item: QuestionSuggestionItem) => {
-    setSearchQuery(item.question);
-    setSelectedSuggestionId(item.questionId);
+  const handleSuggestionSelect = (item: QuestionSuggestionItem) => {
     setSuggestionsOpen(false);
     setSuggestions([]);
     setActiveSuggestionIndex(-1);
     saveRecentSearch(item.question);
+    setIsSearchPaletteOpen(false);
+    setSearchQuery('');
 
-    setPaletteAiAnswer(null);
-    setPaletteAiLoading(true);
-
-    const queryLanguage = resolveQueryLanguage(item.question);
-
-    try {
-      const response = await getKbQuestionAnswer(item.questionId, queryLanguage);
-      setPaletteAiAnswer({
-        query: item.question,
-        answer: response.answer,
-        relatedTopics: [response.topicName],
-      });
-    } catch {
-      setPaletteAiAnswer({
-        query: item.question,
-        answer: lang === 'en'
-          ? "Sorry, I couldn't load the knowledge base answer right now."
-          : 'عذراً، تعذر تحميل إجابة قاعدة المعرفة حالياً.',
-        relatedTopics: [item.topicName],
-      });
-    } finally {
-      setPaletteAiLoading(false);
-    }
+    navigate(`${resourcesBasePath}/question/${item.questionId}/${encodeURIComponent(toSlug(item.question))}`);
   };
 
   const handleTopicClick = (topic: string) => {
-      setSelectedSuggestionId(null);
       setSearchQuery(topic);
-      setLoading(true);
-      setAiData(null);
+      setPaletteAiLoading(true);
+      setPaletteAiAnswer(null);
       getResourceSearchResponse(topic).then(response => {
-          setAiData(response);
-          setLoading(false);
-      }).catch(() => setLoading(false));
+          setPaletteAiAnswer({ query: topic, answer: response.answer, relatedTopics: response.relatedTopics });
+          setPaletteAiLoading(false);
+      }).catch(() => setPaletteAiLoading(false));
   };
 
   const handleClear = () => {
       setSearchQuery('');
-      setSelectedSuggestionId(null);
-      setAiData(null);
       setPaletteAiAnswer(null);
       setPaletteAiLoading(false);
       setSuggestions([]);
@@ -1093,10 +1048,64 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     };
   }, [searchQuery, lang, isSearchPaletteOpen]);
 
+  // Question detail route: /{locale}/resources/question/{id}/{slug?}
   useEffect(() => {
     const segments = location.pathname.split('/').filter(Boolean);
     const routeRootIndex = segments[0] === 'ar' || segments[0] === 'en' ? 1 : 0;
-    if (segments[routeRootIndex] !== 'resources') return;
+    if (segments[routeRootIndex] !== 'resources' || segments[routeRootIndex + 1] !== 'question') {
+      if (selectedQuestion || selectedQuestionLoading) {
+        setSelectedQuestion(null);
+        setSelectedQuestionError(null);
+        setFollowUpQuestions([]);
+      }
+      return;
+    }
+
+    const questionId = parseInt(segments[routeRootIndex + 2] ?? '', 10);
+    if (isNaN(questionId) || questionId <= 0) {
+      navigate(resourcesBasePath, { replace: true });
+      return;
+    }
+
+    if (selectedQuestion?.questionId === questionId) return;
+
+    let cancelled = false;
+    const queryLanguage = lang === 'ar' ? 'ar' : 'en';
+
+    setSelectedQuestionLoading(true);
+    setSelectedQuestionError(null);
+    setSelectedQuestion(null);
+    setFollowUpQuestions([]);
+
+    getKbQuestionAnswer(questionId, queryLanguage)
+      .then((response) => {
+        if (cancelled) return;
+        setSelectedQuestion({
+          questionId: response.questionId,
+          question: response.question,
+          answer: response.answer,
+          topicName: response.topicName,
+        });
+        setFollowUpLoading(true);
+        return getRelatedKbQuestions(questionId, queryLanguage)
+          .then((related) => { if (!cancelled) setFollowUpQuestions(related); })
+          .catch(() => { if (!cancelled) setFollowUpQuestions([]); })
+          .finally(() => { if (!cancelled) setFollowUpLoading(false); });
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedQuestionError(t.questionNotFound);
+      })
+      .finally(() => {
+        if (!cancelled) setSelectedQuestionLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [location.pathname, lang, selectedQuestion, selectedQuestionLoading, navigate, resourcesBasePath, t.questionNotFound]);
+
+  useEffect(() => {
+    const segments = location.pathname.split('/').filter(Boolean);
+    const routeRootIndex = segments[0] === 'ar' || segments[0] === 'en' ? 1 : 0;
+    if (segments[routeRootIndex] !== 'resources' || segments[routeRootIndex + 1] === 'question') return;
 
     const routeGroupId = segments[routeRootIndex + 1] ?? null;
     const routeItemSlug = segments[routeRootIndex + 2] ?? null;
@@ -1285,10 +1294,7 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
                   ref={paletteInputRef}
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setSelectedSuggestionId(null);
-                  }}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setSuggestionsOpen(searchQuery.trim().length > 0)}
                   onKeyDown={(e) => {
                     const hasQuery = searchQuery.trim().length > 0;
@@ -1394,7 +1400,6 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
                           setSearchQuery(topic.name);
-                          setSelectedSuggestionId(null);
                           setSuggestionsOpen(true);
                           setTimeout(() => paletteInputRef.current?.focus(), 0);
                         }}
@@ -1421,7 +1426,7 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
                       <button
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { setSearchQuery(query); setSelectedSuggestionId(null); setTimeout(() => paletteInputRef.current?.focus(), 0); }}
+                        onClick={() => { setSearchQuery(query); setTimeout(() => paletteInputRef.current?.focus(), 0); }}
                         className="flex-1 text-left rtl:text-right text-base text-gray-800 truncate"
                       >
                         {query}
@@ -1532,9 +1537,89 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
 
       {/* Content Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 pb-20">
-        
+
+        {/* KB Question Detail View */}
+        {(selectedQuestion || selectedQuestionLoading || selectedQuestionError) && (
+          <div className="mb-16">
+            <div
+              dir={lang === 'ar' ? 'rtl' : 'ltr'}
+              className="mb-5 inline-flex items-center gap-2 text-[15px] text-gray-400 text-left rtl:text-right"
+            >
+              <button
+                type="button"
+                onClick={() => navigate(resourcesBasePath)}
+                className="font-medium text-gray-400 hover:text-wassel-blue transition-colors"
+              >
+                {t.allCollections}
+              </button>
+              {selectedQuestion && (
+                <>
+                  <span className="text-gray-400">&gt;</span>
+                  <span className="text-gray-900 font-medium line-clamp-1">{selectedQuestion.question}</span>
+                </>
+              )}
+            </div>
+
+            {selectedQuestionLoading && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 text-gray-600 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t.loadingQuestion}
+              </div>
+            )}
+
+            {!selectedQuestionLoading && selectedQuestionError && (
+              <div className="bg-white rounded-2xl border border-red-100 p-5 text-red-600">
+                {selectedQuestionError}
+              </div>
+            )}
+
+            {!selectedQuestionLoading && selectedQuestion && (
+              <>
+                <div className="mb-8 text-left rtl:text-right">
+                  <p className="text-sm font-semibold text-indigo-500 uppercase tracking-wide mb-2">{selectedQuestion.topicName}</p>
+                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">{selectedQuestion.question}</h2>
+                  <FormattedAnswer text={selectedQuestion.answer} className="text-lg text-gray-700" />
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-2xl font-bold text-gray-900">{t.youMightAskNext}</h3>
+
+                  {followUpLoading && (
+                    <div className="bg-white rounded-2xl border border-gray-200 p-5 text-gray-600 flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {t.loadingFollowUps}
+                    </div>
+                  )}
+
+                  {!followUpLoading && followUpQuestions.length === 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-200 p-5 text-gray-600">
+                      {t.noFollowUpQuestions}
+                    </div>
+                  )}
+
+                  {!followUpLoading && followUpQuestions.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {followUpQuestions.map((q) => (
+                        <button
+                          key={q.questionId}
+                          type="button"
+                          onClick={() => navigate(`${resourcesBasePath}/question/${q.questionId}/${encodeURIComponent(toSlug(q.question))}`)}
+                          className="text-left rtl:text-right bg-white rounded-2xl border border-gray-200 p-5 hover:border-wassel-blue hover:shadow-md transition-all"
+                        >
+                          <p className="text-lg font-semibold text-gray-900">{q.question}</p>
+                          <p className="text-sm text-gray-500 mt-1">{q.topicName}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Standard Resources Grid */}
-        <div className="mb-16">
+        <div className={`mb-16 ${(selectedQuestion || selectedQuestionLoading || selectedQuestionError) ? 'hidden' : ''}`}>
           {!selectedResourceGroup && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {allDisplayGroups

@@ -71,3 +71,29 @@ export async function getKbQuestionAnswer(questionId: number, language: 'ar' | '
 
   return (await res.json()) as AnswerResponse;
 }
+
+export type RelatedQuestionItem = {
+  questionId: number;
+  topicCode: string;
+  topicName: string;
+  question: string;
+};
+
+type RelatedResponse = {
+  topicCode: string;
+  topicName: string;
+  related: RelatedQuestionItem[];
+};
+
+export async function getRelatedKbQuestions(questionId: number, language: 'ar' | 'en'): Promise<RelatedQuestionItem[]> {
+  const url = new URL(buildUrl(`/api/questions/${questionId}/related`), window.location.origin);
+  url.searchParams.set('language', language);
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    throw new Error(`Related questions request failed (${res.status})`);
+  }
+
+  const data = (await res.json()) as RelatedResponse;
+  return Array.isArray(data.related) ? data.related : [];
+}

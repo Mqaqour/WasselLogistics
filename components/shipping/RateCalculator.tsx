@@ -165,21 +165,36 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
           setCarrierErrors(data.carrierErrors);
         }
 
-        const rates: RateResult[] = (data.quotes ?? []).map((q: {
-          carrier: string;
-          serviceType: string;
-          price: number;
-          currency: string;
-          etaDays: string;
-        }) => ({
-          provider: q.carrier,
-          service: q.serviceType,
-          price: q.price,
-          currency: q.currency,
-          deliveryDate: new Date(q.etaDays).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB', {
-            year: 'numeric', month: 'short', day: 'numeric',
-          }),
-        }));
+        const rawQuotes: unknown[] = Array.isArray(data.quotes) ? data.quotes : [];
+
+        const rates: RateResult[] = rawQuotes.reduce<RateResult[]>((acc, q) => {
+          const quote = q as {
+            carrier?: string;
+            serviceType?: string;
+            price?: number;
+            currency?: string;
+            etaDays?: string;
+          };
+
+          const price = Number(quote.price);
+          if (!Number.isFinite(price)) return acc;
+
+          const etaDate = quote.etaDays ? new Date(quote.etaDays) : null;
+          const deliveryDate = etaDate && !isNaN(etaDate.getTime())
+            ? etaDate.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB', {
+                year: 'numeric', month: 'short', day: 'numeric',
+              })
+            : (quote.etaDays ?? '');
+
+          acc.push({
+            provider: quote.carrier ?? '',
+            service: quote.serviceType ?? '',
+            price,
+            currency: quote.currency ?? '',
+            deliveryDate,
+          });
+          return acc;
+        }, []);
 
         setResults(rates);
       } catch {
