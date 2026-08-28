@@ -110,8 +110,7 @@ export function createApp() {
         imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
         connectSrc: [
           "'self'",
-          'https://api.respond.io',
-          'https://app.respond.io',
+          'https://*.respond.io',
           'https://maps.googleapis.com',
           'https://maps.gstatic.com',
           'https://places.googleapis.com',
