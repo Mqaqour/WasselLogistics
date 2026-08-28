@@ -9,11 +9,12 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build_and_deploy:
+  build:
     runs-on: windows-latest
-    permissions:
-      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +34,9 @@ jobs:
       - name: Build frontend
         run: npm run build
         env:
-          VITE_CHAT_BACKEND_URL: ${{ secrets.VITE_CHAT_BACKEND_URL }}
+          # Left unset intentionally: frontend and backend are served from the same
+          # Express server/origin in production, so every API call site's fallback
+          # to a relative URL (see e.g. Tracking.tsx, chatApi.ts) is what we want here.
           VITE_GOOGLE_PLACES_API_KEY: ${{ secrets.VITE_GOOGLE_PLACES_API_KEY }}
           VITE_RESPONDIO_CHANNEL_ID: ${{ secrets.VITE_RESPONDIO_CHANNEL_ID }}
           VITE_GOOGLE_PLACES_LANGUAGE: en
@@ -78,6 +81,24 @@ jobs:
       - name: Install production dependencies in deployment package
         run: npm ci --omit=dev --prefix deploy
 
+      - name: Upload deployment package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-package
+          path: deploy
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - name: Download deployment package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-package
+          path: deploy
+
       - name: Write backend runtime env file
         env:
           _DB_PASSWORD:        ${{ secrets.DB_PASSWORD }}
@@ -85,7 +106,6 @@ jobs:
           _RESPOND_API_TOKEN:  ${{ secrets.RESPOND_API_TOKEN }}
           _AI_PROJECT_API_KEY: ${{ secrets.AI_PROJECT_API_KEY }}
           _SMTP_PASSWORD:      ${{ secrets.SMTP_PASSWORD }}
-          _FRONTEND_URL:       ${{ secrets.VITE_CHAT_BACKEND_URL }}
         run: |
           $lines = @(
             "DB_SERVER=wassel.database.windows.net",
@@ -106,7 +126,7 @@ jobs:
             "AI_PROJECT_API_KEY=$env:_AI_PROJECT_API_KEY",
             "AI_AGENT_NAME=WSLAIV52",
             "AI_AGENT_VERSION=4",
-            "FRONTEND_URL=$env:_FRONTEND_URL",
+            "FRONTEND_URL=https://wasselwebprod.wassel.ps,https://wasselps-wasselwebprod.azurewebsites.net",
             "NODE_ENV=production",
             "SMTP_HOST=smtp.mandrillapp.com",
             "SMTP_PORT=587",
@@ -115,7 +135,6 @@ jobs:
             "PICKUP_NOTIFY_EMAIL=Mqaqour@wassel.ps"
           )
           $lines | Set-Content -Path deploy\.env
-
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
