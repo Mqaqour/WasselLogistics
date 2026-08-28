@@ -253,11 +253,11 @@ export const Pickup: React.FC<PickupProps> = ({ lang, isPopup = false }) => {
   return (
     <div className={isPopup ? "w-full p-2" : "max-w-5xl mx-auto py-12 px-4 sm:px-6 lg:px-8"}>
       <div className={`mb-8 ${isPopup ? 'text-center' : ''}`}>
-        <h2 className={`font-extrabold text-wassel-blue ${isPopup ? 'text-2xl' : 'text-3xl'}`}>{t.title}</h2>
-        <p className="mt-2 text-gray-500 text-sm sm:text-base">{t.subtitle}</p>
+        <h2 className={`font-extrabold text-wassel-blue animate-slide-up ${isPopup ? 'text-2xl' : 'text-3xl'}`}>{t.title}</h2>
+        <p className="mt-2 text-gray-500 text-sm sm:text-base animate-slide-up delay-100">{t.subtitle}</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 sm:p-8 space-y-8">
+      <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 sm:p-8 space-y-8 animate-pop delay-200">
         {/* Contact Info */}
         <div>
             <h3 className="text-lg font-medium text-wassel-blue border-b pb-2 mb-4 flex items-center">

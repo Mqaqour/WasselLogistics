@@ -10,7 +10,7 @@ export async function listSubItems(req: Request, res: Response): Promise<void> {
     const categoryCode = req.query.categoryCode as string | undefined;
     const activeOnly   = req.query.active === 'true';
 
-    let query = 'SELECT id, category_code, title_ar, title_en, sort_order, is_active FROM [dbo].[resource_sub_items]';
+    let query = 'SELECT id, category_code, title_ar, title_en, description_ar, description_en, question_id, section_ar, section_en, sort_order, is_active FROM [dbo].[resource_sub_items]';
     const conditions: string[] = [];
 
     if (categoryCode) {
@@ -43,7 +43,7 @@ export async function listSubItems(req: Request, res: Response): Promise<void> {
 /** POST /api/resource-sub-items */
 export async function createSubItem(req: Request, res: Response): Promise<void> {
   try {
-    const { categoryCode, titleAr, titleEn, sortOrder } = req.body as Record<string, unknown>;
+    const { categoryCode, titleAr, titleEn, descriptionAr, descriptionEn, questionId, sectionAr, sectionEn, sortOrder } = req.body as Record<string, unknown>;
     if (!categoryCode || typeof categoryCode !== 'string' || !categoryCode.trim()) {
       res.status(400).json({ error: 'categoryCode is required' });
       return;
@@ -55,14 +55,19 @@ export async function createSubItem(req: Request, res: Response): Promise<void> 
 
     const pool = await getPool();
     const result = await pool.request()
-      .input('categoryCode', sql.NVarChar(100),  categoryCode.trim())
-      .input('titleAr',      sql.NVarChar(500),  (titleAr as string).trim())
-      .input('titleEn',      sql.NVarChar(500),  titleEn ? String(titleEn).trim() : null)
-      .input('sortOrder',    sql.Int,             Number(sortOrder ?? 0))
+      .input('categoryCode',   sql.NVarChar(100),  categoryCode.trim())
+      .input('titleAr',        sql.NVarChar(500),  (titleAr as string).trim())
+      .input('titleEn',        sql.NVarChar(500),  titleEn ? String(titleEn).trim() : null)
+      .input('descriptionAr',  sql.NVarChar(1000), descriptionAr ? String(descriptionAr).trim() : null)
+      .input('descriptionEn',  sql.NVarChar(1000), descriptionEn ? String(descriptionEn).trim() : null)
+      .input('questionId',     sql.Int,             questionId != null ? Number(questionId) : null)
+      .input('sectionAr',      sql.NVarChar(200),  sectionAr ? String(sectionAr).trim() : null)
+      .input('sectionEn',      sql.NVarChar(200),  sectionEn ? String(sectionEn).trim() : null)
+      .input('sortOrder',      sql.Int,             Number(sortOrder ?? 0))
       .query(`INSERT INTO [dbo].[resource_sub_items]
-                (category_code, title_ar, title_en, sort_order)
+                (category_code, title_ar, title_en, description_ar, description_en, question_id, section_ar, section_en, sort_order)
               OUTPUT INSERTED.*
-              VALUES (@categoryCode, @titleAr, @titleEn, @sortOrder)`);
+              VALUES (@categoryCode, @titleAr, @titleEn, @descriptionAr, @descriptionEn, @questionId, @sectionAr, @sectionEn, @sortOrder)`);
 
     res.status(201).json({ item: result.recordset[0] });
   } catch (err) {
@@ -76,9 +81,14 @@ export async function updateSubItem(req: Request, res: Response): Promise<void> 
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-    const { titleAr, titleEn, sortOrder, isActive } = req.body as Record<string, unknown>;
+    const { categoryCode, titleAr, titleEn, descriptionAr, descriptionEn, questionId, sectionAr, sectionEn, sortOrder, isActive } = req.body as Record<string, unknown>;
     const sets: string[] = [];
     const request = (await getPool()).request().input('id', sql.Int, id);
+
+    if (categoryCode !== undefined) {
+      request.input('categoryCode', sql.NVarChar(100), String(categoryCode).trim());
+      sets.push('category_code = @categoryCode');
+    }
 
     if (titleAr !== undefined) {
       request.input('titleAr', sql.NVarChar(500), String(titleAr).trim());
@@ -87,6 +97,26 @@ export async function updateSubItem(req: Request, res: Response): Promise<void> 
     if (titleEn !== undefined) {
       request.input('titleEn', sql.NVarChar(500), titleEn ? String(titleEn).trim() : null);
       sets.push('title_en = @titleEn');
+    }
+    if (descriptionAr !== undefined) {
+      request.input('descriptionAr', sql.NVarChar(1000), descriptionAr ? String(descriptionAr).trim() : null);
+      sets.push('description_ar = @descriptionAr');
+    }
+    if (descriptionEn !== undefined) {
+      request.input('descriptionEn', sql.NVarChar(1000), descriptionEn ? String(descriptionEn).trim() : null);
+      sets.push('description_en = @descriptionEn');
+    }
+    if (questionId !== undefined) {
+      request.input('questionId', sql.Int, questionId != null ? Number(questionId) : null);
+      sets.push('question_id = @questionId');
+    }
+    if (sectionAr !== undefined) {
+      request.input('sectionAr', sql.NVarChar(200), sectionAr ? String(sectionAr).trim() : null);
+      sets.push('section_ar = @sectionAr');
+    }
+    if (sectionEn !== undefined) {
+      request.input('sectionEn', sql.NVarChar(200), sectionEn ? String(sectionEn).trim() : null);
+      sets.push('section_en = @sectionEn');
     }
     if (sortOrder !== undefined) {
       request.input('sortOrder', sql.Int, Number(sortOrder));

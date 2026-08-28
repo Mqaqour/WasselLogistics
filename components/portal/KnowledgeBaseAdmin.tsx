@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { Language } from '../../types';
-import { PlusCircle, Trash2, ChevronDown, ChevronUp, Loader2, Tag, RefreshCw, X, Pencil, Save, Sparkles, CheckCircle, AlertCircle } from 'lucide-react';
+import { adminFetch } from '../../services/adminApi';
+import { PlusCircle, Trash2, ChevronDown, ChevronUp, Loader2, Tag, RefreshCw, X, Pencil, Save, Sparkles, CheckCircle, AlertCircle, LayoutDashboard, Settings } from 'lucide-react';
 
 // ── RichTextarea — supports Ctrl+B (bold), toolbar buttons for lists ──────────
 interface RichTextareaProps {
@@ -193,6 +196,7 @@ interface KbAdminTopic {
   code: string;
   name: string;
   description: string | null;
+  questionCount: number;
 }
 
 interface KbAdminQuestion {
@@ -254,68 +258,105 @@ interface ResourceCategory {
   is_active: boolean;
 }
 
+interface ResourceSubItem {
+  id: number;
+  category_code: string;
+  title_ar: string;
+  title_en: string | null;
+  description_ar: string | null;
+  description_en: string | null;
+  question_id: number | null;
+  section_ar: string | null;
+  section_en: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
+interface ResourceSection {
+  id: number;
+  category_code: string;
+  title_ar: string;
+  title_en: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
+interface GroupedResourceSection {
+  key: string;
+  id: number | null;
+  titleAr: string | null;
+  titleEn: string | null;
+  sortOrder: number;
+  items: ResourceSubItem[];
+}
+
 // ── API helpers ───────────────────────────────────────────────────────────────
 
 const api = {
   getTopics:   (lang: string) =>
-    fetch(`/api/topics?language=${lang}`).then(r => r.json()),
+    adminFetch(`/api/topics?language=${lang}`).then(r => r.json()),
   createTopic: (body: object) =>
-    fetch('/api/topics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch('/api/topics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   deleteTopic: (id: number) =>
-    fetch(`/api/topics/${id}`, { method: 'DELETE' }).then(r => r.json()),
+    adminFetch(`/api/topics/${id}`, { method: 'DELETE' }).then(r => r.json()),
 
   getQuestions: (lang: string, topicCode?: string) => {
     const qs = topicCode
       ? `?language=${lang}&topicCode=${encodeURIComponent(topicCode)}`
       : `?language=${lang}`;
-    return fetch(`/api/questions${qs}`).then(r => r.json());
+    return adminFetch(`/api/questions${qs}`).then(r => r.json());
   },
   createQuestion: (body: object) =>
-    fetch('/api/questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch('/api/questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   deleteQuestion: (id: number) =>
-    fetch(`/api/questions/${id}`, { method: 'DELETE' }).then(r => r.json()),
+    adminFetch(`/api/questions/${id}`, { method: 'DELETE' }).then(r => r.json()),
   getQuestionTags: (id: number) =>
-    fetch(`/api/questions/${id}/tags`).then(r => r.json()),
+    adminFetch(`/api/questions/${id}/tags`).then(r => r.json()),
   addTagToQuestion: (questionId: number, tagId: number) =>
-    fetch(`/api/questions/${questionId}/tags`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tagId }) }).then(r => r.json()),
+    adminFetch(`/api/questions/${questionId}/tags`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tagId }) }).then(r => r.json()),
   removeTagFromQuestion: (questionId: number, tagId: number) =>
-    fetch(`/api/questions/${questionId}/tags/${tagId}`, { method: 'DELETE' }).then(r => r.json()),
+    adminFetch(`/api/questions/${questionId}/tags/${tagId}`, { method: 'DELETE' }).then(r => r.json()),
 
   getTags: () =>
-    fetch('/api/tags').then(r => r.json()),
+    adminFetch('/api/tags').then(r => r.json()),
   createTag: (body: object) =>
-    fetch('/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch('/api/tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   deleteTag: (id: number) =>
-    fetch(`/api/tags/${id}`, { method: 'DELETE' }).then(r => r.json()),
+    adminFetch(`/api/tags/${id}`, { method: 'DELETE' }).then(r => r.json()),
 
   getQuestionForEdit: (id: number) =>
-    fetch(`/api/questions/${id}/edit`).then(r => r.json()),
+    adminFetch(`/api/questions/${id}/edit`).then(r => r.json()),
   updateQuestion: (id: number, body: object) =>
-    fetch(`/api/questions/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch(`/api/questions/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   getTopicById: (id: number) =>
-    fetch(`/api/topics/${id}`).then(r => r.json()),
+    adminFetch(`/api/topics/${id}`).then(r => r.json()),
   updateTopic: (id: number, body: object) =>
-    fetch(`/api/topics/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch(`/api/topics/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   generateKb: (body: object) =>
-    fetch('/api/kb/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch('/api/kb/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
 
   getResourceCategories: () =>
-    fetch('/api/resource-categories').then(r => r.json()),
+    adminFetch('/api/resource-categories').then(r => r.json()),
   createResourceCategory: (body: object) =>
-    fetch('/api/resource-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch('/api/resource-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   updateResourceCategory: (id: number, body: object) =>
-    fetch(`/api/resource-categories/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch(`/api/resource-categories/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   deleteResourceCategory: (id: number) =>
-    fetch(`/api/resource-categories/${id}`, { method: 'DELETE' }).then(r => r.json()),
+    adminFetch(`/api/resource-categories/${id}`, { method: 'DELETE' }).then(r => r.json()),
 
   getSubItems: (categoryCode: string) =>
-    fetch(`/api/resource-sub-items?categoryCode=${encodeURIComponent(categoryCode)}`).then(r => r.json()),
+    adminFetch(`/api/resource-sub-items?categoryCode=${encodeURIComponent(categoryCode)}`).then(r => r.json()),
   createSubItem: (body: object) =>
-    fetch('/api/resource-sub-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch('/api/resource-sub-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   updateSubItem: (id: number, body: object) =>
-    fetch(`/api/resource-sub-items/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+    adminFetch(`/api/resource-sub-items/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
   deleteSubItem: (id: number) =>
-    fetch(`/api/resource-sub-items/${id}`, { method: 'DELETE' }).then(r => r.json()),
+    adminFetch(`/api/resource-sub-items/${id}`, { method: 'DELETE' }).then(r => r.json()),
+
+  getResourceSections: (categoryCode: string) =>
+    adminFetch(`/api/resource-sections?categoryCode=${encodeURIComponent(categoryCode)}`).then(r => r.json()),
+  createResourceSection: (body: object) =>
+    adminFetch('/api/resource-sections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
 };
 
 // ── Shared style tokens ───────────────────────────────────────────────────────
@@ -348,7 +389,7 @@ function Flash({ msg, onDismiss }: { msg: { text: string; ok: boolean } | null; 
 // ── Modal overlay ─────────────────────────────────────────────────────────────
 
 function ModalOverlay({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -357,7 +398,22 @@ function ModalOverlay({ title, onClose, children }: { title: string; onClose: ()
         </div>
         <div className="px-6 py-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
+  );
+}
+
+function ViewportPopup({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) {
+  if (!isOpen) return <>{children}</>;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}
+    >
+      {children}
+    </div>,
+    document.body,
   );
 }
 
@@ -392,7 +448,8 @@ function EditQuestionModal({ questionId, onClose, onSaved, flash }: {
       });
       setLoading(false);
     }).catch(() => { flash('فشل تحميل بيانات السؤال', false); onClose(); });
-  }, [questionId, flash, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionId]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -493,7 +550,8 @@ function EditTopicModal({ topicId, onClose, onSaved, flash }: {
       setForm({ nameAr: ar?.name ?? '', descAr: ar?.description ?? '', nameEn: en?.name ?? '', descEn: en?.description ?? '' });
       setLoading(false);
     }).catch(() => { flash('فشل تحميل بيانات الموضوع', false); onClose(); });
-  }, [topicId, flash, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topicId]);
 
   const handleSave = async () => {
     if (!form.nameAr.trim()) { flash('الاسم بالعربي مطلوب', false); return; }
@@ -558,6 +616,7 @@ interface KnowledgeBaseAdminProps { lang: Language; }
 
 export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) => {
   const isRtl = lang === 'ar';
+  const navigate = useNavigate();
 
   // ── Global state ────────────────────────────────────────────────────────────
   const [activeTab,   setActiveTab]   = useState<'topics' | 'questions' | 'tags' | 'ai' | 'resources'>('topics');
@@ -592,11 +651,21 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
 
   // Sub-items management (expand per category)
   const [expandedResCatCode,  setExpandedResCatCode]  = useState<string | null>(null);
-  const [subItemsMap,         setSubItemsMap]         = useState<Record<string, Array<{id:number;category_code:string;title_ar:string;title_en:string|null;sort_order:number;is_active:boolean}>>>({});
+  const [subItemsMap,         setSubItemsMap]         = useState<Record<string, ResourceSubItem[]>>({});
   const [subItemsLoading,     setSubItemsLoading]     = useState<string | null>(null);
+  const [sectionsMap,         setSectionsMap]         = useState<Record<string, ResourceSection[]>>({});
+  const [sectionsLoading,     setSectionsLoading]     = useState<string | null>(null);
+  const [showSectionForm,     setShowSectionForm]     = useState(false);
+  const [sectionForm,         setSectionForm]         = useState({ titleAr: '', titleEn: '', sortOrder: '0' });
+  const [collapsedSections,   setCollapsedSections]   = useState<Record<string, boolean>>({});
   const [showSubForm,         setShowSubForm]         = useState(false);
   const [editSubId,           setEditSubId]           = useState<number | null>(null);
-  const [subForm,             setSubForm]             = useState({ titleAr: '', titleEn: '', sortOrder: '0' });
+  const [subForm,             setSubForm]             = useState({ titleAr: '', titleEn: '', descriptionAr: '', descriptionEn: '', questionId: null as number | null, sectionAr: '', sectionEn: '', sortOrder: '0' });
+  const [linkedQuestionLabel, setLinkedQuestionLabel] = useState('');
+  const [questionSearchOpen,  setQuestionSearchOpen]  = useState(false);
+  const [questionSearchText,  setQuestionSearchText]  = useState('');
+  const [linkableQuestions,   setLinkableQuestions]   = useState<KbAdminQuestion[]>([]);
+  const [linkableQuestionsLoading, setLinkableQuestionsLoading] = useState(false);
 
   // Expand question row state
   const [expandedQ,   setExpandedQ]   = useState<number | null>(null);
@@ -628,6 +697,47 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
     setTimeout(() => setMsg(null), 4000);
   }, []);
 
+  const groupSubItemsBySection = useCallback((items: ResourceSubItem[], sections: ResourceSection[]): GroupedResourceSection[] => {
+    const grouped = new Map<string, GroupedResourceSection>();
+
+    for (const section of sections) {
+      const titleAr = section.title_ar.trim();
+      grouped.set(titleAr, {
+        key: titleAr,
+        id: section.id,
+        titleAr,
+        titleEn: section.title_en?.trim() || null,
+        sortOrder: section.sort_order,
+        items: [],
+      });
+    }
+
+    for (const item of items) {
+      const titleAr = item.section_ar?.trim() || null;
+      const titleEn = item.section_en?.trim() || null;
+      const key = titleAr || titleEn || '__uncategorized__';
+      const existing = grouped.get(key);
+
+      if (existing) {
+        existing.items.push(item);
+        continue;
+      }
+
+      grouped.set(key, {
+        key,
+        id: null,
+        titleAr,
+        titleEn,
+        sortOrder: item.sort_order,
+        items: [item],
+      });
+    }
+
+    return Array.from(grouped.values()).sort((a, b) =>
+      a.sortOrder - b.sortOrder || (a.titleAr ?? '').localeCompare(b.titleAr ?? '', 'ar')
+    );
+  }, []);
+
   const loadTopics = useCallback(async () => {
     const data = await api.getTopics('ar');
     setTopics(data.topics ?? []);
@@ -648,8 +758,17 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
     setResCategories(data.categories ?? []);
   }, []);
 
+  const loadLinkableQuestions = useCallback(async () => {
+    setLinkableQuestionsLoading(true);
+    try {
+      const data = await api.getQuestions('ar');
+      setLinkableQuestions(data.questions ?? []);
+    } finally { setLinkableQuestionsLoading(false); }
+  }, []);
+
   useEffect(() => { loadTopics(); loadTags(); loadResCategories(); }, [loadTopics, loadTags, loadResCategories]);
   useEffect(() => { if (activeTab === 'questions') loadQuestions(); }, [activeTab, loadQuestions]);
+  useEffect(() => { if (activeTab === 'resources') loadLinkableQuestions(); }, [activeTab, loadLinkableQuestions]);
 
   // ── Expand topic row ────────────────────────────────────────────────────────
   const toggleTopicExpand = async (topicCode: string) => {
@@ -832,11 +951,76 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
     }
   };
 
+  const loadResourceSections = async (catCode: string) => {
+    setSectionsLoading(catCode);
+    try {
+      const data = await api.getResourceSections(catCode);
+      setSectionsMap(m => ({ ...m, [catCode]: data.sections ?? [] }));
+    } finally {
+      setSectionsLoading(null);
+    }
+  };
+
+  const emptySubForm = { titleAr: '', titleEn: '', descriptionAr: '', descriptionEn: '', questionId: null as number | null, sectionAr: '', sectionEn: '', sortOrder: '0' };
+  const emptySectionForm = { titleAr: '', titleEn: '', sortOrder: '0' };
+
+  const openSubItemForm = (section?: Pick<GroupedResourceSection, 'titleAr' | 'titleEn'>) => {
+    setShowSectionForm(false);
+    setEditSubId(null);
+    setSubForm({
+      ...emptySubForm,
+      sectionAr: section?.titleAr ?? '',
+      sectionEn: section?.titleEn ?? '',
+    });
+    setLinkedQuestionLabel('');
+    setQuestionSearchOpen(false);
+    setQuestionSearchText('');
+    setShowSubForm(true);
+  };
+
   const handleToggleSubExpand = async (catCode: string) => {
     if (expandedResCatCode === catCode) { setExpandedResCatCode(null); return; }
     setExpandedResCatCode(catCode);
-    setShowSubForm(false); setEditSubId(null); setSubForm({ titleAr: '', titleEn: '', sortOrder: '0' });
-    if (!subItemsMap[catCode]) await loadSubItems(catCode);
+    setShowSubForm(false); setShowSectionForm(false); setSectionForm(emptySectionForm); setEditSubId(null); setSubForm(emptySubForm); setLinkedQuestionLabel(''); setQuestionSearchOpen(false); setQuestionSearchText('');
+    await Promise.all([
+      subItemsMap[catCode] ? Promise.resolve() : loadSubItems(catCode),
+      sectionsMap[catCode] ? Promise.resolve() : loadResourceSections(catCode),
+    ]);
+  };
+
+  const handleSaveResourceSection = async (catCode: string) => {
+    if (!sectionForm.titleAr.trim()) return flash('اسم القسم بالعربي مطلوب', false);
+    const res = await api.createResourceSection({
+      categoryCode: catCode,
+      titleAr: sectionForm.titleAr.trim(),
+      titleEn: sectionForm.titleEn.trim() || undefined,
+      sortOrder: Number(sectionForm.sortOrder) || 0,
+    });
+    if (res.section) {
+      flash('تمت إضافة القسم', true);
+      await loadResourceSections(catCode);
+      setShowSectionForm(false);
+      setSectionForm(emptySectionForm);
+    } else {
+      flash(res.error ?? 'فشل حفظ القسم', false);
+    }
+  };
+
+  const handlePickQuestion = async (q: KbAdminQuestion) => {
+    setSubForm(f => ({ ...f, questionId: q.questionId, titleAr: f.titleAr || q.questionText }));
+    setLinkedQuestionLabel(q.questionText);
+    setQuestionSearchOpen(false);
+    setQuestionSearchText('');
+    try {
+      const full = await api.getQuestionForEdit(q.questionId);
+      const en = full?.translations?.find((t: { languageCode: string; questionText: string }) => t.languageCode === 'en');
+      if (en?.questionText) setSubForm(f => ({ ...f, titleEn: f.titleEn || en.questionText }));
+    } catch { /* best-effort only */ }
+  };
+
+  const handleUnlinkQuestion = () => {
+    setSubForm(f => ({ ...f, questionId: null }));
+    setLinkedQuestionLabel('');
   };
 
   const handleSaveSubItem = async (catCode: string) => {
@@ -845,15 +1029,20 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
       categoryCode: catCode,
       titleAr: subForm.titleAr.trim(),
       titleEn: subForm.titleEn.trim() || undefined,
+      descriptionAr: subForm.descriptionAr.trim() || undefined,
+      descriptionEn: subForm.descriptionEn.trim() || undefined,
+      questionId: subForm.questionId,
+      sectionAr: subForm.sectionAr.trim() || undefined,
+      sectionEn: subForm.sectionEn.trim() || undefined,
       sortOrder: Number(subForm.sortOrder) || 0,
     };
     const res = editSubId
-      ? await api.updateSubItem(editSubId, { titleAr: body.titleAr, titleEn: body.titleEn, sortOrder: body.sortOrder })
+      ? await api.updateSubItem(editSubId, { titleAr: body.titleAr, titleEn: body.titleEn, descriptionAr: body.descriptionAr, descriptionEn: body.descriptionEn, questionId: body.questionId, sectionAr: body.sectionAr, sectionEn: body.sectionEn, sortOrder: body.sortOrder })
       : await api.createSubItem(body);
     if (res.item) {
       flash(editSubId ? 'تم التحديث' : 'تمت الإضافة', true);
       await loadSubItems(catCode);
-      setShowSubForm(false); setEditSubId(null); setSubForm({ titleAr: '', titleEn: '', sortOrder: '0' });
+      setShowSubForm(false); setEditSubId(null); setSubForm(emptySubForm); setLinkedQuestionLabel(''); setQuestionSearchOpen(false); setQuestionSearchText('');
     } else flash(res.error ?? 'فشل الحفظ', false);
   };
 
@@ -880,9 +1069,27 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
       <div className="max-w-5xl mx-auto">
 
         {/* ── Header ── */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">لوحة إدارة قاعدة المعرفة</h1>
-          <p className="text-gray-400 text-sm mt-1">إدارة المواضيع والأسئلة والوسوم الخاصة بالبوت</p>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">لوحة إدارة قاعدة المعرفة</h1>
+            <p className="text-gray-400 text-sm mt-1">إدارة المواضيع والأسئلة والوسوم الخاصة بالبوت</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate(`/${lang}/dashboard`)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-md font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+            >
+              <LayoutDashboard size={14} />
+              لوحة التحكم
+            </button>
+            <button
+              onClick={() => navigate(`/${lang}/admin/settings`)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-md font-medium text-sm bg-gray-700 text-white hover:bg-gray-800 transition-colors"
+            >
+              <Settings size={14} />
+              الإعدادات
+            </button>
+          </div>
         </div>
 
         <Flash msg={msg} onDismiss={() => setMsg(null)} />
@@ -1079,7 +1286,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
               <select title="تصفية حسب الموضوع" className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white"
                 value={filterTopic} onChange={e => setFilterTopic(e.target.value)}>
                 <option value="">كل المواضيع</option>
-                {topics.map(t => <option key={t.code} value={t.code}>{t.name}</option>)}
+                {topics.map(t => <option key={t.code} value={t.code}>{t.name} ({t.questionCount})</option>)}
               </select>
               <input
                 type="search" placeholder="بحث..."
@@ -1603,8 +1810,24 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
 
             {/* Add / Edit form */}
             {showResForm && (
-              <div className={`${cls.card} p-5 border-blue-100 space-y-4`}>
-                <h3 className="font-semibold text-gray-800">{editResId ? 'تعديل البطاقة' : 'بطاقة جديدة'}</h3>
+              <ViewportPopup
+                isOpen={Boolean(editResId)}
+                onClose={() => { setShowResForm(false); setEditResId(null); resetResForm(); }}
+              >
+              <div className={`${cls.card} p-5 border-blue-100 space-y-4 ${editResId ? 'w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl' : ''}`}>
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <h3 className="font-semibold text-gray-800">{editResId ? 'تعديل البطاقة' : 'بطاقة جديدة'}</h3>
+                  {editResId && (
+                    <button
+                      type="button"
+                      title="إغلاق"
+                      className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                      onClick={() => { setShowResForm(false); setEditResId(null); resetResForm(); }}
+                    >
+                      <X size={18} />
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {!editResId && (
                     <div>
@@ -1657,10 +1880,12 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                   <button className={cls.btnSec} onClick={() => { setShowResForm(false); setEditResId(null); resetResForm(); }}>إلغاء</button>
                 </div>
               </div>
+              </ViewportPopup>
             )}
 
             {/* Categories table */}
             <div className={`${cls.card} overflow-hidden`}>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
@@ -1736,17 +1961,116 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                       <tr key={`sub-${cat.code}`}>
                         <td colSpan={8} className="bg-gray-50 px-6 py-4 border-t border-gray-100">
                           <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-semibold text-gray-700">العناصر الفرعية — {cat.title_ar}</span>
-                            <button
-                              className={cls.btnPrim}
-                              onClick={() => { setShowSubForm(v => !v); setEditSubId(null); setSubForm({ titleAr: '', titleEn: '', sortOrder: '0' }); }}
-                            >
-                              <PlusCircle size={14} /> إضافة عنصر
-                            </button>
+                            <span className="text-sm font-semibold text-gray-700">الأقسام والعناوين — {cat.title_ar}</span>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                className={cls.btnSec}
+                                onClick={() => { setShowSubForm(false); setShowSectionForm(v => !v); setSectionForm(emptySectionForm); }}
+                              >
+                                <PlusCircle size={14} /> إضافة قسم
+                              </button>
+                              <button className={cls.btnPrim} onClick={() => openSubItemForm()}>
+                                <PlusCircle size={14} /> إضافة عنوان
+                              </button>
+                            </div>
                           </div>
 
-                          {showSubForm && expandedResCatCode === cat.code && (
+                          {showSectionForm && expandedResCatCode === cat.code && (
                             <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">اسم القسم بالعربي *</label>
+                                <input className={cls.input} title="اسم القسم بالعربي" placeholder="مثال: أنواع الخدمة" value={sectionForm.titleAr}
+                                  onChange={e => setSectionForm(f => ({ ...f, titleAr: e.target.value }))} />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">اسم القسم بالإنجليزي</label>
+                                <input className={cls.input} title="اسم القسم بالإنجليزي" dir="ltr" placeholder="e.g. Service Types" value={sectionForm.titleEn}
+                                  onChange={e => setSectionForm(f => ({ ...f, titleEn: e.target.value }))} />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">الترتيب</label>
+                                <input className={cls.input} type="number" title="ترتيب القسم" dir="ltr" min={0} value={sectionForm.sortOrder}
+                                  onChange={e => setSectionForm(f => ({ ...f, sortOrder: e.target.value }))} />
+                              </div>
+                              <div className="sm:col-span-3 flex gap-2">
+                                <button className={cls.btnPrim} onClick={() => handleSaveResourceSection(cat.code)}>
+                                  <Save size={13} /> حفظ القسم
+                                </button>
+                                <button className={cls.btnSec} onClick={() => { setShowSectionForm(false); setSectionForm(emptySectionForm); }}>إلغاء</button>
+                              </div>
+                            </div>
+                          )}
+
+                          {showSubForm && expandedResCatCode === cat.code && (
+                            <ViewportPopup
+                              isOpen={Boolean(editSubId)}
+                              onClose={() => { setShowSubForm(false); setEditSubId(null); }}
+                            >
+                            <div className={`bg-white border border-gray-200 rounded-xl p-4 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3 ${editSubId ? 'w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl' : ''}`}>
+                              {editSubId && (
+                                <div className="sm:col-span-3 flex items-center justify-between border-b border-gray-100 pb-3">
+                                  <h3 className="text-base font-bold text-gray-900">تعديل العنوان</h3>
+                                  <button
+                                    type="button"
+                                    title="إغلاق"
+                                    className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                                    onClick={() => { setShowSubForm(false); setEditSubId(null); }}
+                                  >
+                                    <X size={18} />
+                                  </button>
+                                </div>
+                              )}
+                              <div className="sm:col-span-3">
+                                <label className="block text-xs text-gray-500 mb-1">
+                                  ربط بسؤال من قاعدة المعرفة <span className="text-blue-500">(موصى به — يفتح إجابة السؤال مباشرة بدلاً من البحث)</span>
+                                </label>
+                                {subForm.questionId ? (
+                                  <div className="flex items-center justify-between gap-2 border border-green-200 bg-green-50 rounded-lg px-3 py-2">
+                                    <span className="text-sm text-green-800 truncate">{linkedQuestionLabel || `سؤال #${subForm.questionId}`}</span>
+                                    <button type="button" className="text-green-700 hover:text-red-600 shrink-0 p-1" title="إلغاء الربط" onClick={handleUnlinkQuestion}>
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="relative">
+                                    <input
+                                      className={cls.input}
+                                      title="ابحث عن سؤال"
+                                      placeholder="ابحث عن سؤال بالعنوان أو الموضوع..."
+                                      value={questionSearchText}
+                                      onChange={e => { setQuestionSearchText(e.target.value); setQuestionSearchOpen(true); }}
+                                      onFocus={() => setQuestionSearchOpen(true)}
+                                      onBlur={() => setTimeout(() => setQuestionSearchOpen(false), 150)}
+                                    />
+                                    {questionSearchOpen && questionSearchText.trim().length > 0 && (
+                                      <div className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                                        {linkableQuestionsLoading ? (
+                                          <div className="px-3 py-2 text-xs text-gray-400 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> جارٍ التحميل…</div>
+                                        ) : (() => {
+                                          const q = questionSearchText.trim().toLowerCase();
+                                          const matches = linkableQuestions.filter(item =>
+                                            item.questionText.toLowerCase().includes(q) ||
+                                            item.intentKey.toLowerCase().includes(q) ||
+                                            item.topicName.toLowerCase().includes(q)
+                                          ).slice(0, 8);
+                                          if (matches.length === 0) return <div className="px-3 py-2 text-xs text-gray-400">لا توجد نتائج مطابقة</div>;
+                                          return matches.map(item => (
+                                            <button
+                                              key={item.questionId}
+                                              type="button"
+                                              onClick={() => handlePickQuestion(item)}
+                                              className="w-full text-start px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                                            >
+                                              <div className="font-medium text-gray-800 truncate">{item.questionText}</div>
+                                              <div className="text-[10px] text-gray-400">{item.topicName} · {item.intentKey}</div>
+                                            </button>
+                                          ));
+                                        })()}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                               <div>
                                 <label className="block text-xs text-gray-500 mb-1">العنوان بالعربي *</label>
                                 <input className={cls.input} title="العنوان بالعربي" value={subForm.titleAr}
@@ -1762,6 +2086,38 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                                 <input className={cls.input} type="number" title="الترتيب" dir="ltr" min={0} value={subForm.sortOrder}
                                   onChange={e => setSubForm(f => ({ ...f, sortOrder: e.target.value }))} />
                               </div>
+                              <div className="sm:col-span-2">
+                                <label className="block text-xs text-gray-500 mb-1">الوصف بالعربي</label>
+                                <input className={cls.input} title="الوصف بالعربي" value={subForm.descriptionAr}
+                                  onChange={e => setSubForm(f => ({ ...f, descriptionAr: e.target.value }))} />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">الوصف بالإنجليزي</label>
+                                <input className={cls.input} title="الوصف بالإنجليزي" dir="ltr" value={subForm.descriptionEn}
+                                  onChange={e => setSubForm(f => ({ ...f, descriptionEn: e.target.value }))} />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">القسم داخل الفئة (بالعربي)</label>
+                                <input
+                                  className={cls.input} title="القسم بالعربي" list={`sections-${cat.code}`}
+                                  placeholder="مثال: أنواع الخدمة"
+                                  value={subForm.sectionAr}
+                                  onChange={e => setSubForm(f => ({ ...f, sectionAr: e.target.value }))}
+                                />
+                                <datalist id={`sections-${cat.code}`}>
+                                  {Array.from(new Set([
+                                    ...(sectionsMap[cat.code] ?? []).map(section => section.title_ar),
+                                    ...(subItemsMap[cat.code] ?? []).map(item => item.section_ar).filter((section): section is string => !!section),
+                                  ])).map(s => (
+                                    <option key={s} value={s} />
+                                  ))}
+                                </datalist>
+                              </div>
+                              <div className="sm:col-span-2">
+                                <label className="block text-xs text-gray-500 mb-1">القسم داخل الفئة (بالإنجليزي)</label>
+                                <input className={cls.input} title="القسم بالإنجليزي" dir="ltr" placeholder="e.g. Service Types" value={subForm.sectionEn}
+                                  onChange={e => setSubForm(f => ({ ...f, sectionEn: e.target.value }))} />
+                              </div>
                               <div className="sm:col-span-3 flex gap-2">
                                 <button className={cls.btnPrim} onClick={() => handleSaveSubItem(cat.code)}>
                                   <Save size={13} /> {editSubId ? 'تحديث' : 'حفظ'}
@@ -1769,66 +2125,137 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                                 <button className={cls.btnSec} onClick={() => { setShowSubForm(false); setEditSubId(null); }}>إلغاء</button>
                               </div>
                             </div>
+                            </ViewportPopup>
                           )}
 
-                          {subItemsLoading === cat.code && (
+                          {(subItemsLoading === cat.code || sectionsLoading === cat.code) && (
                             <div className="flex items-center gap-2 text-sm text-gray-400 py-2"><Loader2 size={14} className="animate-spin" />جارٍ التحميل…</div>
                           )}
 
-                          {!subItemsLoading && (subItemsMap[cat.code] ?? []).length > 0 && (
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="border-b border-gray-200">
-                                  <th className={cls.th}>#</th>
-                                  <th className={cls.th}>العنوان بالعربي</th>
-                                  <th className={cls.th}>العنوان بالإنجليزي</th>
-                                  <th className={cls.th}>الترتيب</th>
-                                  <th className={cls.th}>مرئي</th>
-                                  <th className={cls.th}>تعديل</th>
-                                  <th className={cls.th}>حذف</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(subItemsMap[cat.code] ?? []).map(item => (
-                                  <tr key={item.id} className="border-b border-gray-100 hover:bg-white transition-colors">
-                                    <td className={cls.td}>{item.id}</td>
-                                    <td className={cls.td}>{item.title_ar}</td>
-                                    <td className={`${cls.td} text-gray-400 dir-ltr`}>{item.title_en ?? '—'}</td>
-                                    <td className={cls.td}>{item.sort_order}</td>
-                                    <td className={`${cls.td} text-center`}>
+                          {subItemsLoading !== cat.code && sectionsLoading !== cat.code && ((subItemsMap[cat.code] ?? []).length > 0 || (sectionsMap[cat.code] ?? []).length > 0) && (
+                            <div className="space-y-4">
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                <span className="inline-flex items-center rounded-full bg-white px-3 py-1 border border-gray-200">
+                                  {groupSubItemsBySection(subItemsMap[cat.code] ?? [], sectionsMap[cat.code] ?? []).length} أقسام
+                                </span>
+                                <span className="inline-flex items-center rounded-full bg-white px-3 py-1 border border-gray-200">
+                                  {(subItemsMap[cat.code] ?? []).length} عناوين
+                                </span>
+                              </div>
+
+                              {groupSubItemsBySection(subItemsMap[cat.code] ?? [], sectionsMap[cat.code] ?? []).map(section => {
+                                const sectionCollapseKey = `${cat.code}:${section.key}`;
+                                const isSectionCollapsed = collapsedSections[sectionCollapseKey] ?? true;
+
+                                return (
+                                <div key={section.key} className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                                  <div className={`flex flex-wrap items-center justify-between gap-3 bg-gray-50 px-4 py-3 ${isSectionCollapsed ? '' : 'border-b border-gray-100'}`}>
+                                    <div>
+                                      <h4 className="text-sm font-bold text-gray-800">{section.titleAr ?? 'بدون قسم'}</h4>
+                                      {section.titleEn && (
+                                        <p className="mt-0.5 text-xs text-gray-400" dir="ltr">{section.titleEn}</p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-xs text-gray-500">{section.items.length} عنوان</span>
+                                      {section.titleAr && (
+                                        <button className="text-xs font-medium text-blue-700 hover:text-blue-800" onClick={() => openSubItemForm(section)}>
+                                          <PlusCircle size={13} className="inline-block align-text-bottom" /> إضافة عنوان
+                                        </button>
+                                      )}
                                       <button
-                                        title={item.is_active ? 'إخفاء' : 'إظهار'}
-                                        onClick={() => handleToggleSubActive(item, cat.code)}
-                                        className={`w-9 h-5 rounded-full transition-colors relative ${item.is_active ? 'bg-blue-600' : 'bg-gray-300'}`}
+                                        type="button"
+                                        className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-200 hover:text-blue-700"
+                                        title={isSectionCollapsed ? 'إظهار العناوين' : 'إخفاء العناوين'}
+                                        aria-label={isSectionCollapsed ? 'إظهار العناوين' : 'إخفاء العناوين'}
+                                        aria-expanded={!isSectionCollapsed}
+                                        onClick={() => setCollapsedSections(current => ({
+                                          ...current,
+                                          [sectionCollapseKey]: !isSectionCollapsed,
+                                        }))}
                                       >
-                                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${item.is_active ? 'right-0.5' : 'left-0.5'}`} />
+                                        {isSectionCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                                       </button>
-                                    </td>
-                                    <td className={`${cls.td} text-center`}>
-                                      <button
-                                        className="text-gray-400 hover:text-blue-600 p-1 rounded transition-colors" title="تعديل"
-                                        onClick={() => {
-                                          setEditSubId(item.id);
-                                          setSubForm({ titleAr: item.title_ar, titleEn: item.title_en ?? '', sortOrder: String(item.sort_order) });
-                                          setShowSubForm(true);
-                                        }}
+                                    </div>
+                                  </div>
+
+                                  {!isSectionCollapsed && <div className="divide-y divide-gray-100">
+                                    {section.items.map(item => (
+                                      <div
+                                        key={item.id}
+                                        className={`flex flex-col gap-2 px-4 py-2.5 md:flex-row md:items-center md:justify-between ${!item.is_active ? 'opacity-60' : ''}`}
                                       >
-                                        <Pencil size={13} />
-                                      </button>
-                                    </td>
-                                    <td className={`${cls.td} text-center`}>
-                                      <button className={cls.btnDel} title="حذف" onClick={() => handleDeleteSubItem(item.id, cat.code)}>
-                                        <Trash2 size={13} />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <h5 className="text-sm font-semibold text-gray-900">{item.title_ar}</h5>
+                                            <span className="text-[11px] text-gray-400">#{item.id}</span>
+                                            <span className="text-[11px] text-gray-400">الترتيب: {item.sort_order}</span>
+                                          </div>
+                                          {item.title_en && (
+                                            <p className="mt-0.5 truncate text-xs text-gray-500" dir="ltr">{item.title_en}</p>
+                                          )}
+                                          {(item.description_ar || item.description_en) && (
+                                            <p className="mt-1 truncate text-xs leading-5 text-gray-500">{item.description_ar ?? item.description_en}</p>
+                                          )}
+                                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                                            {item.question_id ? (
+                                              <span className="inline-flex items-center gap-1 rounded bg-green-50 px-2 py-0.5 text-xs text-green-700" title={linkableQuestions.find(q => q.questionId === item.question_id)?.questionText ?? ''}>
+                                                <CheckCircle size={11} /> مرتبط بسؤال
+                                              </span>
+                                            ) : (
+                                              <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700" title="لا يعتمد على إجابة محددة ويستخدم البحث النصي">
+                                                <AlertCircle size={11} /> غير مرتبط
+                                              </span>
+                                            )}
+                                            {!item.is_active && (
+                                              <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                                                مخفي
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 md:shrink-0">
+                                          <button
+                                            title={item.is_active ? 'إخفاء' : 'إظهار'}
+                                            onClick={() => handleToggleSubActive(item, cat.code)}
+                                            className={`w-9 h-5 rounded-full transition-colors relative ${item.is_active ? 'bg-blue-600' : 'bg-gray-300'}`}
+                                          >
+                                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${item.is_active ? 'right-0.5' : 'left-0.5'}`} />
+                                          </button>
+                                          <button
+                                            className="rounded p-1 text-gray-400 transition-colors hover:text-blue-600"
+                                            title="تعديل"
+                                            onClick={() => {
+                                              setEditSubId(item.id);
+                                              setSubForm({ titleAr: item.title_ar, titleEn: item.title_en ?? '', descriptionAr: item.description_ar ?? '', descriptionEn: item.description_en ?? '', questionId: item.question_id, sectionAr: item.section_ar ?? '', sectionEn: item.section_en ?? '', sortOrder: String(item.sort_order) });
+                                              setLinkedQuestionLabel(item.question_id ? (linkableQuestions.find(q => q.questionId === item.question_id)?.questionText ?? `سؤال #${item.question_id}`) : '');
+                                              setQuestionSearchOpen(false);
+                                              setQuestionSearchText('');
+                                              setShowSubForm(true);
+                                            }}
+                                          >
+                                            <Pencil size={13} />
+                                          </button>
+                                          <button className={cls.btnDel} title="حذف" onClick={() => handleDeleteSubItem(item.id, cat.code)}>
+                                            <Trash2 size={13} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {section.items.length === 0 && (
+                                      <p className="px-4 py-3 text-xs text-gray-400">لا توجد عناوين في هذا القسم بعد.</p>
+                                    )}
+                                  </div>
+                                  }
+                                </div>
+                                );
+                              })}
+                            </div>
                           )}
 
-                          {!subItemsLoading && (subItemsMap[cat.code] ?? []).length === 0 && (
-                            <p className="text-xs text-gray-400 py-2">لا توجد عناصر فرعية. أضف أول عنصر أعلاه.</p>
+                          {subItemsLoading !== cat.code && sectionsLoading !== cat.code && (subItemsMap[cat.code] ?? []).length === 0 && (sectionsMap[cat.code] ?? []).length === 0 && (
+                            <p className="text-xs text-gray-400 py-2">لا توجد أقسام أو عناوين. أضف أول قسم أعلاه ثم أضف عناوينه.</p>
                           )}
                         </td>
                       </tr>
@@ -1840,6 +2267,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}

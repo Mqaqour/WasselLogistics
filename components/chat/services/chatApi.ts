@@ -22,6 +22,13 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface ChatAttachment {
+  url: string;
+  attachmentType: 'image' | 'video' | 'audio' | 'file';
+  mimeType: string;
+  fileName: string;
+}
+
 export const chatApi = {
   startChat(params: {
     firstName: string;
@@ -34,8 +41,20 @@ export const chatApi = {
     return post<{ success: true; sessionId: string; contactId: string }>('/api/chat/start', params);
   },
 
-  sendMessage(sessionId: string, message: string) {
-    return post<{ success: true; messageId: string }>('/api/chat/send', { sessionId, message });
+  sendMessage(sessionId: string, message?: string, attachment?: ChatAttachment) {
+    return post<{ success: true; messageId: string }>('/api/chat/send', { sessionId, message, attachment });
+  },
+
+  async uploadAttachment(file: File): Promise<ChatAttachment> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE_URL}/api/chat/upload`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error?.message ?? `Upload failed (${res.status})`);
+    }
+    const data = await res.json() as { success: true } & ChatAttachment;
+    return { url: data.url, attachmentType: data.attachmentType, mimeType: data.mimeType, fileName: data.fileName };
   },
 
   getMessages(sessionId: string) {

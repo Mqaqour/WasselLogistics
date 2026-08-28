@@ -1,12 +1,13 @@
 import { env } from '../config/env';
-import { ChatSession } from '../types/chat.types';
+import { ChatSession, SendMessageAttachment, RespondIoOutgoingEvent } from '../types/chat.types';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 
 interface SendParams {
   session: ChatSession;
   messageId: string;
-  messageText: string;
+  messageText?: string;
+  attachment?: SendMessageAttachment;
 }
 
 interface SendResult {
@@ -16,7 +17,7 @@ interface SendResult {
 }
 
 async function sendIncomingMessageToRespondIo(params: SendParams): Promise<SendResult> {
-  const { session, messageId, messageText } = params;
+  const { session, messageId, messageText, attachment } = params;
 
   // Build contact object — omit null/undefined fields
   const contact: Record<string, string> = {
@@ -28,6 +29,18 @@ async function sendIncomingMessageToRespondIo(params: SendParams): Promise<SendR
   if (session.lastName) contact.lastName   = session.lastName;
   if (session.email)    contact.email      = session.email;
 
+  const message: RespondIoOutgoingEvent['message'] = attachment
+    ? {
+      type: 'attachment',
+      attachment: {
+        type:     attachment.attachmentType,
+        url:      attachment.url,
+        mimeType: attachment.mimeType,
+        fileName: attachment.fileName,
+      },
+    }
+    : { type: 'text', text: messageText ?? '' };
+
   const payload = {
     channelId: env.RESPOND_CHANNEL_ID,
     contactId: session.contactId,
@@ -37,10 +50,7 @@ async function sendIncomingMessageToRespondIo(params: SendParams): Promise<SendR
         // respond.io expects a plain UUID for mId (no prefix)
         mId:       uuidv4(),
         timestamp: Date.now(),
-        message: {
-          type: 'text',
-          text: messageText,
-        },
+        message,
       },
     ],
     contact,

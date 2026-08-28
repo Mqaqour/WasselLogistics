@@ -8,26 +8,25 @@ import {
   Dashboard,
   Login,
   KnowledgeBaseAdmin,
+  SystemSettings,
   ChatBot,
-  Services,
-  Corporate,
-  Handmade,
   Resources,
-  Industries,
-  PaymentGateway,
   FloatingActionBar,
-  About,
-  Management,
   Contact,
   FloatingCircles,
   IDPOrderModal,
-  ServiceDetail,
+  BusinessAccountModal,
+  BusinessAccountRequests,
   BookingWindow,
-  LatestUpdates,
 } from './components';
 import { ChatWidget } from './components/chat/ChatWidget';
-import { PageView, Language, Theme } from './types';
-import { Package, X, Truck } from 'lucide-react';
+import { useTypewriter } from './hooks/useTypewriter';
+import { adminFetch, clearAdminToken } from './services/adminApi';
+import { PageView, Language } from './types';
+import { Package, X, Truck, Plane, IdCard, FileCheck, Ship, Container } from 'lucide-react';
+
+// Icons for the home tracking button, synced by index to trackPlaceholderWords below
+const TRACK_ICONS = [Package, Plane, Truck, IdCard, FileCheck, Ship, Container];
 
 const BRAND_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
 
@@ -57,7 +56,6 @@ export const App: React.FC = () => {
   const shouldRenderLegacyChatBot = Boolean(respondIoChannelId);
 
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState<Theme>('individuals');
   const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem('wsl_logged_in') === '1');
   const [lang, setLang] = useState<Language>(() => {
     const firstSegment = window.location.pathname.split('/').filter(Boolean)[0];
@@ -71,34 +69,12 @@ export const App: React.FC = () => {
     pickup: '/pickup',
     login: '/login',
     dashboard: '/dashboard',
-    payment: '/payment',
-    services: '/services',
-    'payment-gateway': '/payment-gateway',
-    corporate: '/corporate',
-    about: '/about',
-    management: '/management',
     contact: '/contact',
-    handmade: '/handmade',
     resources: '/resources',
-    industries: '/industries',
-    latest_updates: '/latest-updates',
-    'service-clearance': '/services/clearance',
-    'service-express': '/services/express',
-    'service-domestic': '/services/domestic',
-    'service-shop': '/services/shop',
-    'service-idp': '/services/idp',
-    'service-jordanian': '/services/jordanian-passports',
-    'service-pick-pack': '/services/pick-pack',
-    'service-corp-daily': '/services/corporate/daily-mail',
-    'service-corp-signing': '/services/corporate/document-signing',
-    'service-corp-bulk': '/services/corporate/bulk-distribution',
-    'service-corp-storage': '/services/corporate/storage',
-    'service-corp-warehousing': '/services/corporate/warehouse-management',
-    'service-corp-freight': '/services/corporate/heavy-freight',
-    'service-multimodal-freight': '/services/multimodal-freight',
     booking_window: '/booking',
-    'register-new-app-west-bank': '/RegisterNewAppWestBank',
     'kb-admin': '/admin/kb',
+    'system-settings': '/admin/settings',
+    'business-accounts': '/admin/business-accounts',
   }), []);
 
   const currentView = useMemo<PageView>(() => {
@@ -116,31 +92,9 @@ export const App: React.FC = () => {
       '/login': 'login',
       '/dashboard': 'dashboard',
       '/admin/kb': 'kb-admin',
-      '/payment': 'payment',
-      '/services': 'services',
-      '/payment-gateway': 'payment-gateway',
-      '/corporate': 'corporate',
-      '/about': 'about',
-      '/management': 'management',
+      '/admin/settings': 'system-settings',
+      '/admin/business-accounts': 'business-accounts',
       '/contact': 'contact',
-      '/handmade': 'handmade',
-      '/industries': 'industries',
-      '/latest-updates': 'latest_updates',
-      '/latest_updates': 'latest_updates',
-      '/services/clearance': 'service-clearance',
-      '/services/express': 'service-express',
-      '/services/domestic': 'service-domestic',
-      '/services/shop': 'service-shop',
-      '/services/idp': 'service-idp',
-      '/services/jordanian-passports': 'service-jordanian',
-      '/services/pick-pack': 'service-pick-pack',
-      '/services/corporate/daily-mail': 'service-corp-daily',
-      '/services/corporate/document-signing': 'service-corp-signing',
-      '/services/corporate/bulk-distribution': 'service-corp-bulk',
-      '/services/corporate/storage': 'service-corp-storage',
-      '/services/corporate/warehouse-management': 'service-corp-warehousing',
-      '/services/corporate/heavy-freight': 'service-corp-freight',
-      '/services/multimodal-freight': 'service-multimodal-freight',
       '/booking': 'booking_window',
     };
 
@@ -172,17 +126,24 @@ export const App: React.FC = () => {
     }
   }, [localeFromPath, lang]);
   
-  // State to pass data from Tracking to PaymentGateway
-  // Updated to include billDetails for down payments
-  const [paymentParams, setPaymentParams] = useState<{ 
-      ref: string; 
-      service: string;
-      billDetails?: { label: string; amount: number }[];
-  } | null>(null);
-  
   // Quick Track State from Home
-  const [quickTrackId, setQuickTrackId] = useState(''); 
+  const [quickTrackId, setQuickTrackId] = useState('');
   const [homeTrackingInput, setHomeTrackingInput] = useState('');
+
+  // Deep-link tracking number, e.g. /tracking?awb=4094459143 — used for SMS/email links sent to customers.
+  const urlTrackingId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('awb') || params.get('trackingNumber') || '';
+  }, [location.search]);
+
+  // Typewriter placeholder for the home tracking box — types, pauses, backspaces, then moves to the next word
+  const trackPlaceholderWords = useMemo(() => ({
+    ar: ['واصل', 'فيديكس', 'دي اتش ال', 'جواز السفر', 'المعاملة الجمركية', 'الشحن البحري', 'الكونتينر'],
+    en: ['Wassel', 'FedEx', 'DHL', 'Passport', 'Customs Transaction', 'Sea Freight', 'Container'],
+  }), []);
+  const trackPlaceholderTypewriter = useTypewriter(lang === 'en' ? trackPlaceholderWords.en : trackPlaceholderWords.ar);
+  const trackPlaceholderTypedWord = trackPlaceholderTypewriter.text;
+  const TrackButtonIcon = TRACK_ICONS[trackPlaceholderTypewriter.index % TRACK_ICONS.length];
 
   // Rate Calculator State
   const [rateTab, setRateTab] = useState<'international' | 'domestic'>('international');
@@ -192,7 +153,8 @@ export const App: React.FC = () => {
 
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
-  
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
   // Generic Popup State
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
@@ -260,49 +222,15 @@ export const App: React.FC = () => {
     document.dir = lang === 'ar' ? 'rtl' : 'ltr';
   }, [lang]);
 
-  // Scroll to top when view or theme changes
+  // Scroll to top when the view changes
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [currentView, theme]);
+  }, [currentView]);
 
   const t = {
     heroTitleHighlight: lang === 'en' ? 'Connecting Palestine.' : 'نصل فلسطين بالعالم.',
-    heroDesc: lang === 'en' ? 'We go beyond logistics — embedding our solutions into your supply chain to drive efficiency, visibility, and growth, while you stay focused on your core business.' : 'نحن نتخطى حدود الخدمات اللوجستية — ندمج حلولنا في سلسلة التوريد الخاصة بك لتحقيق الكفاءة والشفافية والنمو، بينما تركّز أنت على جوهر أعمالك.',
-    trackBtn: lang === 'en' ? 'Track Shipment' : 'تتبع الشحنة',
-    trackPlaceholder: lang === 'en' ? 'Enter Tracking Number' : 'أدخل رقم التتبع',
-    quoteBtn: lang === 'en' ? 'Get Quote' : 'احصل على عرض سعر',
-    pickupLabel: lang === 'en' ? 'Schedule Pickup' : 'جدولة استلام',
-    ready: lang === 'en' ? 'Ready to get started?' : 'مستعد للبدء؟',
-    createAccount: lang === 'en' ? 'Create an account today.' : 'أنشئ حساباً اليوم.',
-    signUp: lang === 'en' ? 'Sign up for free' : 'سجل مجاناً',
-    footerRights: lang === 'en' ? '© 2023 Wassel Logistics. All rights reserved.' : '© 2023 واصل للخدمات اللوجستية. جميع الحقوق محفوظة.',
-    privacy: lang === 'en' ? 'Privacy Policy' : 'سياسة الخصوصية',
-    terms: lang === 'en' ? 'Terms of Service' : 'شروط الخدمة',
-    contact: lang === 'en' ? 'Contact' : 'اتصل بنا',
-    footerServices: lang === 'en' ? 'Services' : 'الخدمات',
-    footerCorporate: lang === 'en' ? 'Corporate Solutions' : 'حلول الشركات',
-    footerCompany: lang === 'en' ? 'Company' : 'الشركة',
-    quickTools: lang === 'en' ? 'Quick Tools' : 'أدوات سريعة',
-    ourServices: lang === 'en' ? 'Our Services' : 'خدماتنا',
-    servicesDesc: lang === 'en' ? 'Tailored solutions for your personal shipping needs' : 'حلول مخصصة لاحتياجات الشحن الشخصية'
-  };
-
-  const footerData = {
-    services: [
-      { en: 'Parcel Clearance', ar: 'تخليص الطرود' },
-      { en: 'International Express', ar: 'الشحن الدولي السريع' },
-      { en: 'Domestic Shipping', ar: 'الشحن المحلي' },
-      { en: 'Shop & Ship', ar: 'تسوق واستلم' }
-    ],
-    corporate: [
-      { en: 'Daily Mail', ar: 'البريد اليومي' },
-      { en: 'Document Signing', ar: 'توقيع المستندات' },
-      { en: 'Bulk Distribution', ar: 'التوزيع بالجملة' },
-      { en: 'Import & Export', ar: 'الإستيراد والتصدير' },
-      { en: 'Storage', ar: 'التخزين' },
-      { en: 'Warehouse Management', ar: 'إدارة المستودعات' },
-      { en: 'Heavy Freight', ar: 'الشحن الثقيل' }
-    ]
+    heroDesc: lang === 'en' ? 'We build smarter, more efficient, and more transparent supply chains — connecting you to the world.' : 'نبني سلاسل توريد أكثر ذكاءً وكفاءة وشفافية، لنصلك بالعالم.',
+    trackBtn: lang === 'en' ? 'Track' : 'تتبع',
   };
 
   const handleLogin = () => {
@@ -311,11 +239,25 @@ export const App: React.FC = () => {
     setCurrentView('dashboard');
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+    clearAdminToken();
     setIsLoggedIn(false);
     sessionStorage.removeItem('wsl_logged_in');
     setCurrentView('home');
-  };
+  }, [setCurrentView]);
+
+  // Validate a restored session against the backend; drop it if the token is gone/expired.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+    adminFetch('/api/auth/me')
+      .then((r: Response) => { if (!cancelled && r.status === 401) handleLogout(); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // Run once on mount for a restored session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAction = (action: string) => {
     if (action === 'chat') {
@@ -337,46 +279,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // Helper to handle actions from ServiceDetail pages
-  const handleServiceAction = (actionType: string, params?: any) => {
-      switch(actionType) {
-          case 'tracking-customs':
-              setTrackingMode('customs');
-              setActivePopup('tracking');
-              break;
-          case 'tracking':
-              setTrackingMode('standard');
-              setActivePopup('tracking');
-              break;
-          case 'pay':
-              setPaymentParams(null); // Or preset if available
-              setActivePopup('pay');
-              break;
-          case 'rates-international':
-              setRateTab('international');
-              setActivePopup('rates');
-              break;
-          case 'rates-domestic':
-              setRateTab('domestic');
-              setActivePopup('rates');
-              break;
-          case 'pickup':
-              setActivePopup('pickup');
-              break;
-          case 'login':
-              setCurrentView('login');
-              break;
-          case 'idp-flow':
-              setActivePopup('idp-flow');
-              break;
-          case 'contact':
-              setCurrentView('contact');
-              break;
-          default:
-              break;
-      }
-  };
-
   // --- SPECIAL RENDER FOR BOOKING WINDOW (No Layout) ---
   if (currentView === 'booking_window') {
       const params = new URLSearchParams(location.search);
@@ -393,29 +295,15 @@ export const App: React.FC = () => {
         return <BookingWindow lang={lang} initialRate={rateData} />;
   }
 
-  // Determine effective theme logic
-  const isCorporateMode = (theme === 'corporate' && currentView === 'home') || currentView.startsWith('service-corp-');
-  const effectiveTheme = isCorporateMode ? 'corporate' : 'individuals';
-
   // Determine if the current view should be treated as a "Landing Page" (Transparent Header & Background)
-  const isLandingPage = currentView === 'home' || currentView === 'handmade' || currentView === 'industries' || currentView === 'resources' || currentView === 'contact';
+  const isLandingPage = currentView === 'home' || currentView === 'resources' || currentView === 'contact';
 
   const renderView = () => {
-    // Specific Service Page Logic
-    if (currentView.startsWith('service-')) {
-        return <ServiceDetail serviceId={currentView} lang={lang} onAction={handleServiceAction} />;
-    }
-
     switch (currentView) {
       case 'tracking':
-        return <Tracking 
-          lang={lang} 
-          initialTrackingId={quickTrackId}
-          onNavigateToPayment={(ref, service, billDetails) => {
-            setPaymentParams({ ref, service, billDetails });
-            setActivePopup('pay'); // Ensure popup switches to pay if tracking was in popup
-            if (!activePopup) setCurrentView('payment-gateway'); // Or navigate if not popup
-          }}
+        return <Tracking
+          lang={lang}
+          initialTrackingId={quickTrackId || urlTrackingId}
           isPopup={!!activePopup}
           mode={trackingMode}
           onContact={() => {
@@ -427,24 +315,8 @@ export const App: React.FC = () => {
         return <RateCalculator lang={lang} />;
       case 'pickup':
         return <Pickup lang={lang} />;
-      case 'services':
-        return <Services lang={lang} onNavigate={setCurrentView} />;
-      case 'corporate':
-        return <Corporate lang={lang} />;
-      case 'handmade':
-        return <Handmade lang={lang} />;
       case 'resources':
         return <Resources lang={lang} onTrack={(id) => { setQuickTrackId(id); setTrackingMode('standard'); setActivePopup('tracking'); }} />;
-      case 'latest_updates':
-        return <LatestUpdates lang={lang} />;
-      case 'industries':
-        return <Industries lang={lang} />;
-      case 'payment-gateway':
-        return <PaymentGateway lang={lang} initialParams={paymentParams} />;
-      case 'about':
-        return <About lang={lang} />;
-      case 'management':
-        return <Management lang={lang} />;
       case 'contact':
         return <Contact lang={lang} />;
       case 'login':
@@ -453,18 +325,12 @@ export const App: React.FC = () => {
         return isLoggedIn ? <Dashboard lang={lang} /> : <Login onLogin={handleLogin} lang={lang} />;
       case 'kb-admin':
         return isLoggedIn ? <KnowledgeBaseAdmin lang={lang} /> : <Login onLogin={handleLogin} lang={lang} />;
+      case 'system-settings':
+        return isLoggedIn ? <SystemSettings lang={lang} /> : <Login onLogin={handleLogin} lang={lang} />;
+      case 'business-accounts':
+        return isLoggedIn ? <BusinessAccountRequests lang={lang} /> : <Login onLogin={handleLogin} lang={lang} />;
       case 'home':
       default:
-        // Conditional Home View based on Theme
-        if (effectiveTheme === 'corporate') {
-            return (
-                <div className="animate-enter">
-                    <Corporate lang={lang} />
-                </div>
-            );
-        }
-
-        // Default / Individuals Home
         return (
           <div className="flex flex-col flex-1 animate-enter relative">
             {/* --- GLOBAL HOME BACKGROUND IMAGE --- */}
@@ -517,24 +383,21 @@ export const App: React.FC = () => {
                                 <input
                                     type="text"
                                     className="block w-full rounded-xl border-0 py-6 pl-8 pr-40 sm:pr-56 text-gray-900 ring-1 ring-inset ring-gray-100 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-wassel-yellow text-lg sm:text-2xl sm:leading-relaxed rtl:pr-8 rtl:pl-40 sm:rtl:pl-56"
-                                    placeholder={t.trackPlaceholder}
+                                    placeholder={lang === 'en'
+                                        ? `Enter tracking number for ${trackPlaceholderTypedWord}|`
+                                        : `ادخل رقم تتبع ${trackPlaceholderTypedWord}|`}
                                     value={homeTrackingInput}
                                     onChange={(e) => setHomeTrackingInput(e.target.value)}
                                 />
                                 <div className="absolute inset-y-2 right-2 rtl:right-auto rtl:left-2 flex items-center">
                                     <button type="submit" className="h-full rounded-lg bg-wassel-blue px-6 sm:px-10 text-white font-bold text-lg hover:bg-wassel-darkBlue transition-colors flex items-center gap-3">
-                                        <Package className="w-6 h-6" />
+                                        <TrackButtonIcon className="w-6 h-6" />
                                         <span className="hidden sm:inline">{t.trackBtn}</span>
                                     </button>
                                 </div>
                             </div>
                         </form>
 
-                        <p className="text-center mt-3 text-white font-medium text-sm sm:text-base animate-slide-up delay-300">
-                             {lang === 'en' 
-                                ? 'Insert your Domestic shipment or FedEx or DHL shipments or Passport No or Clearance No'
-                                : 'أدخل رقم الشحنة المحلية أو شحنات FedEx أو DHL أو رقم الجواز أو رقم المعاملة الجمركية'}
-                        </p>
                       </div>
                   </div>
 
@@ -547,11 +410,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // Theme based classes
-  const footerBg = effectiveTheme === 'corporate' ? 'bg-corp-primary border-gray-600' : 'bg-wassel-blue border-gray-800';
-  const footerText = 'text-gray-300';
-  const footerHeading = 'text-white font-bold text-lg mb-6 border-b pb-2 inline-block md:block ' + (effectiveTheme === 'corporate' ? 'border-gray-600' : 'border-gray-700');
-  const footerLink = `text-sm text-gray-400 transition-colors hover:pl-1 rtl:hover:pr-1 hover:${effectiveTheme === 'corporate' ? 'text-corp-secondary' : 'text-wassel-yellow'}`;
 
   // LOADING SCREEN
   if (loading) {
@@ -567,29 +425,27 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${isLandingPage ? 'bg-transparent' : 'bg-white'} ${effectiveTheme === 'corporate' ? 'text-corp-primary' : 'text-wassel-blue'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <Navbar 
-        currentView={currentView} 
-        setCurrentView={setCurrentView} 
-        isLoggedIn={isLoggedIn} 
-        onLogout={handleLogout} 
-        lang={lang} 
+    <div className={`min-h-screen flex flex-col ${isLandingPage ? 'bg-transparent' : 'bg-white'} text-wassel-blue`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <Navbar
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        isLoggedIn={isLoggedIn}
+        onLogout={handleLogout}
+        lang={lang}
         setLang={handleSetLang}
-        theme={effectiveTheme}
-        setTheme={setTheme}
       />
-      {/* Key ensures animation replays on view change. Padding adjusted to account for header height without banner. */}
-      {/* Remove padding-top for landing pages (Individuals & Corporate Home) so background sits behind header */}
-      <main key={currentView + effectiveTheme} className={`animate-enter flex-1 flex flex-col ${isLandingPage ? 'bg-transparent pt-0' : 'pt-[116px] sm:pt-[148px]'} pb-20 md:pb-0`}>
+      {/* Key ensures animation replays on view change. Padding removed for landing pages so the background sits behind the header. */}
+      <main key={currentView} className={`animate-enter flex-1 flex flex-col ${isLandingPage ? 'bg-transparent pt-0' : 'pt-[116px] sm:pt-[148px]'} pb-20 md:pb-0`}>
         {renderView()}
       </main>
-      
-      {/* Floating Action Bar - Only show if NOT corporate and NOT in specific pages */}
-      {effectiveTheme !== 'corporate' && !['about', 'management', 'contact', 'resources'].includes(currentView) && (
-        <FloatingActionBar 
+
+      {/* Floating Action Bar — hidden on the contact and resources pages */}
+      {!['contact', 'resources'].includes(currentView) && (
+        <FloatingActionBar
           lang={lang}
           onAction={handleAction}
           activeAction={activePopup}
+          chatUnreadCount={chatUnreadCount}
         />
       )}
 
@@ -601,6 +457,7 @@ export const App: React.FC = () => {
           setIsChatOpen(false);
           if (activePopup === 'chat') setActivePopup(null);
         }}
+        onUnreadChange={setChatUnreadCount}
       />
 
       {/* Legacy respond.io widget — only rendered when VITE_RESPONDIO_CHANNEL_ID is set */}
@@ -612,8 +469,13 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* Business Account wizard — self-contained overlay, launched from the floating bar */}
+      {activePopup === 'open-account' && (
+        <BusinessAccountModal lang={lang} onClose={() => setActivePopup(null)} />
+      )}
+
       {/* Generic Popup Modal */}
-      {activePopup && activePopup !== 'chat' && (
+      {activePopup && activePopup !== 'chat' && activePopup !== 'open-account' && (
         <div className="fixed inset-0 z-[60] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
                  {/* Backdrop */}
@@ -641,15 +503,11 @@ export const App: React.FC = () => {
                          </div>
                          <div className="px-1 py-6 sm:p-6 max-h-[85vh] overflow-y-auto">
                             {activePopup === 'tracking' && (
-                                <Tracking 
-                                    lang={lang} 
-                                    initialTrackingId={quickTrackId} 
+                                <Tracking
+                                    lang={lang}
+                                    initialTrackingId={quickTrackId || urlTrackingId}
                                     isPopup={true}
                                     mode={trackingMode}
-                                    onNavigateToPayment={(ref, service, billDetails) => {
-                                        setPaymentParams({ ref, service, billDetails });
-                                        setActivePopup('pay'); // Switch popup content to pay
-                                    }}
                                     onContact={() => {
                                         setActivePopup(null);
                                         setCurrentView('contact');
@@ -658,7 +516,6 @@ export const App: React.FC = () => {
                             )}
                             {activePopup === 'rates' && <RateCalculator lang={lang} isPopup={true} initialTab={rateTab} />}
                             {activePopup === 'pickup' && <Pickup lang={lang} isPopup={true} />}
-                            {activePopup === 'pay' && <PaymentGateway lang={lang} initialParams={paymentParams} isPopup={true} />}
                          </div>
                      </div>
                  )}

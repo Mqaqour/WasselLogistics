@@ -3,6 +3,8 @@ export interface ChatMessage {
   senderType: 'visitor' | 'agent' | 'system';
   messageType: 'text' | 'attachment';
   messageText: string | null;
+  attachmentUrl?: string | null;
+  attachmentFileName?: string;
   createdAt: string;
   pending?: boolean;
 }

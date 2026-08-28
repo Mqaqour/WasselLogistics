@@ -1,5 +1,15 @@
 import { getPool, sql } from '../config/database';
-import { ChatSession, ChatMessage, ChatEvent, ContactMessageLog, MessageDTO } from '../types/chat.types';
+import {
+  ChatSession,
+  ChatMessage,
+  ChatEvent,
+  ContactMessageLog,
+  ShippingRequestLog,
+  WaitingShipmentEntry,
+  BusinessAccountRequest,
+  BusinessAccountStatus,
+  MessageDTO,
+} from '../types/chat.types';
 import { logger } from '../utils/logger';
 
 // ── In-memory fallback (used when SQL Server is unreachable) ──────────────────
@@ -13,7 +23,7 @@ export function setDbAvailable(available: boolean): void {
   _dbAvailable = available;
 }
 
-async function isDbAvailable(): Promise<boolean> {
+export async function isDbAvailable(): Promise<boolean> {
   if (_dbAvailable !== null) return _dbAvailable;
   try {
     const pool = await getPool();
@@ -152,11 +162,12 @@ export async function closeSession(sessionId: string): Promise<void> {
 export async function saveMessage(msg: Omit<ChatMessage, 'id' | 'createdAt'>): Promise<void> {
   if (!(await isDbAvailable())) {
     const dto: MessageDTO = {
-      messageId:   msg.messageId,
-      senderType:  msg.senderType,
-      messageType: msg.messageType,
-      messageText: msg.messageText ?? '',
-      createdAt:   new Date().toISOString(),
+      messageId:     msg.messageId,
+      senderType:    msg.senderType,
+      messageType:   msg.messageType,
+      messageText:   msg.messageText ?? '',
+      attachmentUrl: msg.attachmentUrl ?? null,
+      createdAt:     new Date().toISOString(),
     };
     const list = memMessages.get(msg.sessionId) ?? [];
     list.push(dto);
@@ -198,6 +209,7 @@ export async function getMessagesBySession(sessionId: string): Promise<MessageDT
         sender_type AS senderType,
         message_type AS messageType,
         message_text AS messageText,
+        attachment_url AS attachmentUrl,
         CONVERT(NVARCHAR(30), created_at, 126) AS createdAt
       FROM chat_messages
       WHERE session_id = @sessionId
@@ -247,7 +259,7 @@ export async function createContactMessageLog(
       .input('language', sql.NVarChar(10), log.language)
       .input('aiAnswer', sql.NVarChar(sql.MAX), log.aiAnswer)
       .input('aiRelatedTopics', sql.NVarChar(sql.MAX), log.aiRelatedTopics)
-      .query<{ id: number }>(`
+      .query<{ id: number | string }>(`
         INSERT INTO contact_message_logs
           (topic, name, mobile, email, message, tracking_number, passport_number, language, ai_answer, ai_related_topics)
         OUTPUT INSERTED.id
@@ -255,7 +267,10 @@ export async function createContactMessageLog(
           (@topic, @name, @mobile, @email, @message, @trackingNumber, @passportNumber, @language, @aiAnswer, @aiRelatedTopics)
       `);
 
-    return result.recordset[0]?.id ?? null;
+    // The mssql driver returns BIGINT columns as strings (to avoid precision loss),
+    // even though the type here is declared as number — coerce it back explicitly.
+    const rawId = result.recordset[0]?.id;
+    return rawId != null ? Number(rawId) : null;
   } catch (error) {
     logger.warn(`Could not save contact message log: ${String(error)}`);
     return null;
@@ -332,6 +347,355 @@ export async function updateContactMessageLog(
     return (result.rowsAffected?.[0] ?? 0) > 0;
   } catch (error) {
     logger.warn(`Could not update contact message log ${id}: ${String(error)}`);
+    return false;
+  }
+}
+
+// ── Shipping Request Logs ───────────────────────────────────────────────────────
+
+export async function createShippingRequestLog(
+  log: Omit<ShippingRequestLog, 'id' | 'createdAt' | 'updatedAt' | 'emailDeliveryStatus' | 'emailError'>
+): Promise<number | null> {
+  if (!(await isDbAvailable())) {
+    logger.warn('Could not save shipping request log: database is unavailable.');
+    return null;
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('requestType', sql.NVarChar(20), log.requestType)
+      .input('customerName', sql.NVarChar(200), log.customerName)
+      .input('customerPhone', sql.NVarChar(50), log.customerPhone)
+      .input('customerEmail', sql.NVarChar(200), log.customerEmail)
+      .input('isDocument', sql.Bit, log.isDocument)
+      .input('weight', sql.Decimal(10, 2), log.weight)
+      .input('pkgLength', sql.Int, log.pkgLength)
+      .input('pkgWidth', sql.Int, log.pkgWidth)
+      .input('pkgHeight', sql.Int, log.pkgHeight)
+      .input('originCountry', sql.NVarChar(100), log.originCountry)
+      .input('originCity', sql.NVarChar(100), log.originCity)
+      .input('originZip', sql.NVarChar(50), log.originZip)
+      .input('destCountry', sql.NVarChar(100), log.destCountry)
+      .input('destCity', sql.NVarChar(100), log.destCity)
+      .input('destZip', sql.NVarChar(50), log.destZip)
+      .input('provider', sql.NVarChar(100), log.provider)
+      .input('service', sql.NVarChar(100), log.service)
+      .input('price', sql.Decimal(10, 2), log.price)
+      .input('currency', sql.NVarChar(10), log.currency)
+      .input('deliveryEstimate', sql.NVarChar(200), log.deliveryEstimate)
+      .input('shipmentContents', sql.NVarChar(sql.MAX), log.shipmentContents)
+      .input('addressDetails', sql.NVarChar(sql.MAX), log.addressDetails)
+      .input('notes', sql.NVarChar(sql.MAX), log.notes)
+      .input('language', sql.NVarChar(10), log.language)
+      .query<{ id: number }>(`
+        INSERT INTO shipping_request_logs
+          (request_type, customer_name, customer_phone, customer_email, is_document, weight,
+           pkg_length, pkg_width, pkg_height, origin_country, origin_city, origin_zip,
+           dest_country, dest_city, dest_zip, provider, service, price, currency, delivery_estimate,
+           shipment_contents, address_details, notes, language)
+        OUTPUT INSERTED.id
+        VALUES
+          (@requestType, @customerName, @customerPhone, @customerEmail, @isDocument, @weight,
+           @pkgLength, @pkgWidth, @pkgHeight, @originCountry, @originCity, @originZip,
+           @destCountry, @destCity, @destZip, @provider, @service, @price, @currency, @deliveryEstimate,
+           @shipmentContents, @addressDetails, @notes, @language)
+      `);
+
+    return result.recordset[0]?.id ?? null;
+  } catch (error) {
+    logger.warn(`Could not save shipping request log: ${String(error)}`);
+    return null;
+  }
+}
+
+export async function updateShippingRequestLogStatus(
+  id: number,
+  status: 'pending' | 'sent' | 'failed',
+  emailError: string | null
+): Promise<void> {
+  if (!(await isDbAvailable())) {
+    logger.warn(`Could not update shipping request log status for ${id}: database is unavailable.`);
+    return;
+  }
+
+  try {
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.Int, id)
+      .input('status', sql.NVarChar(20), status)
+      .input('emailError', sql.NVarChar(sql.MAX), emailError)
+      .query(`
+        UPDATE shipping_request_logs
+        SET email_delivery_status = @status,
+            email_error = @emailError,
+            updated_at = SYSDATETIME()
+        WHERE id = @id
+      `);
+  } catch (error) {
+    logger.warn(`Could not update shipping request log status for ${id}: ${String(error)}`);
+  }
+}
+
+// ── Waiting-to-Arrive Shipments ─────────────────────────────────────────────────
+// Tracking numbers a customer entered that weren't found on any carrier yet. The
+// twice-daily re-check job (configured separately, not yet wired up) will scan
+// pending rows here and notify the customer once the shipment appears.
+
+/** Returns the new row's id, `'duplicate'` if this tracking number is already registered, or
+ *  `null` on any other failure (e.g. database unavailable). */
+export async function createWaitingShipment(
+  entry: Omit<WaitingShipmentEntry, 'id' | 'createdAt' | 'status' | 'lastCheckedAt' | 'foundAt'>
+): Promise<number | 'duplicate' | null> {
+  if (!(await isDbAvailable())) {
+    logger.warn('Could not save waiting shipment: database is unavailable.');
+    return null;
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('trackingNumber', sql.NVarChar(100), entry.trackingNumber)
+      .input('customerName', sql.NVarChar(200), entry.customerName)
+      .input('customerEmail', sql.NVarChar(200), entry.customerEmail)
+      .input('customerPhone', sql.NVarChar(50), entry.customerPhone)
+      .input('carrier', sql.NVarChar(20), entry.carrier)
+      .input('language', sql.NVarChar(10), entry.language)
+      .query<{ id: number }>(`
+        INSERT INTO WaitingToArriveShipments
+          (tracking_number, customer_name, customer_email, customer_phone, carrier, language)
+        OUTPUT INSERTED.id
+        VALUES (@trackingNumber, @customerName, @customerEmail, @customerPhone, @carrier, @language)
+      `);
+
+    return result.recordset[0]?.id ?? null;
+  } catch (error) {
+    // SQL Server: 2601 = duplicate key on unique index, 2627 = unique/PK constraint violation
+    const errNumber = (error as { number?: number })?.number;
+    if (errNumber === 2601 || errNumber === 2627) {
+      return 'duplicate';
+    }
+    logger.warn(`Could not save waiting shipment: ${String(error)}`);
+    return null;
+  }
+}
+
+export async function isWaitingShipmentRegistered(trackingNumber: string): Promise<boolean> {
+  if (!(await isDbAvailable())) return false;
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('trackingNumber', sql.NVarChar(100), trackingNumber)
+      .query<{ id: number }>(`
+        SELECT TOP 1 id FROM WaitingToArriveShipments WHERE tracking_number = @trackingNumber
+      `);
+    return result.recordset.length > 0;
+  } catch (error) {
+    logger.warn(`Could not check waiting shipment registration: ${String(error)}`);
+    return false;
+  }
+}
+
+export async function fetchWaitingShipments(): Promise<WaitingShipmentEntry[]> {
+  if (!(await isDbAvailable())) {
+    logger.warn('Could not list waiting shipments: database is unavailable.');
+    return [];
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .query<{
+        id: number;
+        trackingNumber: string;
+        customerName: string;
+        customerEmail: string;
+        customerPhone: string | null;
+        carrier: string | null;
+        language: string | null;
+        status: 'pending' | 'found' | 'notified' | 'expired';
+        lastCheckedAt: Date | null;
+        foundAt: Date | null;
+        createdAt: Date;
+      }>(`
+        SELECT
+          id, tracking_number AS trackingNumber, customer_name AS customerName,
+          customer_email AS customerEmail, customer_phone AS customerPhone,
+          carrier, language, status,
+          last_checked_at AS lastCheckedAt, found_at AS foundAt, created_at AS createdAt
+        FROM WaitingToArriveShipments
+        ORDER BY created_at DESC
+      `);
+
+    return result.recordset;
+  } catch (error) {
+    logger.warn(`Could not list waiting shipments: ${String(error)}`);
+    return [];
+  }
+}
+
+export async function updateWaitingShipmentStatus(
+  id: number,
+  status: 'pending' | 'found' | 'notified' | 'expired'
+): Promise<boolean> {
+  if (!(await isDbAvailable())) {
+    logger.warn(`Could not update waiting shipment ${id}: database is unavailable.`);
+    return false;
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .input('status', sql.NVarChar(20), status)
+      .query(`
+        UPDATE WaitingToArriveShipments
+        SET status = @status,
+            found_at = CASE WHEN @status = 'found' THEN SYSDATETIME() ELSE found_at END
+        WHERE id = @id
+      `);
+
+    return (result.rowsAffected?.[0] ?? 0) > 0;
+  } catch (error) {
+    logger.warn(`Could not update waiting shipment ${id}: ${String(error)}`);
+    return false;
+  }
+}
+
+// ── Business Account Requests ───────────────────────────────────────────────────
+// Corporate leads from the public "Open Account" wizard. Followed up from
+// /admin/business-accounts.
+
+export async function createBusinessAccountRequest(
+  req: Omit<
+    BusinessAccountRequest,
+    'id' | 'status' | 'emailDeliveryStatus' | 'emailError' | 'createdAt' | 'updatedAt'
+  >
+): Promise<number | null> {
+  if (!(await isDbAvailable())) {
+    logger.warn('Could not save business account request: database is unavailable.');
+    return null;
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('services', sql.NVarChar(sql.MAX), JSON.stringify(req.services ?? []))
+      .input('companyName', sql.NVarChar(200), req.companyName)
+      .input('companyRegNo', sql.NVarChar(100), req.companyRegNo)
+      .input('industry', sql.NVarChar(100), req.industry)
+      .input('website', sql.NVarChar(200), req.website)
+      .input('monthlyVolumeBand', sql.NVarChar(50), req.monthlyVolumeBand)
+      .input('contactName', sql.NVarChar(200), req.contactName)
+      .input('contactRole', sql.NVarChar(100), req.contactRole)
+      .input('contactEmail', sql.NVarChar(200), req.contactEmail)
+      .input('contactPhone', sql.NVarChar(50), req.contactPhone)
+      .input('pickupCity', sql.NVarChar(100), req.pickupCity)
+      .input('pickupArea', sql.NVarChar(200), req.pickupArea)
+      .input('destinations', sql.NVarChar(sql.MAX), req.destinations)
+      .input('notes', sql.NVarChar(sql.MAX), req.notes)
+      .input('language', sql.NVarChar(10), req.language)
+      .query<{ id: number | string }>(`
+        INSERT INTO business_account_requests
+          (services, company_name, company_reg_no, industry, website, monthly_volume_band,
+           contact_name, contact_role, contact_email, contact_phone,
+           pickup_city, pickup_area, destinations, notes, language)
+        OUTPUT INSERTED.id
+        VALUES
+          (@services, @companyName, @companyRegNo, @industry, @website, @monthlyVolumeBand,
+           @contactName, @contactRole, @contactEmail, @contactPhone,
+           @pickupCity, @pickupArea, @destinations, @notes, @language)
+      `);
+
+    const rawId = result.recordset[0]?.id;
+    return rawId != null ? Number(rawId) : null;
+  } catch (error) {
+    logger.warn(`Could not save business account request: ${String(error)}`);
+    return null;
+  }
+}
+
+export async function updateBusinessAccountEmailStatus(
+  id: number,
+  status: 'pending' | 'sent' | 'failed',
+  emailError: string | null
+): Promise<void> {
+  if (!(await isDbAvailable())) return;
+
+  try {
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.BigInt, id)
+      .input('status', sql.NVarChar(20), status)
+      .input('emailError', sql.NVarChar(sql.MAX), emailError)
+      .query(`
+        UPDATE business_account_requests
+        SET email_delivery_status = @status, email_error = @emailError, updated_at = SYSDATETIME()
+        WHERE id = @id
+      `);
+  } catch (error) {
+    logger.warn(`Could not update business account request email status for ${id}: ${String(error)}`);
+  }
+}
+
+export async function fetchBusinessAccountRequests(): Promise<BusinessAccountRequest[]> {
+  if (!(await isDbAvailable())) {
+    logger.warn('Could not list business account requests: database is unavailable.');
+    return [];
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query<Record<string, unknown>>(`
+      SELECT
+        id, services, company_name AS companyName, company_reg_no AS companyRegNo,
+        industry, website, monthly_volume_band AS monthlyVolumeBand,
+        contact_name AS contactName, contact_role AS contactRole,
+        contact_email AS contactEmail, contact_phone AS contactPhone,
+        pickup_city AS pickupCity, pickup_area AS pickupArea, destinations, notes, language,
+        status, email_delivery_status AS emailDeliveryStatus, email_error AS emailError,
+        created_at AS createdAt, updated_at AS updatedAt
+      FROM business_account_requests
+      ORDER BY created_at DESC
+    `);
+
+    return result.recordset.map((row) => {
+      let services: string[] = [];
+      try {
+        const parsed = JSON.parse(String(row.services ?? '[]'));
+        if (Array.isArray(parsed)) services = parsed.map(String);
+      } catch {
+        services = [];
+      }
+      return { ...(row as unknown as BusinessAccountRequest), services };
+    });
+  } catch (error) {
+    logger.warn(`Could not list business account requests: ${String(error)}`);
+    return [];
+  }
+}
+
+export async function updateBusinessAccountRequestStatus(
+  id: number,
+  status: BusinessAccountStatus
+): Promise<boolean> {
+  if (!(await isDbAvailable())) return false;
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.BigInt, id)
+      .input('status', sql.NVarChar(20), status)
+      .query(`
+        UPDATE business_account_requests
+        SET status = @status, updated_at = SYSDATETIME()
+        WHERE id = @id
+      `);
+
+    return (result.rowsAffected?.[0] ?? 0) > 0;
+  } catch (error) {
+    logger.warn(`Could not update business account request ${id}: ${String(error)}`);
     return false;
   }
 }

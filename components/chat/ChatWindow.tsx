@@ -1,31 +1,39 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Wifi, WifiOff, X } from 'lucide-react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { ChatMessage } from './types/chat.types';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
+import { WaitingIndicator } from './WaitingIndicator';
 import { chatApi } from './services/chatApi';
 import { socketClient } from './services/socketClient';
+import { playReplyNotificationSound } from './utils/notificationSound';
 
 interface ChatWindowProps {
   lang: 'ar' | 'en';
   sessionId: string;
   onClose: () => void;
   onSessionExpired?: () => void;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose, onSessionExpired }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose, onSessionExpired, isExpanded, onToggleExpand }) => {
   const [messages, setMessages]           = useState<ChatMessage[]>([]);
   const [sending, setSending]             = useState(false);
-  const [connected, setConnected]         = useState(false);
   const [errorMsg, setErrorMsg]           = useState('');
   const bottomRef                         = useRef<HTMLDivElement>(null);
   const isAr                              = lang === 'ar';
 
+  // The customer's own last message hasn't been answered yet — show a "waiting" indicator
+  // so it doesn't feel unread, even though respond.io gives us no real typing signal.
+  const lastMessage    = messages[messages.length - 1];
+  const awaitingReply  = !!lastMessage && lastMessage.senderType === 'visitor' && !lastMessage.pending;
+
   const t = {
-    title:       isAr ? 'دعم واصل' : 'Wassel Support',
-    online:      isAr ? 'متصل' : 'Online',
-    offline:     isAr ? 'غير متصل' : 'Offline',
+    title:       isAr ? 'مساعد واصل الذكي' : 'Wassel AI Assistant',
     loading:     isAr ? 'جاري التحميل...' : 'Loading...',
+    expand:      isAr ? 'توسيع كشريط جانبي' : 'Expand to sidebar',
+    collapse:    isAr ? 'طي إلى نافذة عائمة' : 'Collapse to floating',
   };
 
   // Load history + connect socket
@@ -40,15 +48,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
         }
       });
 
+    // Session room join/leave is owned by ChatWidget so it persists across panel open/close.
     const sock = socketClient.connect();
-    socketClient.joinSession(sessionId);
-
-    sock.on('connect',    () => setConnected(true));
-    sock.on('disconnect', () => setConnected(false));
-    setConnected(sock.connected);
 
     const handleNewMessage = (msg: ChatMessage) => {
       setMessages((prev) => [...prev, msg]);
+      if (msg.senderType === 'agent') {
+        playReplyNotificationSound();
+      }
     };
 
     socketClient.onMessage(handleNewMessage);
@@ -56,7 +63,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
     return () => {
       cancelled = true;
       socketClient.offMessage(handleNewMessage);
-      socketClient.leaveSession(sessionId);
     };
   }, [sessionId]);
 
@@ -97,6 +103,45 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
     }
   }, [sessionId, isAr]);
 
+  const handleSendFile = useCallback(async (file: File) => {
+    setErrorMsg('');
+    const tempId = `temp_${Date.now()}`;
+    // Show the visitor's own file from a local blob URL — the server copy is
+    // deleted right after respond.io fetches it, so it isn't safe to reload.
+    const localUrl = URL.createObjectURL(file);
+    const optimistic: ChatMessage = {
+      messageId:          tempId,
+      senderType:         'visitor',
+      messageType:        'attachment',
+      messageText:        null,
+      attachmentUrl:      localUrl,
+      attachmentFileName: file.name,
+      createdAt:          new Date().toISOString(),
+      pending:            true,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setSending(true);
+    try {
+      const attachment = await chatApi.uploadAttachment(file);
+      const { messageId } = await chatApi.sendMessage(sessionId, undefined, attachment);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.messageId === tempId ? { ...m, messageId, pending: false } : m
+        )
+      );
+    } catch (err) {
+      setMessages((prev) => prev.filter((m) => m.messageId !== tempId));
+      URL.revokeObjectURL(localUrl);
+      if (err instanceof Error && err.message === 'Session not found.') {
+        onSessionExpired?.();
+        return;
+      }
+      setErrorMsg(err instanceof Error ? err.message : (isAr ? 'فشل رفع الملف' : 'Upload failed'));
+    } finally {
+      setSending(false);
+    }
+  }, [sessionId, isAr, onSessionExpired]);
+
   return (
     <div
       className="flex flex-col"
@@ -104,23 +149,30 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* Header */}
-      <div className="flex items-center justify-between bg-[#002B49] px-4 py-3 text-white">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#FFCD00] flex items-center justify-center text-[#002B49] font-extrabold text-sm">
-            W
-          </div>
-          <div>
-            <p className="text-sm font-bold leading-none">{t.title}</p>
-            <p className="flex items-center gap-1 text-[10px] text-gray-300 mt-0.5">
-              {connected
-                ? <><Wifi className="w-3 h-3 text-green-400" />{t.online}</>
-                : <><WifiOff className="w-3 h-3 text-red-400" />{t.offline}</>}
-            </p>
-          </div>
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0 border-b border-gray-100 bg-white">
+        <div className="min-w-0 flex-1">
+          <span className="text-sm font-medium truncate block text-gray-900">{t.title}</span>
         </div>
-        <button onClick={onClose} className="text-gray-300 hover:text-white transition-colors">
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-0.5 text-gray-600">
+          {onToggleExpand && (
+            <button
+              onClick={onToggleExpand}
+              title={isExpanded ? t.collapse : t.expand}
+              aria-label={isExpanded ? t.collapse : t.expand}
+              className="flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-gray-100 transition-colors"
+            >
+              {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            aria-label={isAr ? 'إغلاق' : 'Close'}
+            title={isAr ? 'إغلاق' : 'Close'}
+            className="flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -133,6 +185,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
         {messages.map((msg) => (
           <MessageBubble key={msg.messageId} message={msg} lang={lang} />
         ))}
+        {awaitingReply && <WaitingIndicator lang={lang} />}
         {errorMsg && (
           <p className="text-center text-xs text-red-500">{errorMsg}</p>
         )}
@@ -140,7 +193,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
       </div>
 
       {/* Input */}
-      <ChatInput lang={lang} disabled={sending} onSend={handleSend} />
+      <ChatInput lang={lang} disabled={sending} onSend={handleSend} onSendFile={handleSendFile} />
     </div>
   );
 };

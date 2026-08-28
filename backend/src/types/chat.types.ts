@@ -76,9 +76,17 @@ export interface StartChatResponse {
   contactId: string;
 }
 
+export interface SendMessageAttachment {
+  url: string;
+  attachmentType: 'image' | 'video' | 'audio' | 'file';
+  mimeType: string;
+  fileName: string;
+}
+
 export interface SendMessageRequest {
   sessionId: string;
-  message: string;
+  message?: string;
+  attachment?: SendMessageAttachment;
 }
 
 export interface SendMessageResponse {
@@ -99,6 +107,7 @@ export interface MessageDTO {
   senderType: string;
   messageType: string;
   messageText: string | null;
+  attachmentUrl: string | null;
   createdAt: string;
 }
 
@@ -122,10 +131,9 @@ export interface RespondIoOutgoingEvent {
   type: 'message';
   mId: string;
   timestamp: number;
-  message: {
-    type: 'text';
-    text: string;
-  };
+  message:
+    | { type: 'text'; text: string }
+    | { type: 'attachment'; attachment: { type: 'image' | 'video' | 'audio' | 'file'; url: string; mimeType: string; fileName: string } };
 }
 
 export interface RespondIoOutgoingPayload {
@@ -149,6 +157,7 @@ export interface SocketMessageNewEvent {
   senderType: string;
   messageType: string;
   messageText: string | null;
+  attachmentUrl: string | null;
   createdAt: string;
 }
 
@@ -160,6 +169,80 @@ export interface ApiError {
     code: string;
     message: string;
   };
+}
+
+export interface ShippingRequestLog {
+  id: number;
+  requestType: 'international' | 'domestic';
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
+  isDocument: boolean;
+  weight: number;
+  pkgLength: number | null;
+  pkgWidth: number | null;
+  pkgHeight: number | null;
+  originCountry: string | null;
+  originCity: string | null;
+  originZip: string | null;
+  destCountry: string | null;
+  destCity: string | null;
+  destZip: string | null;
+  provider: string | null;
+  service: string | null;
+  price: number | null;
+  currency: string | null;
+  deliveryEstimate: string | null;
+  shipmentContents: string | null;
+  addressDetails: string | null;
+  notes: string | null;
+  language: string | null;
+  emailDeliveryStatus: 'pending' | 'sent' | 'failed';
+  emailError: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ShippingRequestSubmitRequest {
+  requestType: 'international' | 'domestic';
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  isDocument: boolean;
+  weight: number;
+  pkgLength?: number;
+  pkgWidth?: number;
+  pkgHeight?: number;
+  origin?: { country?: string; city?: string; zip?: string };
+  destination?: { country?: string; city?: string; zip?: string };
+  rate: { provider: string; service: string; price: number; currency: string; deliveryDate: string };
+  shipmentContents?: string;
+  addressDetails?: string;
+  notes?: string;
+  language?: string;
+}
+
+export interface WaitingShipmentEntry {
+  id: number;
+  trackingNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string | null;
+  carrier: string | null;
+  language: string | null;
+  status: 'pending' | 'found' | 'notified' | 'expired';
+  lastCheckedAt: Date | null;
+  foundAt: Date | null;
+  createdAt: Date;
+}
+
+export interface WaitingShipmentRegisterRequest {
+  trackingNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  carrier?: string;
+  language?: string;
 }
 
 export interface ContactSubmitRequest {
@@ -176,4 +259,48 @@ export interface ContactSubmitRequest {
     answer: string;
     relatedTopics: string[];
   } | null;
+}
+
+export type BusinessAccountStatus = 'new' | 'contacted' | 'approved' | 'rejected';
+
+export interface BusinessAccountRequest {
+  id: number;
+  services: string[];
+  companyName: string;
+  companyRegNo: string | null;
+  industry: string | null;
+  website: string | null;
+  monthlyVolumeBand: string | null;
+  contactName: string;
+  contactRole: string | null;
+  contactEmail: string;
+  contactPhone: string;
+  pickupCity: string | null;
+  pickupArea: string | null;
+  destinations: string | null;
+  notes: string | null;
+  language: string | null;
+  status: BusinessAccountStatus;
+  emailDeliveryStatus: 'pending' | 'sent' | 'failed';
+  emailError: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BusinessAccountSubmitRequest {
+  services?: string[];
+  companyName: string;
+  companyRegNo?: string;
+  industry?: string;
+  website?: string;
+  monthlyVolumeBand?: string;
+  contactName: string;
+  contactRole?: string;
+  contactEmail: string;
+  contactPhone: string;
+  pickupCity?: string;
+  pickupArea?: string;
+  destinations?: string;
+  notes?: string;
+  language?: string;
 }

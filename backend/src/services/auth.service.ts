@@ -1,7 +1,68 @@
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import jwt from 'jsonwebtoken';
+import { authenticator } from 'otplib';
+import QRCode from 'qrcode';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
+import { getNotificationSettings } from './settings.service';
+
+// ── Session tokens (JWT) ─────────────────────────────────────────────────────
+
+export interface SessionClaims {
+  sub: number;
+  username: string;
+  name: string | null;
+}
+
+export function issueSessionToken(user: { id: number; username: string; displayName: string | null }): string {
+  return jwt.sign(
+    { username: user.username, name: user.displayName ?? null } satisfies Omit<SessionClaims, 'sub'>,
+    env.AUTH_JWT_SECRET,
+    { subject: String(user.id), expiresIn: `${env.AUTH_TOKEN_TTL_HOURS}h` }
+  );
+}
+
+export function verifySessionToken(token: string): SessionClaims | null {
+  try {
+    const decoded = jwt.verify(token, env.AUTH_JWT_SECRET) as jwt.JwtPayload;
+    if (!decoded.sub) return null;
+    return {
+      sub: Number(decoded.sub),
+      username: String(decoded.username ?? ''),
+      name: (decoded.name as string | null) ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── TOTP (authenticator app) second factor ───────────────────────────────────
+
+// Allow the current step ±1 (±30s) to absorb clock skew.
+authenticator.options = { window: 1 };
+
+export function generateTotpSecret(): string {
+  return authenticator.generateSecret();
+}
+
+export function buildTotpAuthUri(username: string, secret: string): string {
+  return authenticator.keyuri(username, env.AUTH_TOTP_ISSUER, secret);
+}
+
+export async function buildTotpQrDataUrl(otpauthUri: string): Promise<string> {
+  return QRCode.toDataURL(otpauthUri, { margin: 1, width: 220 });
+}
+
+export function verifyTotp(secret: string, code: string): boolean {
+  const clean = String(code ?? '').replace(/\s+/g, '');
+  if (!/^\d{6}$/.test(clean)) return false;
+  try {
+    return authenticator.verify({ token: clean, secret });
+  } catch {
+    return false;
+  }
+}
 
 export function hashPassword(password: string): string {
   return crypto
@@ -77,7 +138,8 @@ export async function sendLoginBlockedNotification(input: {
   blockedUntil: Date;
   userAgent: string | null;
 }): Promise<boolean> {
-  const recipients = env.LOGIN_ALERT_EMAILS
+  const { loginAlertEmails } = await getNotificationSettings();
+  const recipients = loginAlertEmails
     .split(',')
     .map((email) => email.trim())
     .filter(Boolean);

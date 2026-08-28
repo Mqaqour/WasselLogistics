@@ -1,7 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
+import path from 'path';
+import fs from 'fs';
 import * as chatService from '../services/chat.service';
 import { StartChatRequest, SendMessageRequest, CloseSessionRequest } from '../types/chat.types';
 import { env } from '../config/env';
+import {
+  UPLOAD_DIR,
+  attachmentTypeForMime,
+  scheduleOrphanCleanup,
+  sendChatAttachmentOnce,
+} from '../utils/chatUploads';
+
+const ATTACHMENT_FILENAME_RE = /^[a-f0-9-]{36}(\.[a-zA-Z0-9]{1,10})?$/;
 
 export async function startChat(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -38,6 +48,52 @@ export async function closeSession(req: Request, res: Response, next: NextFuncti
   } catch (err) {
     next(err);
   }
+}
+
+/**
+ * POST /api/chat/upload
+ *
+ * Accepts a single multipart file (field name "file") and stores it briefly
+ * so respond.io can fetch it by URL — see utils/chatUploads.ts for why this
+ * is ephemeral rather than real file storage.
+ */
+export async function uploadAttachment(req: Request, res: Response): Promise<void> {
+  if (!req.file) {
+    res.status(400).json({ error: { code: 'NO_FILE', message: 'No file uploaded.' } });
+    return;
+  }
+
+  scheduleOrphanCleanup(req.file.path);
+
+  const url = `${req.protocol}://${req.get('host')}/api/chat/attachments/${req.file.filename}`;
+  res.status(200).json({
+    success: true,
+    url,
+    attachmentType: attachmentTypeForMime(req.file.mimetype),
+    mimeType: req.file.mimetype,
+    fileName: req.file.originalname,
+  });
+}
+
+/**
+ * GET /api/chat/attachments/:filename
+ *
+ * Serves an uploaded attachment exactly once, then deletes it (burn-after-read).
+ */
+export function getAttachment(req: Request, res: Response): void {
+  const { filename } = req.params;
+  if (!ATTACHMENT_FILENAME_RE.test(filename)) {
+    res.status(400).json({ error: { code: 'INVALID_FILENAME', message: 'Invalid attachment filename.' } });
+    return;
+  }
+
+  const filePath = path.join(UPLOAD_DIR, filename);
+  if (path.dirname(filePath) !== UPLOAD_DIR || !fs.existsSync(filePath)) {
+    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Attachment not found or already expired.' } });
+    return;
+  }
+
+  sendChatAttachmentOnce(res, filePath);
 }
 
 /**

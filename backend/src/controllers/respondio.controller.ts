@@ -65,6 +65,7 @@ export async function receiveAgentMessage(req: Request, res: Response, next: Nex
       senderType:  'agent',
       messageType: body.message?.type ?? 'text',
       messageText,
+      attachmentUrl: null,
       createdAt:   new Date().toISOString(),
     });
 

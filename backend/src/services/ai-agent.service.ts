@@ -1,6 +1,8 @@
 import { DefaultAzureCredential } from '@azure/identity';
 import { AIProjectClient } from '@azure/ai-projects';
 import { env } from '../config/env';
+import { logger } from '../utils/logger';
+import { wasselAwbDetailsUrl, wasselAwbHeaders } from '../utils/wasselAwb';
 
 type ResourceSearchResult = {
   answer: string;
@@ -610,16 +612,10 @@ function detectTrackingId(query: string): string | null {
 }
 
 async function getTrackingSummary(trackingId: string, isArabic: boolean): Promise<ResourceSearchResult> {
-  const upstream = await fetch(
-    `http://external.wassel.ps:4040/api/GetAwbDetails?Awbs=${encodeURIComponent(trackingId)}`,
-    {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        Authorization: 'Basic ' + Buffer.from('ramallah_admin:Mo@2020!').toString('base64'),
-      },
-    }
-  );
+  const upstream = await fetch(wasselAwbDetailsUrl(trackingId), {
+    method: 'GET',
+    headers: wasselAwbHeaders(),
+  });
 
   const payload = (await upstream.json().catch(() => ({}))) as TrackingApiResponse;
   const record = Array.isArray(payload.data) ? payload.data[0] : undefined;
@@ -720,38 +716,114 @@ function parseJsonPayload(raw: string): ResourceSearchResult {
   };
 }
 
-async function callAgentWithApiKey(prompt: string): Promise<string> {
+async function callAgentWithApiKey(prompt: string, agentName: string, agentVersion: string, timeoutMs?: number): Promise<string> {
   const base = env.AI_PROJECT_ENDPOINT.replace(/\/$/, '');
   const url = `${base}/openai/v1/responses`;
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': env.AI_PROJECT_API_KEY,
-    },
-    body: JSON.stringify({
-      input: prompt,
-      agent_reference: {
-        name: env.AI_AGENT_NAME,
-        version: env.AI_AGENT_VERSION,
-        type: 'agent_reference',
+  const controller = timeoutMs ? new AbortController() : undefined;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': env.AI_PROJECT_API_KEY,
       },
-    }),
+      body: JSON.stringify({
+        input: prompt,
+        agent_reference: {
+          name: agentName,
+          version: agentVersion,
+          type: 'agent_reference',
+        },
+      }),
+      signal: controller?.signal,
+    });
+
+    if (!res.ok) {
+      const details = await res.text().catch(() => '');
+      throw new Error(`API key request failed (${res.status}): ${details}`);
+    }
+
+    const response = await res.json();
+    const outputText = extractOutputText(response);
+    if (!outputText) {
+      throw new Error('Empty agent response');
+    }
+
+    return outputText;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Calls the given Foundry agent (API-key auth if configured, else Azure AD) and returns its raw output text. */
+async function callAgent(prompt: string, agentName: string, agentVersion: string, timeoutMs?: number): Promise<string> {
+  if (env.AI_PROJECT_API_KEY) {
+    return callAgentWithApiKey(prompt, agentName, agentVersion, timeoutMs);
+  }
+
+  const projectClient = new AIProjectClient(env.AI_PROJECT_ENDPOINT, new DefaultAzureCredential());
+  const openAIClient = projectClient.getOpenAIClient();
+
+  const conversation = await openAIClient.conversations.create({
+    items: [{ type: 'message', role: 'user', content: prompt }],
   });
 
-  if (!res.ok) {
-    const details = await res.text().catch(() => '');
-    throw new Error(`API key request failed (${res.status}): ${details}`);
+  const responsePromise = openAIClient.responses.create(
+    { conversation: conversation.id },
+    { body: { agent: { name: agentName, version: agentVersion, type: 'agent_reference' } } }
+  ).then(extractOutputText);
+
+  if (!timeoutMs) return responsePromise;
+
+  const timeoutPromise = new Promise<string>((_, reject) => {
+    setTimeout(() => reject(new Error(`Agent request timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+
+  return Promise.race([responsePromise, timeoutPromise]);
+}
+
+/**
+ * Drafts an internal-only suggested reply + follow-up questions for a Contact Us
+ * submission, using a separate, non-conversational agent from the public KB
+ * chatbot — this task has no intent detection, tracking hijack, or multi-turn
+ * state, it's a single one-shot drafting call.
+ */
+export async function getContactAiSuggestion(formSummary: string): Promise<ResourceSearchResult> {
+  if (!env.AI_PROJECT_ENDPOINT || !env.AI_CONTACT_AGENT_NAME) {
+    throw Object.assign(new Error('Contact AI agent is not configured.'), {
+      code: 'AI_NOT_CONFIGURED',
+      status: 500,
+    });
   }
 
-  const response = await res.json();
-  const outputText = extractOutputText(response);
-  if (!outputText) {
-    throw new Error('Empty agent response');
-  }
+  const prompt = [
+    'You are helping a Wassel Logistics support agent draft an internal reply suggestion before they respond to a Contact Us submission.',
+    'This text is for internal staff use only — it will never be shown to the customer, so do not greet them or address them directly.',
+    'Do not search the web or use any tools. Base your answer only on the form data given below.',
+    'Return ONLY valid JSON exactly in this shape, with no markdown formatting:',
+    '{"answer":"...","relatedTopics":["...","..."]}',
+    '"answer" should be a short, practical suggested reply or next steps for the staff member.',
+    '"relatedTopics" should be 3-4 short suggested follow-up questions for the staff member to ask the customer, based on the topic.',
+    '',
+    formSummary,
+  ].join('\n');
 
-  return outputText;
+  try {
+    const outputText = await callAgent(prompt, env.AI_CONTACT_AGENT_NAME, env.AI_CONTACT_AGENT_VERSION, 15000);
+    if (!outputText) {
+      throw new Error('Empty agent response');
+    }
+    return parseJsonPayload(outputText);
+  } catch (err) {
+    logger.warn(`getContactAiSuggestion failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw Object.assign(new Error(`Contact AI suggestion failed: ${err instanceof Error ? err.message : String(err)}`), {
+      code: 'AI_REQUEST_FAILED',
+      status: 502,
+    });
+  }
 }
 
 export async function getResourceSearchResponse(query: string, options?: ResourceSearchOptions): Promise<ResourceSearchResult> {
@@ -886,33 +958,7 @@ export async function getResourceSearchResponse(query: string, options?: Resourc
   ].join('\n');
 
   try {
-    let outputText = '';
-
-    if (env.AI_PROJECT_API_KEY) {
-      outputText = await callAgentWithApiKey(prompt);
-    } else {
-      const projectClient = new AIProjectClient(env.AI_PROJECT_ENDPOINT, new DefaultAzureCredential());
-      const openAIClient = projectClient.getOpenAIClient();
-
-      const conversation = await openAIClient.conversations.create({
-        items: [{ type: 'message', role: 'user', content: prompt }],
-      });
-
-      const response = await openAIClient.responses.create(
-        { conversation: conversation.id },
-        {
-          body: {
-            agent: {
-              name: env.AI_AGENT_NAME,
-              version: env.AI_AGENT_VERSION,
-              type: 'agent_reference',
-            },
-          },
-        }
-      );
-
-      outputText = extractOutputText(response);
-    }
+    const outputText = await callAgent(prompt, env.AI_AGENT_NAME, env.AI_AGENT_VERSION);
 
     if (!outputText) {
       throw new Error('Empty agent response');

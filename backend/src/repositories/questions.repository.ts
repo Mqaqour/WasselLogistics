@@ -209,22 +209,69 @@ export async function fetchActiveTopics(language: string): Promise<Array<{
   code: string;
   name: string;
   description: string | null;
+  questionCount: number;
 }>> {
   const pool = await getPool();
 
   const result = await pool.request()
     .input('lang', sql.NVarChar(5), language)
-    .query<{ id: number; code: string; name: string; description: string | null }>(`
+    .query<{ id: number; code: string; name: string; description: string | null; questionCount: number }>(`
       SELECT
         t.id,
         t.code,
         ISNULL(tt.name, t.code)   AS name,
-        tt.description
+        tt.description,
+        COUNT(q.id)               AS questionCount
       FROM  kb_topics             t
       LEFT JOIN kb_topic_translations tt ON tt.topic_id = t.id
                                        AND tt.language_code = @lang
+      LEFT JOIN kb_questions      q  ON q.topic_id = t.id
       WHERE t.is_active = 1
+      GROUP BY t.id, t.code, tt.name, tt.description
       ORDER BY t.id
+    `);
+
+  return result.recordset;
+}
+
+/**
+ * Fetch the top `limit` topics ranked by recent search volume (kb_suggestion_logs
+ * over the last 30 days). Topics with no recent search hits fall back to being
+ * ordered by their total question count, so the list still fills out gracefully
+ * when the log table is thin.
+ */
+export async function fetchTrendingTopics(language: string, limit: number): Promise<Array<{
+  id: number;
+  code: string;
+  name: string;
+  questionCount: number;
+}>> {
+  const pool = await getPool();
+
+  const result = await pool.request()
+    .input('lang', sql.NVarChar(5), language)
+    .input('limit', sql.Int, limit)
+    .query<{ id: number; code: string; name: string; questionCount: number }>(`
+      WITH topic_hits AS (
+        SELECT q.topic_id, COUNT(*) AS hits
+        FROM  kb_suggestion_logs sl
+        JOIN  kb_questions       q  ON q.id = sl.suggested_question_id
+        WHERE sl.created_at >= DATEADD(day, -30, SYSDATETIME())
+        GROUP BY q.topic_id
+      )
+      SELECT TOP (@limit)
+        t.id,
+        t.code,
+        ISNULL(tt.name, t.code)   AS name,
+        COUNT(q2.id)              AS questionCount
+      FROM  kb_topics             t
+      LEFT JOIN kb_topic_translations tt ON tt.topic_id = t.id
+                                       AND tt.language_code = @lang
+      LEFT JOIN topic_hits        th ON th.topic_id = t.id
+      LEFT JOIN kb_questions      q2 ON q2.topic_id = t.id
+      WHERE t.is_active = 1
+      GROUP BY t.id, t.code, tt.name, th.hits
+      ORDER BY ISNULL(th.hits, 0) DESC, COUNT(q2.id) DESC
     `);
 
   return result.recordset;

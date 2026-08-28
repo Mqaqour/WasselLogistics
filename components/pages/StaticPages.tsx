@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Language } from '../../types';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle, Loader2, Globe, AlertTriangle, MessageCircle } from 'lucide-react';
-import { getResourceSearchResponse } from '../../services/geminiService';
 import { suggestKbQuestions, getKbQuestionAnswer } from '../../services/questionsKbService';
 
 interface PageProps {
@@ -28,200 +27,102 @@ type ContactSuggestionResult = {
     logId: number;
 };
 
-export const About: React.FC<PageProps> = ({ lang }) => {
-  const t = {
-    title: lang === 'en' ? 'About Us' : 'من نحن',
-    intro: lang === 'en'
-      ? 'Delivering a smarter courier experience since 2005.'
-      : 'منذ انطلاقنا في العام 2005، نقدم لزبائننا حلولاً ذكية لخدمات التوصيل السريع.',
-    p1: lang === 'en'
-      ? 'We provide a comprehensive suite of logistics services, including local and international transport and shipping, regular and express mail services, customs clearance, and smart warehousing solutions.'
-      : 'نقدم باقة شاملة من الخدمات اللوجستية التي تشمل النقل والشحن المحلي والدولي، خدمات البريد العادي والسريع، التخليص الجمركي، وحلول التخزين الذكية.',
-    p2: lang === 'en'
-      ? "At WASSEL, we're on a mission to be the courier company that goes beyond distance and destination to offer business transformation, reliable global services, and flexible, agile solutions. We've got to this position thanks to a mix of industry-leading expertise and an unwavering commitment to offering our customers a greater experience day after day."
-      : 'تتمثل مهمة واصل في ان تكون شركة التوصيل الأسرع نمواً والأكثر تميزاً في الخدمات اللوجستية على مستوى فلسطين عبر تقديمها خدمات موثوقة وفعالة وحلول أكثر مرونة. وقد حظينا بهذه المكانة بفضل تنوع خبراتنا في هذا المجال، الى جانب التزامنا الدائم بتقديم أفضل الخدمات واجودها لزبائننا يوما بعد يوم.',
-    p3: lang === 'en'
-      ? 'We believe that our employees are the heart of our success. Our specialized teams, supported by advanced smart technologies and a well-equipped, diverse fleet, work closely together to deliver innovative and efficient services that meet the needs of all our clients across international, local, and governmental levels at competitive prices.'
-      : 'نؤمن أن موظفينا هم قلب نجاحنا. ففرق عملنا المتخصصة، مدعومة بالتقنيات الذكية والمتطورة وأسطول شحن متنوع ومجهز، تعمل بتعاون وثيق لتقديم خدمات مبتكرة وفعالة تلبي احتياجات زبائننا كافة وبأسعار تنافسية على المستويات الدولية، المحلية والحكومية.',
-    
-    // Partnerships
-    partnersTitle: lang === 'en' ? 'Our Strategic Partners' : 'شركاؤنا الاستراتيجيون',
-    partnersDesc: lang === 'en' 
-        ? 'We connect Palestine to the world through our strategic alliances with global industry leaders.' 
-        : 'نربط فلسطين بالعالم من خلال تحالفاتنا الاستراتيجية مع قادة الصناعة العالمية.',
 
-    // Page 4 Vision
-    vision: lang === 'en'
-      ? "We won't settle for what we've achieved; our horizons are broader and our ambition drives us to persistently work toward a smart, connected future."
-      : 'لن نكتفي بما أنجزناه، فآفاقنا أوسع، وطموحنا يدفعنا لنواصل العمل بإصرار نحو مستقبل ذكي ومترابط.',
-
-    // Page 3 Stats
-    stats: [
-        { 
-            value: '20', 
-            label: lang === 'en' ? 'Years in Business' : 'عاماً في مجال خدمات التوصيل السريع' 
-        },
-        { 
-            value: '40M+', 
-            label: lang === 'en' ? 'Shipments Delivered since 2005' : 'أكثر من 40 مليون شحنة تم توصيلها منذ العام 2005' 
-        },
-        { 
-            value: '200+', 
-            label: lang === 'en' ? 'Countries Covered' : 'أكثر من 200 دولة حول العالم' 
-        },
-        { 
-            value: '500+', 
-            label: lang === 'en' ? 'Worldwide Destinations' : 'أكثر من 500 وجهة عالمية' 
-        },
-        {
-            value: lang === 'en' ? 'Up to 10M ILS' : 'يصل لـ 10 مليون شيكل',
-            label: lang === 'en' ? 'Insurance Policy' : 'بوليصة تأمين'
-        }
-    ]
-  };
-
-  const partners = [
-      { 
-          name: { en: 'FedEx', ar: 'فيديكس' }, 
-          desc: { en: 'Global Express Shipping', ar: 'شحن دولي سريع' },
-          color: 'bg-purple-600',
-          textColor: 'text-purple-600'
-      },
-      { 
-          name: { en: 'DHL', ar: 'دي إتش إل' }, 
-          desc: { en: 'International Logistics', ar: 'خدمات لوجستية عالمية' },
-          color: 'bg-red-600',
-          textColor: 'text-red-600'
-      },
-      { 
-          name: { en: 'Jordan Post', ar: 'البريد الأردني' }, 
-          desc: { en: 'Regional Gateway', ar: 'البوابة الإقليمية' },
-          color: 'bg-blue-800',
-          textColor: 'text-blue-800'
-      },
-      { 
-          name: { en: 'Palestine Post', ar: 'البريد الفلسطيني' }, 
-          desc: { en: 'National Carrier', ar: 'الناقل الوطني' },
-          color: 'bg-red-500',
-          textColor: 'text-red-500'
-      }
-  ];
-
-  return (
-    <div className="bg-white min-h-screen">
-      {/* Hero */}
-      <div className="relative bg-wassel-blue text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-extrabold sm:text-5xl animate-slide-up">
-            {t.title}
-          </h1>
-        </div>
-      </div>
-
-      {/* Main Text Content */}
-      <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto space-y-8 animate-slide-up delay-100">
-             <p className="text-2xl font-bold text-wassel-blue text-center leading-relaxed">
-                 {t.intro}
-             </p>
-             <div className="prose prose-lg prose-blue max-w-none text-gray-600 space-y-6 leading-relaxed text-justify">
-                <p>{t.p1}</p>
-                <p>{t.p2}</p>
-                <p>{t.p3}</p>
-             </div>
-          </div>
-      </div>
-
-      {/* Partners Section */}
-      <div className="bg-gray-50 py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="text-center mb-12 animate-slide-up">
-                  <h2 className="text-3xl font-bold text-wassel-blue mb-4">{t.partnersTitle}</h2>
-                  <p className="text-lg text-gray-600 max-w-3xl mx-auto">{t.partnersDesc}</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {partners.map((partner, i) => (
-                      <div 
-                        key={i} 
-                        className="bg-white p-8 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 flex flex-col items-center text-center group animate-slide-up"
-                        style={{ animationDelay: `${i * 100}ms` }}
-                      >
-                          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${partner.textColor} bg-gray-50 group-hover:bg-gray-100 transition-colors`}>
-                              <Globe className="w-8 h-8" />
-                          </div>
-                          <h3 className={`text-xl font-bold mb-2 ${partner.textColor}`}>
-                              {lang === 'en' ? partner.name.en : partner.name.ar}
-                          </h3>
-                          <p className="text-gray-500 text-sm">
-                              {lang === 'en' ? partner.desc.en : partner.desc.ar}
-                          </p>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      </div>
-
-      {/* Stats Section (Page 3) */}
-      <div className="bg-white py-16 border-y border-gray-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              {/* Updated grid to support 5 items */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-                  {t.stats.map((stat, i) => (
-                      <div key={i} className="text-center p-6 bg-gray-50 rounded-xl shadow-sm hover:shadow-md transition-shadow animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
-                          <div className="text-4xl font-extrabold text-wassel-yellow mb-2">{stat.value}</div>
-                          <div className="text-gray-600 font-medium">{stat.label}</div>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      </div>
-
-      {/* Vision Section (Page 4) */}
-      <div className="relative py-20 bg-wassel-blue overflow-hidden">
-           {/* Decorative background elements */}
-           <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent"></div>
-           
-           <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center z-10">
-               <div className="bg-wassel-blue/50 backdrop-blur-sm p-8 md:p-12 rounded-2xl border border-white/10 animate-slide-up delay-200">
-                   <p className="text-2xl md:text-3xl font-bold text-white leading-relaxed">
-                       "{t.vision}"
-                   </p>
-               </div>
-           </div>
-      </div>
-    </div>
-  );
+// Jordan passport delivery numbers: 13 chars, start with RA/QW, end with JO — same rule used in Tracking.tsx.
+const isValidJordanPassportNumber = (id: string): boolean => {
+    const upper = id.trim().toUpperCase();
+    return upper.length === 13 && (upper.startsWith('RA') || upper.startsWith('QW')) && upper.endsWith('JO');
 };
 
-export const Management: React.FC<PageProps> = ({ lang }) => (
-    <div className="bg-white min-h-screen">
-      <div className="relative bg-wassel-blue text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-extrabold sm:text-5xl animate-slide-up">
-            {lang === 'en' ? 'Executive Management' : 'الإدارة التنفيذية'}
-          </h1>
-        </div>
-      </div>
-      <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            {[1, 2, 3].map((i) => (
-                <div key={i} className="flex flex-col items-center text-center animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
-                    <div className="w-48 h-48 bg-gray-200 rounded-full mb-6 overflow-hidden">
-                        <svg className="w-full h-full text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                    </div>
-                    <h3 className="text-xl font-bold text-wassel-blue">{lang === 'en' ? 'Executive Name' : 'اسم المسؤول'}</h3>
-                    <p className="text-wassel-yellow font-medium mb-2">{lang === 'en' ? 'Position Title' : 'المسمى الوظيفي'}</p>
-                    <p className="text-gray-500 text-sm max-w-xs">
-                        {lang === 'en' ? 'Brief description about the executive role and experience.' : 'وصف موجز عن دور المسؤول وخبرته.'}
-                    </p>
-                </div>
-            ))}
-        </div>
-      </div>
-    </div>
-);
+const JO_PASSPORT_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/jopassport/track`;
+const WASSEL_TRACK_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/wassel/track`;
+const DHL_TRACK_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/dhl/track`;
+const FEDEX_TRACK_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/fedex/track`;
+const WAITING_SHIPMENTS_REGISTER_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/waiting-shipments/register`;
+
+type LastShipmentStatus = { status: string; date: string };
+
+// Same carrier heuristics as components/shipping/Tracking.tsx, trimmed to the
+// three carriers the contact form can look up (passport has its own field).
+const detectTrackingCarrier = (id: string): 'wassel' | 'dhl' | 'fedex' => {
+    const trimmed = id.trim();
+    const upper = trimmed.toUpperCase();
+    if (trimmed.length === 12 && trimmed.startsWith('88')) return 'wassel';
+    if (trimmed.length === 10 && trimmed.startsWith('500')) return 'wassel';
+    if (upper.length === 21 && upper.startsWith('JDD')) return 'dhl';
+    if (trimmed.length === 10) return 'dhl';
+    if (trimmed.length === 12) return 'fedex';
+    return 'wassel';
+};
+
+// Best-effort lookup of just the most recent tracking event (status + date) for
+// the contact form. Returns null whenever nothing usable comes back.
+const fetchLastShipmentStatus = async (
+    rawId: string,
+    lang: Language,
+    signal: AbortSignal,
+): Promise<LastShipmentStatus | null> => {
+    const id = rawId.trim();
+    const carrier = detectTrackingCarrier(id);
+
+    if (carrier === 'dhl') {
+        const res = await fetch(`${DHL_TRACK_API_URL}?trackingNumber=${encodeURIComponent(id)}`, {
+            headers: { Accept: 'application/json' }, signal,
+        });
+        const json = await res.json().catch(() => null);
+        const shipment = json?.shipments?.[0];
+        if (!res.ok || !shipment) return null;
+        const events: any[] = Array.isArray(shipment.events) ? shipment.events : [];
+        const latest = [...events].sort((a, b) => {
+            const tb = new Date(`${b?.date}T${b?.time}`).getTime();
+            const ta = new Date(`${a?.date}T${a?.time}`).getTime();
+            return (isNaN(tb) ? 0 : tb) - (isNaN(ta) ? 0 : ta);
+        })[0];
+        if (!latest) return null;
+        return {
+            status: latest.description || '—',
+            date: [latest.date, latest.time].filter(Boolean).join(' ') || '—',
+        };
+    }
+
+    if (carrier === 'fedex') {
+        const res = await fetch(FEDEX_TRACK_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trackingNumber: id }),
+            signal,
+        });
+        const json = await res.json().catch(() => null);
+        const trackResult = json?.output?.completeTrackResults?.[0]?.trackResults?.[0];
+        if (!res.ok || !trackResult || trackResult.error) return null;
+        const scanEvents: any[] = Array.isArray(trackResult.scanEvents) ? trackResult.scanEvents : [];
+        const latest = scanEvents[0]; // FedEx returns scan events most-recent first
+        if (!latest) return null;
+        const dt = latest.date ? new Date(latest.date) : null;
+        return {
+            status: latest.eventDescription || latest.derivedStatus || '—',
+            date: dt && !isNaN(dt.getTime())
+                ? dt.toLocaleString(lang === 'en' ? 'en-GB' : 'ar')
+                : (latest.date || '—'),
+        };
+    }
+
+    const res = await fetch(`${WASSEL_TRACK_API_URL}?Awbs=${encodeURIComponent(id)}`, {
+        headers: { Accept: 'application/json' }, signal,
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.isSuccess || !Array.isArray(json.data) || json.data.length === 0) return null;
+    const record = json.data[0];
+    const logs: any[] = Array.isArray(record.destinationLog) ? record.destinationLog : [];
+    const last = record.lastDestinationLog || logs[logs.length - 1] || null;
+    const status = (lang === 'en'
+        ? (record.status || last?.portalDescription || '')
+        : (record.statusAr || last?.portalDescriptionAr || record.status || last?.portalDescription || '')
+    ).trim();
+    if (!status) return null;
+    const date = last ? [last.statusDate, last.statusTime].filter(Boolean).join(' ') : '';
+    return { status, date: date || '—' };
+};
 
 export const Contact: React.FC<PageProps> = ({ lang }) => {
     const showContactAiSuggestedQuestions = false;
@@ -241,6 +142,15 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
     const [agentError, setAgentError] = useState('');
     const [agentSuggestion, setAgentSuggestion] = useState<ContactAiSuggestion | null>(null);
     const [contactLogId, setContactLogId] = useState<number | null>(null);
+    const [passportStatus, setPassportStatus] = useState<{ status: string; date: string } | null>(null);
+    const [passportStatusLoading, setPassportStatusLoading] = useState(false);
+    const [shipmentStatus, setShipmentStatus] = useState<LastShipmentStatus | null>(null);
+    const [shipmentStatusLoading, setShipmentStatusLoading] = useState(false);
+    const [notifyStatus, setNotifyStatus] = useState<'idle' | 'submitting' | 'done' | 'already'>('idle');
+    const [notifyError, setNotifyError] = useState('');
+    // Flips true the moment the customer clicks "notify me", even before any
+    // validation — from then on the message-sending path stays hidden.
+    const [notifyClicked, setNotifyClicked] = useState(false);
 
     const topics = [
         { id: 'general', en: 'General Inquiry', ar: 'استفسار عام', field: 'none' },
@@ -252,6 +162,139 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
 
     const currentTopic = topics.find(t => t.id === formData.topic);
 
+    // Once the customer opts into "notify me when it arrives", the message-sending
+    // path is hidden — they're taking the waiting-list route instead.
+    const notifyRequested = notifyClicked || notifyStatus !== 'idle';
+
+    // Once the passport number matches the valid format, look up its last known status.
+    useEffect(() => {
+        if (currentTopic?.field !== 'passport' || !isValidJordanPassportNumber(formData.passportNumber)) {
+            setPassportStatus(null);
+            setPassportStatusLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        const passportNumber = formData.passportNumber.trim().toUpperCase();
+        setPassportStatusLoading(true);
+
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(JO_PASSPORT_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ delivery_nos: [passportNumber] }),
+                });
+                if (!res.ok) throw new Error(`Passport tracking request failed (${res.status})`);
+
+                const json = await res.json();
+                const records: any[] = Array.isArray(json) ? json : (json.data || json.results || json.deliveries || []);
+                const record = records[0];
+                if (!record) {
+                    if (!cancelled) setPassportStatus(null);
+                    return;
+                }
+
+                const logs: any[] = Array.isArray(record.events) ? record.events : [];
+                const latest = [...logs].sort((a: any, b: any) => {
+                    const ta = new Date(a?.delevn_date || '').getTime();
+                    const tb = new Date(b?.delevn_date || '').getTime();
+                    if (!isNaN(tb) && !isNaN(ta)) return tb - ta;
+                    return 0;
+                })[0];
+
+                const status = latest
+                    ? (lang === 'en'
+                        ? (latest.status_front_en || latest.status || '')
+                        : (latest.status_front_ar || latest.status_front_en || latest.status || ''))
+                    : (lang === 'en'
+                        ? (record.status_front_en || record.status_desc || record.status || '')
+                        : (record.status_front_ar || record.status_desc || record.status || ''));
+                const date = latest ? (latest.date || '') : (record.created_date || '');
+
+                if (!cancelled) setPassportStatus(status ? { status, date: date || '—' } : null);
+            } catch {
+                if (!cancelled) setPassportStatus(null);
+            } finally {
+                if (!cancelled) setPassportStatusLoading(false);
+            }
+        }, 500);
+
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [formData.passportNumber, currentTopic?.field, lang]);
+
+    // Once a tracking number is entered on a shipment-related topic, look up its
+    // last known status + date and show it inline (best effort — hidden on any miss).
+    useEffect(() => {
+        const trackingNumber = formData.trackingNumber.trim();
+        if (currentTopic?.field !== 'tracking' || trackingNumber.length < 6) {
+            setShipmentStatus(null);
+            setShipmentStatusLoading(false);
+            return;
+        }
+
+        const controller = new AbortController();
+        setShipmentStatusLoading(true);
+        setNotifyStatus('idle');
+        setNotifyError('');
+        setNotifyClicked(false);
+
+        const timer = setTimeout(async () => {
+            try {
+                const result = await fetchLastShipmentStatus(trackingNumber, lang, controller.signal);
+                if (!controller.signal.aborted) setShipmentStatus(result);
+            } catch {
+                if (!controller.signal.aborted) setShipmentStatus(null);
+            } finally {
+                if (!controller.signal.aborted) setShipmentStatusLoading(false);
+            }
+        }, 500);
+
+        return () => { controller.abort(); clearTimeout(timer); };
+    }, [formData.trackingNumber, currentTopic?.field, lang]);
+
+    // When the tracking lookup turns up nothing, the customer can register to be
+    // emailed once the shipment shows up (same waiting-list endpoint as the Tracking page).
+    const handleNotifyWhenArrives = async () => {
+        setNotifyClicked(true);
+
+        const trackingNumber = formData.trackingNumber.trim();
+        const customerName = formData.name.trim();
+        const customerEmail = formData.email.trim();
+        const customerPhone = formData.mobile.trim();
+
+        if (!customerName || !customerEmail || !customerPhone) {
+            setNotifyError(t.notifyNeedContact);
+            return;
+        }
+
+        setNotifyError('');
+        setNotifyStatus('submitting');
+        try {
+            const res = await fetch(WAITING_SHIPMENTS_REGISTER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    trackingNumber,
+                    customerName,
+                    customerEmail,
+                    customerPhone,
+                    carrier: detectTrackingCarrier(trackingNumber),
+                    language: lang,
+                }),
+            });
+            if (res.status === 409) {
+                setNotifyStatus('already');
+                return;
+            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setNotifyStatus('done');
+        } catch {
+            setNotifyStatus('idle');
+            setNotifyError(t.notifyFailed);
+        }
+    };
+
     const updateField = (key: keyof ContactFormData, value: string) => {
         setFormData((prev) => ({ ...prev, [key]: value }));
         if (agentSuggestion) {
@@ -259,6 +302,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         }
         setContactLogId(null);
         setAgentError('');
+        setSubmitError('');
     };
 
     const persistAiSuggestionLog = async (suggestion: ContactAiSuggestion): Promise<number> => {
@@ -354,42 +398,26 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         };
 
         try {
-            const topicName = lang === 'en' ? (currentTopic?.en ?? 'General Inquiry') : (currentTopic?.ar ?? 'استفسار عام');
-            const prompt = [
-                lang === 'en'
-                    ? 'You are helping customer support draft an email before sending.'
-                    : 'أنت تساعد فريق الدعم على تحسين رسالة العميل قبل الإرسال.',
-                lang === 'en'
-                    ? 'Read the provided form data and return practical suggestions.'
-                    : 'اقرأ بيانات النموذج وقدّم اقتراحات عملية.',
-                lang === 'en'
-                    ? 'Include: 1) short answer to user case, 2) 3-4 suggested follow-up questions based on topic.'
-                    : 'قدّم: 1) إجابة مختصرة حسب الحالة، 2) من 3 إلى 4 أسئلة متابعة مقترحة حسب الموضوع.',
-                '',
-                lang === 'en' ? `Topic: ${topicName}` : `الموضوع: ${topicName}`,
-                lang === 'en' ? `Name: ${formData.name}` : `الاسم: ${formData.name}`,
-                lang === 'en' ? `Mobile: ${formData.mobile}` : `الموبايل: ${formData.mobile}`,
-                lang === 'en' ? `Email: ${formData.email || '-'}` : `البريد الإلكتروني: ${formData.email || '-'}`,
-                lang === 'en' ? `Tracking Number: ${formData.trackingNumber || '-'}` : `رقم التتبع: ${formData.trackingNumber || '-'}`,
-                lang === 'en' ? `Passport Number: ${formData.passportNumber || '-'}` : `رقم الجواز: ${formData.passportNumber || '-'}`,
-                lang === 'en' ? `User message: ${formData.message}` : `رسالة العميل: ${formData.message}`,
-            ].join('\n');
+            const res = await fetch('/api/contact/ai-suggestion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic: formData.topic,
+                    name: formData.name,
+                    mobile: formData.mobile,
+                    email: formData.email || undefined,
+                    trackingNumber: formData.trackingNumber || undefined,
+                    passportNumber: formData.passportNumber || undefined,
+                    message: formData.message,
+                    language: lang,
+                }),
+            });
 
-            const result = await getResourceSearchResponse(prompt);
-
-            const genericFallbackRegex = /couldn't find an answer|please browse our categories|تعذر العثور على إجابة|تصفح المواضيع/i;
-            const looksLikeFallback = result.relatedTopics.length === 0 || genericFallbackRegex.test(result.answer);
-
-            if (looksLikeFallback) {
-                const kbSuggestion = await runKbFallbackSuggestion();
-                if (kbSuggestion) {
-                    const persistedLogId = await persistAiSuggestionLog(kbSuggestion);
-                    setContactLogId(persistedLogId);
-                    setAgentSuggestion(kbSuggestion);
-                    return { suggestion: kbSuggestion, logId: persistedLogId };
-                }
+            if (!res.ok) {
+                throw new Error(`AI suggestion request failed (${res.status})`);
             }
 
+            const result = await res.json() as { answer: string; relatedTopics: string[] };
             const suggestion = {
                 answer: result.answer,
                 relatedTopics: result.relatedTopics,
@@ -423,6 +451,11 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
             return;
         }
 
+        if (currentTopic?.field === 'passport' && !isValidJordanPassportNumber(formData.passportNumber)) {
+            setSubmitError(t.passportFormatError);
+            return;
+        }
+
         const suggestionResult = agentSuggestion
             ? { suggestion: agentSuggestion, logId: contactLogId }
             : await runAgentSuggestion();
@@ -445,7 +478,30 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         labelEmail: lang === 'en' ? 'Email Address (Optional)' : 'البريد الإلكتروني (اختياري)',
         labelMessage: lang === 'en' ? 'Your Message' : 'رسالتك',
         labelTracking: lang === 'en' ? 'Tracking Number' : 'رقم التتبع',
-        labelPassport: lang === 'en' ? 'Passport Number' : 'رقم الجواز',
+        labelPassport: lang === 'en' ? 'Passport Number' : 'رقم تتبع الجواز',
+        passportFormatError: lang === 'en'
+            ? 'Passport number must be 13 characters, start with RA or QW, and end with JO.'
+            : 'رقم تتبع الجواز يجب أن يتكون من 13 رمزاً، ويبدأ بـ RA أو QW، وينتهي بـ JO.',
+        checkingPassportStatus: lang === 'en' ? 'Checking status...' : 'جاري التحقق من الحالة...',
+        lastPassportStatus: lang === 'en' ? 'Last status' : 'آخر حالة',
+        checkingShipmentStatus: lang === 'en' ? 'Checking shipment status...' : 'جاري التحقق من حالة الشحنة...',
+        lastShipmentStatus: lang === 'en' ? 'Last shipment status' : 'آخر حالة للشحنة',
+        noShipmentStatus: lang === 'en'
+            ? "We couldn't find any status for this shipment yet."
+            : 'لم نتمكن من إيجاد أي حالة لهذه الشحنة حتى الآن.',
+        notifyWhenArrives: lang === 'en' ? 'Notify me when the shipment arrives' : 'أبلغني عند وصول الشحنة',
+        notifyNeedContact: lang === 'en'
+            ? 'Please fill in your name, mobile number and email first.'
+            : 'يرجى تعبئة الاسم ورقم الجوال والبريد الإلكتروني أولاً.',
+        notifyRegistered: lang === 'en'
+            ? "Done — we'll email you as soon as your shipment appears."
+            : 'تم — سنرسل لك بريداً إلكترونياً فور توفر معلومات عن شحنتك.',
+        notifyAlready: lang === 'en'
+            ? 'This tracking number is already registered for notifications.'
+            : 'رقم التتبع هذا مسجّل مسبقاً لتلقّي الإشعارات.',
+        notifyFailed: lang === 'en'
+            ? 'Could not register right now. Please try again.'
+            : 'تعذّر التسجيل حالياً. يرجى المحاولة مرة أخرى.',
         selectTopic: lang === 'en' ? 'Select a topic...' : 'اختر موضوعاً...',
         btnSubmit: lang === 'en' ? 'Send Message' : 'إرسال الرسالة',
         sending: lang === 'en' ? 'Sending...' : 'جاري الإرسال...',
@@ -491,9 +547,12 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         },
         {
             category: lang === 'en' ? 'Jordanian Services Center' : 'مركز الخدمات الأردنية',
+            schedule: lang === 'en'
+                ? 'Sun - Thu: 9:00 AM - 5:30 PM\nSat: 9:00 AM - 3:00 PM'
+                : 'الأحد - الخميس: 9:00 ص - 5:30 م\nالسبت: 9:00 ص - 3:00 م',
             items: [
-                { 
-                    name: lang === 'en' ? 'Rawabi - Q Center' : 'روابي - كيوسنتر', 
+                {
+                    name: lang === 'en' ? 'Rawabi Q Center' : 'كيوسنتر روابي',
                     address: lang === 'en' ? 'Rawabi, Q Center, opposite Arab Bank' : 'روابي، كيوسنتر، مقابل البنك العربي',
                     mapUrl: 'https://maps.app.goo.gl/C9BAZX6Z2UfKsbkJ7'
                 }
@@ -575,7 +634,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                             <div className="border-b border-white/10 pb-2">
                                                 <h4 className="font-bold text-lg text-wassel-yellow">{group.category}</h4>
                                                 {group.schedule && (
-                                                    <p className="text-xs text-blue-300 mt-1">{group.schedule}</p>
+                                                    <p className="text-xs text-blue-300 mt-1 whitespace-pre-line">{group.schedule}</p>
                                                 )}
                                             </div>
                                             
@@ -644,28 +703,93 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                     {currentTopic?.field === 'tracking' && (
                                         <div className="animate-enter">
                                             <label htmlFor="trackingNumber" className="block text-sm font-medium text-gray-700 mb-1">{t.labelTracking}</label>
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 id="trackingNumber"
-                                                required 
+                                                required
                                                 value={formData.trackingNumber}
                                                 onChange={(e) => updateField('trackingNumber', e.target.value)}
                                                 className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border bg-blue-50"
                                             />
+                                            {shipmentStatusLoading && (
+                                                <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                    {t.checkingShipmentStatus}
+                                                </p>
+                                            )}
+                                            {!shipmentStatusLoading && shipmentStatus && (
+                                                <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-gray-700">
+                                                    <span className="font-semibold">{t.lastShipmentStatus}: </span>
+                                                    {shipmentStatus.status}
+                                                    {shipmentStatus.date && shipmentStatus.date !== '—' && (
+                                                        <span className="text-gray-500"> — {shipmentStatus.date}</span>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {!shipmentStatusLoading && !shipmentStatus && formData.trackingNumber.trim().length >= 6 && (
+                                                <div className="mt-3">
+                                                    <p className="text-xs text-gray-500 mb-2">{t.noShipmentStatus}</p>
+
+                                                    {(notifyStatus === 'done' || notifyStatus === 'already') ? (
+                                                        <p className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-700">
+                                                            <CheckCircle className="w-4 h-4 shrink-0" />
+                                                            {notifyStatus === 'done' ? t.notifyRegistered : t.notifyAlready}
+                                                        </p>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleNotifyWhenArrives}
+                                                            disabled={notifyStatus === 'submitting'}
+                                                            className="w-full inline-flex items-center justify-center gap-2 rounded-lg border-2 border-wassel-blue bg-wassel-blue px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-wassel-darkBlue transition-colors disabled:opacity-70"
+                                                        >
+                                                            {notifyStatus === 'submitting' ? (
+                                                                <><Loader2 className="w-4 h-4 animate-spin" />{t.sending}</>
+                                                            ) : (
+                                                                <><span aria-hidden="true">🔔</span>{t.notifyWhenArrives}</>
+                                                            )}
+                                                        </button>
+                                                    )}
+
+                                                    {notifyError && (
+                                                        <p className="mt-1.5 text-xs text-red-600">{notifyError}</p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
                                     {currentTopic?.field === 'passport' && (
                                         <div className="animate-enter">
                                             <label htmlFor="passportNumber" className="block text-sm font-medium text-gray-700 mb-1">{t.labelPassport}</label>
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 id="passportNumber"
-                                                required 
+                                                required
+                                                maxLength={13}
+                                                dir="ltr"
                                                 value={formData.passportNumber}
-                                                onChange={(e) => updateField('passportNumber', e.target.value)}
+                                                onChange={(e) => updateField('passportNumber', e.target.value.toUpperCase())}
                                                 className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border bg-blue-50"
                                             />
+                                            {formData.passportNumber.trim().length > 0 && !isValidJordanPassportNumber(formData.passportNumber) && (
+                                                <p className="mt-1 text-xs text-red-600">{t.passportFormatError}</p>
+                                            )}
+                                            {passportStatusLoading && (
+                                                <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                    {t.checkingPassportStatus}
+                                                </p>
+                                            )}
+                                            {!passportStatusLoading && passportStatus && (
+                                                <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-gray-700">
+                                                    <span className="font-semibold">{t.lastPassportStatus}: </span>
+                                                    {passportStatus.status}
+                                                    {passportStatus.date && passportStatus.date !== '—' && (
+                                                        <span className="text-gray-500"> — {passportStatus.date}</span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
@@ -705,17 +829,19 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">{t.labelMessage}</label>
-                                        <textarea 
-                                            id="message"
-                                            rows={5}
-                                            required 
-                                            value={formData.message}
-                                            onChange={(e) => updateField('message', e.target.value)}
-                                            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border"
-                                        ></textarea>
-                                    </div>
+                                    {!notifyRequested && (
+                                        <div>
+                                            <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">{t.labelMessage}</label>
+                                            <textarea
+                                                id="message"
+                                                rows={5}
+                                                required
+                                                value={formData.message}
+                                                onChange={(e) => updateField('message', e.target.value)}
+                                                className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-wassel-blue focus:border-wassel-blue p-3 border"
+                                            ></textarea>
+                                        </div>
+                                    )}
 
                                     {(isGeneratingSuggestion || agentSuggestion || agentError) && (
                                         <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-3">
@@ -750,29 +876,31 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                         </div>
                                     )}
 
-                                    <button 
-                                        type="submit" 
-                                        disabled={isSubmitting || isGeneratingSuggestion}
-                                        className="w-full bg-wassel-blue text-white font-bold py-4 rounded-xl shadow-lg hover:bg-wassel-darkBlue transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
-                                    >
-                                        {isSubmitting ? (
-                                            <>
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                {t.sending}
-                                            </>
-                                        ) : isGeneratingSuggestion ? (
-                                            <>
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                {t.generatingSuggestion}
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Send className="w-5 h-5 rtl:rotate-180" />
-                                                {agentSuggestion ? t.continueSend : t.btnSubmit}
-                                            </>
-                                        )}
-                                    </button>
-                                    {submitError && (
+                                    {!notifyRequested && (
+                                        <button
+                                            type="submit"
+                                            disabled={isSubmitting || isGeneratingSuggestion}
+                                            className="w-full bg-wassel-blue text-white font-bold py-4 rounded-xl shadow-lg hover:bg-wassel-darkBlue transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                                        >
+                                            {isSubmitting ? (
+                                                <>
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                    {t.sending}
+                                                </>
+                                            ) : isGeneratingSuggestion ? (
+                                                <>
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                    {t.generatingSuggestion}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Send className="w-5 h-5 rtl:rotate-180" />
+                                                    {agentSuggestion ? t.continueSend : t.btnSubmit}
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
+                                    {!notifyRequested && submitError && (
                                         <p className="text-red-600 text-sm mt-2 text-center">{submitError}</p>
                                     )}
                                 </form>

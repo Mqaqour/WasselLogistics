@@ -5,6 +5,7 @@ const router = Router();
 
 router.get('/', questionsController.getTopics);
 router.post('/', questionsController.createTopic);
+router.get('/trending', questionsController.getTrendingTopics);
 router.get('/:id', questionsController.getTopicById);
 router.patch('/:id', questionsController.patchTopic);
 router.delete('/:id', questionsController.deleteTopic);

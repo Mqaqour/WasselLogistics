@@ -35,12 +35,13 @@ export type KbTopic = {
   description: string | null;
 };
 
-export async function getKbTopics(language: 'ar' | 'en'): Promise<KbTopic[]> {
-  const url = new URL(buildUrl('/api/topics'), window.location.origin);
+export async function getTrendingKbTopics(language: 'ar' | 'en', limit = 7): Promise<KbTopic[]> {
+  const url = new URL(buildUrl('/api/topics/trending'), window.location.origin);
   url.searchParams.set('language', language);
+  url.searchParams.set('limit', String(limit));
 
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Topics request failed (${res.status})`);
+  if (!res.ok) throw new Error(`Trending topics request failed (${res.status})`);
 
   const data = await res.json() as { topics: KbTopic[] };
   return Array.isArray(data.topics) ? data.topics : [];

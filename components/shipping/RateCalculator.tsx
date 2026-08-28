@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Globe, Map, FileText, Package } from 'lucide-react';
 import { RateResult, Language } from '../../types';
 import { PlacesAutocomplete, PlaceDetails } from './PlacesAutocomplete';
+import { ShippingRequestModal, ShippingRequestDetails } from './ShippingRequestModal';
 
 const BRAND_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
 
@@ -33,6 +34,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
   const originZip = '9730000';
   const [domesticOriginCity, setDomesticOriginCity] = useState(originCity);
   const [destination, setDestination] = useState('');
+  const [hasSelectedDestination, setHasSelectedDestination] = useState(false);
   const [destCity, setDestCity] = useState('');
   const [destZip, setDestZip] = useState('');
   const [weight, setWeight] = useState(1);
@@ -44,6 +46,15 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [carrierErrors, setCarrierErrors] = useState<{ carrier: string; message: string }[]>([]);
+  const [requestModalDetails, setRequestModalDetails] = useState<ShippingRequestDetails | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  // Scroll the results (or error) into view once the rate calculation finishes
+  useEffect(() => {
+    if (!loading && (results || apiError)) {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [loading, results, apiError]);
 
   useEffect(() => {
     setType(initialTab);
@@ -84,6 +95,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       height: lang === 'en' ? 'Height' : 'الارتفاع',
       noRates: lang === 'en' ? 'No rates available for the selected route.' : 'لا توجد أسعار متاحة للمسار المحدد.',
       carrierError: lang === 'en' ? 'Note: some carriers could not be reached.' : 'ملاحظة: لم يتمكن بعض الناقلين من الاستجابة.',
+      requestShipment: lang === 'en' ? 'Request This Shipment' : 'اطلب هذه الشحنة',
   };
 
   // Maps a human-readable country name (EN or AR) to an ISO 3166-1 alpha-2 code.
@@ -237,21 +249,21 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
   return (
     <div className={isPopup ? "w-full p-2 relative" : "max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 relative"}>
       <div className={`text-center ${isPopup ? 'mb-6' : 'mb-10'}`}>
-        <h2 className={`font-extrabold text-wassel-blue ${isPopup ? 'text-2xl' : 'text-3xl'}`}>{t.title}</h2>
-        <p className="mt-2 text-gray-500 text-sm sm:text-base">{t.subtitle}</p>
+        <h2 className={`font-extrabold text-wassel-blue animate-slide-up ${isPopup ? 'text-2xl' : 'text-3xl'}`}>{t.title}</h2>
+        <p className="mt-2 text-gray-500 text-sm sm:text-base animate-slide-up delay-100">{t.subtitle}</p>
       </div>
 
-      <div className="bg-white shadow-xl rounded-lg border border-gray-100">
+      <div className="bg-white shadow-xl rounded-lg border border-gray-100 animate-pop delay-200">
         <div className="flex border-b border-gray-200">
           <button
-            onClick={() => { setType('international'); setResults(null); }}
+            onClick={() => { setType('international'); setResults(null); setDestination(''); setDestCity(''); setDestZip(''); setHasSelectedDestination(false); }}
             className={`flex-1 py-4 text-center font-medium flex items-center justify-center gap-2 transition-colors ${type === 'international' ? 'bg-slate-50 text-wassel-yellow border-b-2 border-wassel-yellow' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Globe className="w-5 h-5" />
             <span>{t.international}</span>
           </button>
           <button
-            onClick={() => { setType('domestic'); setResults(null); }}
+            onClick={() => { setType('domestic'); setResults(null); setDestination(''); setDestCity(''); setDestZip(''); setHasSelectedDestination(false); }}
             className={`flex-1 py-4 text-center font-medium flex items-center justify-center gap-2 transition-colors ${type === 'domestic' ? 'bg-slate-50 text-wassel-yellow border-b-2 border-wassel-yellow' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Map className="w-5 h-5" />
@@ -316,9 +328,16 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
                   setDestination(details.country);
                   setDestCity(details.city);
                   setDestZip(details.zipCode);
+                  setHasSelectedDestination(true);
                 }}
               />
-              {/* Auto-filled fields (editable) */}
+              <p className="text-xs text-gray-500">
+                {lang === 'en'
+                  ? 'Please include at least the country name and postal code for accurate results.'
+                  : 'يرجى إدخال اسم الدولة والرمز البريدي على الأقل للحصول على نتائج دقيقة.'}
+              </p>
+              {/* Auto-filled fields (editable) — hidden until an address is selected above */}
+              {hasSelectedDestination && (
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t.destination} {t.country}</label>
@@ -343,7 +362,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t.destination} {t.zipLabel}</label>
+                  <label className="block text-sm font-medium text-gray-700">{t.zipLabel}</label>
                   <input
                     type="text"
                     required
@@ -354,6 +373,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
                   />
                 </div>
               </div>
+              )}
             </div>
           )}
 
@@ -450,6 +470,8 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
         </form>
       </div>
 
+      <div ref={resultsRef} />
+
       {/* API error */}
       {apiError && (
         <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -492,7 +514,43 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
               </div>
             );
           })()}
+
+          <button
+            type="button"
+            onClick={() => {
+              const lowestRate = results.reduce((best, current) =>
+                current.price < best.price ? current : best,
+              results[0]);
+
+              setRequestModalDetails({
+                requestType: type,
+                isDocument,
+                weight,
+                pkgLength: type === 'international' && !isDocument ? pkgLength : undefined,
+                pkgWidth: type === 'international' && !isDocument ? pkgWidth : undefined,
+                pkgHeight: type === 'international' && !isDocument ? pkgHeight : undefined,
+                origin: type === 'international'
+                  ? { country: origin, city: originCity, zip: originZip }
+                  : { country: lang === 'en' ? 'Palestine' : 'فلسطين', city: domesticOriginCity },
+                destination: type === 'international'
+                  ? { country: destination, city: destCity, zip: destZip }
+                  : { country: lang === 'en' ? 'Palestine' : 'فلسطين', city: destination },
+                rate: lowestRate,
+              });
+            }}
+            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-wassel-blue hover:bg-wassel-darkBlue transition-colors"
+          >
+            {t.requestShipment}
+          </button>
         </div>
+      )}
+
+      {requestModalDetails && (
+        <ShippingRequestModal
+          lang={lang}
+          details={requestModalDetails}
+          onClose={() => setRequestModalDetails(null)}
+        />
       )}
     </div>
   );

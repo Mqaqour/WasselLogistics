@@ -64,9 +64,9 @@ export async function sendMessage(body: SendMessageRequest): Promise<SendMessage
     messageId,
     respondMessageId: null,
     senderType:       'visitor',
-    messageType:      'text',
-    messageText:      body.message,
-    attachmentUrl:    null,
+    messageType:      body.attachment ? 'attachment' : 'text',
+    messageText:      body.message ?? null,
+    attachmentUrl:    body.attachment?.url ?? null,
     status:           'sent',
     rawPayload:       null,
   });
@@ -75,6 +75,7 @@ export async function sendMessage(body: SendMessageRequest): Promise<SendMessage
     session,
     messageId,
     messageText: body.message,
+    attachment: body.attachment,
   });
 
   if (!sent.success) {

@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Book, FileText, Box, AlertCircle, HelpCircle, ChevronRight, Download, Globe, Sparkles, Loader2, ArrowRight, Lightbulb, ChevronDown, ChevronUp, X, CornerDownLeft } from 'lucide-react';
+import { Search, Book, FileText, Box, AlertCircle, HelpCircle, ChevronRight, Download, Globe, Loader2, ArrowRight, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
 import { Language } from '../../types';
-import { getResourceSearchResponse } from '../../services/geminiService';
 import { FAQ_DATA } from '../../data/faqs';
-import { suggestKbQuestions, getKbQuestionAnswer, getKbTopics, getRelatedKbQuestions, KbTopic, QuestionSuggestionItem, RelatedQuestionItem } from '../../services/questionsKbService';
+import { suggestKbQuestions, getKbQuestionAnswer, getRelatedKbQuestions, QuestionSuggestionItem, RelatedQuestionItem } from '../../services/questionsKbService';
 import { FormattedAnswer } from '../FormattedAnswer';
+import { AssistantSearchPalette } from '../shared/AssistantSearchPalette';
 
 interface ResourcesProps {
   lang: Language;
@@ -17,17 +17,47 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<QuestionSuggestionItem[]>([]);
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number>(-1);
   const [isSearchPaletteOpen, setIsSearchPaletteOpen] = useState(false);
-  const [paletteAiAnswer, setPaletteAiAnswer] = useState<{ query: string; answer: string; relatedTopics: string[] } | null>(null);
-  const [paletteAiLoading, setPaletteAiLoading] = useState(false);
-  const [kbTopics, setKbTopics] = useState<KbTopic[]>([]);
   const [selectedResourceGroupId, setSelectedResourceGroupId] = useState<string | null>(null);
+
+  // Hero mouse-parallax: the two ambient blobs and a cursor-following glow are moved
+  // by directly mutating their DOM style on mousemove (no React state/re-render) so the
+  // effect stays cheap. Disabled for prefers-reduced-motion, and naturally inert on touch
+  // devices since no mousemove fires there.
+  const heroBlob1Ref = useRef<HTMLDivElement>(null);
+  const heroBlob2Ref = useRef<HTMLDivElement>(null);
+  const heroGlowRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotionRef = useRef(false);
+  useEffect(() => {
+    prefersReducedMotionRef.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
+  const handleHeroMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (prefersReducedMotionRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const offsetX = (x / rect.width - 0.5) * 2;   // -1..1
+    const offsetY = (y / rect.height - 0.5) * 2;  // -1..1
+
+    if (heroBlob1Ref.current) {
+      heroBlob1Ref.current.style.transform = `translate3d(${offsetX * 18}px, ${offsetY * 18}px, 0)`;
+    }
+    if (heroBlob2Ref.current) {
+      heroBlob2Ref.current.style.transform = `translate3d(${offsetX * -14}px, ${offsetY * -14}px, 0)`;
+    }
+    if (heroGlowRef.current) {
+      heroGlowRef.current.style.transform = `translate3d(${x - 220}px, ${y - 220}px, 0)`;
+      heroGlowRef.current.style.opacity = '1';
+    }
+  };
+  const handleHeroMouseLeave = () => {
+    if (heroBlob1Ref.current) heroBlob1Ref.current.style.transform = '';
+    if (heroBlob2Ref.current) heroBlob2Ref.current.style.transform = '';
+    if (heroGlowRef.current) heroGlowRef.current.style.opacity = '0';
+  };
+  // Guided navigation (FedEx-style drill-down) shown before a category is opened.
+  const [guidedCategoryId, setGuidedCategoryId] = useState<string | null>(null);
+  const [guidedSection, setGuidedSection] = useState<string | null>(null);
   const [selectedResourceItem, setSelectedResourceItem] = useState<string | null>(null);
   const [relatedFaqs, setRelatedFaqs] = useState<QuestionSuggestionItem[]>([]);
   const [relatedFaqsLoading, setRelatedFaqsLoading] = useState(false);
@@ -54,15 +84,11 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
   // Sub-items per category from API
   const [apiSubItems, setApiSubItems] = useState<Record<string, Array<{
     id: number; category_code: string; title_ar: string; title_en: string | null;
+    description_ar: string | null; description_en: string | null; question_id: number | null;
+    section_ar: string | null; section_en: string | null;
   }>>>({});
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('wassel_recent_searches') ?? '[]'); } catch { return []; }
-  });
-
-  // Load KB topics once on mount (or when language changes)
+  // Load resource categories/sub-items once on mount (or when language changes)
   useEffect(() => {
-    const queryLang = lang === 'ar' ? 'ar' : 'en';
-    getKbTopics(queryLang).then(setKbTopics).catch(() => {});
     fetch('/api/resource-categories?active=true')
       .then(r => r.json())
       .then(d => { if (Array.isArray(d.categories)) setApiCategories(d.categories); })
@@ -80,11 +106,9 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
         }
       })
       .catch(() => {});
-  }, [lang]);
+  }, []);
   const [activeFaqTab, setActiveFaqTab] = useState<'general' | 'services' | 'corporate' | 'industries'>('general');
   const [openFaqIndex, setOpenFaqIndex] = useState<string | null>(null);
-  const searchBoxRef = useRef<HTMLDivElement | null>(null);
-  const paletteInputRef = useRef<HTMLInputElement | null>(null);
 
   const t = {
     heroTitle: lang === 'en' ? 'How can we help?' : 'كيف يمكننا مساعدتك؟',
@@ -98,6 +122,7 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     generatedBy: lang === 'en' ? 'Generated by Wassel AI' : 'تم الإنشاء بواسطة واصل AI',
     clear: lang === 'en' ? 'Clear Results' : 'مسح النتائج',
     viewGuide: lang === 'en' ? 'View Guide' : 'عرض الدليل',
+    viewMore: lang === 'en' ? 'View details' : 'عرض التفاصيل',
     relatedTopics: lang === 'en' ? 'Related Topics:' : 'مواضيع ذات صلة:',
     palettePlaceholder: lang === 'en' ? 'Search docs or ask AI a question' : 'ابحث في المصادر أو اسأل الذكاء الاصطناعي',
     workflowsTitle: lang === 'en' ? 'Suggestions' : 'اقتراحات',
@@ -107,6 +132,9 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     answering: lang === 'en' ? 'Answering...' : 'جاري الإجابة...',
     backToSearch: lang === 'en' ? 'Back to search' : 'العودة للبحث',
     allCollections: lang === 'en' ? 'All Collections' : 'كل الأقسام',
+    guidedBackToTopics: lang === 'en' ? 'Back to main topics' : 'العودة للمواضيع الرئيسية',
+    guidedBackToCategory: lang === 'en' ? 'Back' : 'رجوع',
+    guidedViewAll: lang === 'en' ? 'View all' : 'عرض الكل',
     tabs: {
         general: lang === 'en' ? 'General' : 'عام',
         services: lang === 'en' ? 'Services' : 'الخدمات',
@@ -678,7 +706,6 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
 
   const selectedResourceGroup = allDisplayGroups.find((group) => group.id === selectedResourceGroupId) ?? null;
   const resourceGroupIdSet = useMemo(() => new Set(allDisplayGroups.map((group) => group.id)), [allDisplayGroups]);
-  const sharedResourceCardColor = 'bg-blue-100 text-blue-500';
 
   // Build a lookup from API categories (code → data) for fast access
   const apiCategoryMap = useMemo(
@@ -692,22 +719,6 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     [apiCategories],
   );
 
-  const groupImages: Record<string, string> = {
-    'services': `${import.meta.env.BASE_URL}assets/services.png`,
-    'shipping-guides': `${import.meta.env.BASE_URL}assets/shipping-guides.png`,
-    'packaging': `${import.meta.env.BASE_URL}assets/packaging.png`,
-    'prohibited-items': `${import.meta.env.BASE_URL}assets/prohibited-items.png`,
-    'customs-clearance': `${import.meta.env.BASE_URL}assets/customs-clearance.png`,
-    'accounts-payments': `${import.meta.env.BASE_URL}assets/accounts-payments.png`,
-    'policies-terms': `${import.meta.env.BASE_URL}assets/policies-terms.png`,
-  };
-
-  // Prefer API image_url if set, otherwise fall back to static mapping
-  const resolveGroupImage = (groupId: string) => {
-    const apiImg = apiCategoryMap[groupId]?.image_url;
-    if (apiImg) return apiImg.startsWith('http') || apiImg.startsWith('/') ? apiImg : `${import.meta.env.BASE_URL}${apiImg.replace(/^\//, '')}`;
-    return groupImages[groupId] ?? null;
-  };
   const localePrefix = `/${lang}`;
   const resourcesBasePath = `${localePrefix}/resources`;
   const serviceCanonicalSlugs = [
@@ -766,6 +777,8 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
   const clearResourceSelection = () => {
     setSelectedResourceGroupId(null);
     resetSelectedResourceDetails();
+    setGuidedCategoryId(null);
+    setGuidedSection(null);
   };
 
   const groupDescription = (groupId: string) => {
@@ -792,70 +805,15 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     return descriptions[groupId as keyof typeof descriptions] ?? '';
   };
 
-  const itemDescriptions = {
-    ar: {
-      'الشحن الدولي': 'خدمة مخصصة لنقل الشحنات بين الدول مع متابعة المتطلبات والإجراءات اللازمة.',
-      'الشحن المحلي': 'حل سريع ومرن لتوصيل الشحنات داخل المدن والمناطق المحلية بكفاءة.',
-      'الشحن الثقيل / Cargo': 'خدمة للشحنات الكبيرة أو الثقيلة التي تحتاج ترتيبات نقل وتجهيز خاصة.',
-      'التخليص الجمركي': 'إنجاز معاملات التخليص الجمركي وتجهيز المستندات لتسريع عبور الشحنة.',
-      'خدمة عدم الممانعة': 'مساعدة في إصدار ومتابعة مستندات عدم الممانعة المطلوبة لبعض الشحنات.',
-      'خدمات الجوازات الأردنية': 'خدمات مخصصة لاستلام وتسليم ومعالجة معاملات الجوازات الأردنية.',
-      'خدمة توصيل جوازات السفارة الأمريكية': 'تنسيق وتسليم جوازات السفارة الأمريكية بطريقة آمنة ومنظمة.',
-      'خدمات التخزين والـ 3PL': 'حلول تخزين وتشغيل لوجستي متكاملة لإدارة المخزون والتوزيع.',
-      'خدمة الاستلام من العميل': 'استلام الشحنة من موقع العميل مباشرة لتسهيل بدء عملية الشحن.',
-      'خدمة التوصيل للباب': 'إيصال الشحنة إلى عنوان المستلم النهائي بسرعة وراحة أكبر.',
-      'خدمة الدفع عند الاستلام COD': 'خدمة تحصيل قيمة الشحنة عند التسليم وتحويلها وفق آلية متفق عليها.',
-      'خدمة المستندات Documents': 'شحن المستندات والملفات الرسمية بسرعة مع عناية خاصة بحساسيتها.',
-      'خدمة الطرود Packages': 'خدمة مخصصة للطرود بمختلف الأحجام مع خيارات شحن مناسبة.',
-      'خدمة البضائع التجارية': 'نقل البضائع التجارية مع مراعاة احتياجات الشركات والفواتير والوثائق.',
-    },
-    en: {
-      'International Shipping': 'A tailored service for moving shipments across countries with the required procedures in place.',
-      'Domestic Shipping': 'A fast and flexible option for delivering shipments across local cities and areas.',
-      'Heavy Shipping / Cargo': 'Built for oversized or heavy shipments that require special handling and transport planning.',
-      'Customs Clearance': 'Support for customs processing and paperwork to help your shipment move faster.',
-      'No-Objection Service': 'Assistance with obtaining and following up on no-objection documents for eligible shipments.',
-      'Jordanian Passport Services': 'Dedicated handling for receiving, delivering, and processing Jordanian passport-related requests.',
-      'US Embassy Passport Delivery Service': 'Secure coordination and delivery service for US embassy passports.',
-      'Storage and 3PL Services': 'Integrated storage and third-party logistics solutions for inventory and distribution.',
-      'Customer Pickup Service': 'We collect the shipment directly from the customer location to simplify the process.',
-      'Door Delivery Service': 'A convenient service that delivers shipments directly to the final recipient address.',
-      'Cash on Delivery (COD)': 'Collect shipment payments upon delivery and transfer them through an agreed settlement process.',
-      'Documents Service': 'Fast and careful shipping for official documents and sensitive paperwork.',
-      'Packages Service': 'A dedicated parcel service for different package sizes with suitable shipping options.',
-      'Commercial Goods Service': 'Transport solutions for commercial goods with business-focused documentation support.',
-    },
-  } as const;
-
-  const itemDescription = (item: string) => {
-    if (lang === 'en') {
-      return itemDescriptions.en[item as keyof typeof itemDescriptions.en] ?? `Everything you need to know about ${item}.`;
-    }
-    return itemDescriptions.ar[item as keyof typeof itemDescriptions.ar] ?? `كل ما تحتاج معرفته حول ${item}.`;
-  };
+  // Generic filler used only when a sub-item has no admin-entered description yet
+  // (real descriptions now live in resource_sub_items.description_ar/description_en).
+  const fallbackItemDescription = (item: string) =>
+    lang === 'en' ? `Everything you need to know about ${item}.` : `كل ما تحتاج معرفته حول ${item}.`;
 
   const resolveQueryLanguage = (input: string): 'ar' | 'en' => {
     if (/[\u0600-\u06FF]/.test(input)) return 'ar';
     if (/[A-Za-z]/.test(input)) return 'en';
     return lang === 'ar' ? 'ar' : 'en';
-  };
-
-  const saveRecentSearch = (query: string) => {
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    setRecentSearches((prev) => {
-      const updated = [trimmed, ...prev.filter((q) => q !== trimmed)].slice(0, 5);
-      try { localStorage.setItem('wassel_recent_searches', JSON.stringify(updated)); } catch {}
-      return updated;
-    });
-  };
-
-  const removeRecentSearch = (query: string) => {
-    setRecentSearches((prev) => {
-      const updated = prev.filter((q) => q !== query);
-      try { localStorage.setItem('wassel_recent_searches', JSON.stringify(updated)); } catch {}
-      return updated;
-    });
   };
 
   const isTrackingQuery = (q: string): string | null => {
@@ -866,84 +824,6 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     const bareNumber = stripped.match(/^(\d{8,})$/);
     if (bareNumber) return bareNumber[1];
     return null;
-  };
-
-  const executeSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setSuggestionsOpen(false);
-    saveRecentSearch(searchQuery);
-
-    // Intercept tracking queries and redirect to the Tracking popup
-    const trackingId = isTrackingQuery(searchQuery);
-    if (trackingId && onTrack) {
-      setIsSearchPaletteOpen(false);
-      onTrack(trackingId);
-      return;
-    }
-    
-    setLoading(true);
-
-    try {
-        setPaletteAiLoading(true);
-        setPaletteAiAnswer(null);
-        const response = await getResourceSearchResponse(searchQuery);
-        setPaletteAiAnswer({
-          query: searchQuery,
-          answer: response.answer,
-          relatedTopics: response.relatedTopics,
-        });
-        setIsSearchPaletteOpen(true);
-    } catch (err) {
-        const fallback = {
-            answer: lang === 'en' ? "Sorry, I couldn't reach the knowledge base right now. Please try again." : "عذراً، لم أتمكن من الوصول إلى قاعدة المعرفة حالياً. يرجى المحاولة مرة أخرى.",
-            relatedTopics: []
-        };
-        setPaletteAiAnswer({
-          query: searchQuery,
-          answer: fallback.answer,
-          relatedTopics: [],
-        });
-        setIsSearchPaletteOpen(true);
-    } finally {
-        setPaletteAiLoading(false);
-        setLoading(false);
-        setTimeout(() => paletteInputRef.current?.focus(), 0);
-    }
-  };
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await executeSearch();
-  };
-
-  const handleSuggestionSelect = (item: QuestionSuggestionItem) => {
-    setSuggestionsOpen(false);
-    setSuggestions([]);
-    setActiveSuggestionIndex(-1);
-    saveRecentSearch(item.question);
-    setIsSearchPaletteOpen(false);
-    setSearchQuery('');
-
-    navigate(`${resourcesBasePath}/question/${item.questionId}/${encodeURIComponent(toSlug(item.question))}`);
-  };
-
-  const handleTopicClick = (topic: string) => {
-      setSearchQuery(topic);
-      setPaletteAiLoading(true);
-      setPaletteAiAnswer(null);
-      getResourceSearchResponse(topic).then(response => {
-          setPaletteAiAnswer({ query: topic, answer: response.answer, relatedTopics: response.relatedTopics });
-          setPaletteAiLoading(false);
-      }).catch(() => setPaletteAiLoading(false));
-  };
-
-  const handleClear = () => {
-      setSearchQuery('');
-      setPaletteAiAnswer(null);
-      setPaletteAiLoading(false);
-      setSuggestions([]);
-      setSuggestionsOpen(false);
-      setActiveSuggestionIndex(-1);
   };
 
   const handleResourceGroupSelect = (groupId: string) => {
@@ -1011,42 +891,6 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     }
   };
 
-  useEffect(() => {
-    // Only query suggestions when user typed enough text.
-    if (searchQuery.trim().length < 2) {
-      setSuggestions([]);
-      setSuggestionsOpen(isSearchPaletteOpen && searchQuery.trim().length > 0);
-      setSuggestionsLoading(false);
-      setActiveSuggestionIndex(-1);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      setSuggestionsLoading(true);
-      try {
-        const queryLanguage = resolveQueryLanguage(searchQuery.trim());
-        const items = await suggestKbQuestions(searchQuery.trim(), queryLanguage);
-        if (!cancelled) {
-          setSuggestions(items);
-          setSuggestionsOpen(true);
-          setActiveSuggestionIndex(-1);
-        }
-      } catch {
-        if (!cancelled) {
-          setSuggestions([]);
-          setSuggestionsOpen(isSearchPaletteOpen && searchQuery.trim().length > 0);
-        }
-      } finally {
-        if (!cancelled) setSuggestionsLoading(false);
-      }
-    }, 280);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [searchQuery, lang, isSearchPaletteOpen]);
 
   // Question detail route: /{locale}/resources/question/{id}/{slug?}
   useEffect(() => {
@@ -1100,7 +944,13 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
       });
 
     return () => { cancelled = true; };
-  }, [location.pathname, lang, selectedQuestion, selectedQuestionLoading, navigate, resourcesBasePath, t.questionNotFound]);
+    // Deliberately excludes selectedQuestion/selectedQuestionLoading: this effect sets
+    // both, so including them re-triggers itself mid-fetch — the resulting cleanup marks
+    // the in-flight request "cancelled" right as it resolves, and the `!cancelled` guards
+    // in .then()/.finally() then permanently skip clearing the loading state, leaving the
+    // page stuck on "جاري تحميل السؤال..." even though the answer arrived successfully.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, lang, navigate, resourcesBasePath, t.questionNotFound]);
 
   useEffect(() => {
     const segments = location.pathname.split('/').filter(Boolean);
@@ -1163,35 +1013,6 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
     }
   }, [location.pathname, resourceGroupIdSet, allDisplayGroups, selectedResourceGroupId, selectedResourceItem, navigate, resourcesBasePath]);
 
-  useEffect(() => {
-    if (!isSearchPaletteOpen) return;
-    const timer = setTimeout(() => paletteInputRef.current?.focus(), 20);
-    return () => clearTimeout(timer);
-  }, [isSearchPaletteOpen]);
-
-  useEffect(() => {
-    const onDocumentKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsSearchPaletteOpen(false);
-        setSuggestionsOpen(false);
-      }
-    };
-    document.addEventListener('keydown', onDocumentKeyDown);
-    return () => document.removeEventListener('keydown', onDocumentKeyDown);
-  }, []);
-
-  useEffect(() => {
-    const onDocumentMouseDown = (event: MouseEvent) => {
-      if (!searchBoxRef.current) return;
-      if (!searchBoxRef.current.contains(event.target as Node)) {
-        setSuggestionsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', onDocumentMouseDown);
-    return () => document.removeEventListener('mousedown', onDocumentMouseDown);
-  }, []);
-
   // Helper to filter FAQs based on active tab
   const displayedFAQs = useMemo(() => {
       const allKeys = Object.keys(FAQ_DATA);
@@ -1227,15 +1048,24 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
   }, [activeFaqTab, lang]);
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-[#F6F8FB] min-h-screen">
       {/* Hero Search Section */}
-      <div className="bg-wassel-blue relative overflow-hidden pb-20 pt-36 md:pt-52">
-        {/* Subtle background shapes */}
+      <div
+        className="bg-wassel-blue relative overflow-hidden pb-20 pt-36 md:pt-52"
+        onMouseMove={handleHeroMouseMove}
+        onMouseLeave={handleHeroMouseLeave}
+      >
+        {/* Subtle background shapes — lean toward the cursor on mousemove */}
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-            <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-[-10%] left-[-5%] w-80 h-80 bg-wassel-yellow/10 rounded-full blur-3xl"></div>
+            <div ref={heroBlob1Ref} className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl transition-transform duration-300 ease-out will-change-transform"></div>
+            <div ref={heroBlob2Ref} className="absolute bottom-[-10%] left-[-5%] w-80 h-80 bg-wassel-yellow/10 rounded-full blur-3xl transition-transform duration-300 ease-out will-change-transform"></div>
+            {/* Soft glow that trails the pointer */}
+            <div
+              ref={heroGlowRef}
+              className="absolute top-0 left-0 w-[440px] h-[440px] rounded-full bg-wassel-yellow/10 blur-[110px] opacity-0 transition-opacity duration-300 will-change-transform"
+            ></div>
         </div>
-        
+
         <div className="max-w-3xl mx-auto px-4 relative z-30 text-center">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight animate-slide-up">
                 <span className="mr-3 rtl:ml-3 rtl:mr-0">👋</span>{t.heroTitle}
@@ -1252,7 +1082,7 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
             >
               <div className="relative bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-left rtl:text-right border border-gray-200">
                 <div className="w-full py-4 pl-12 rtl:pl-4 rtl:pr-12 pr-28 text-base text-gray-400">
-                  {searchQuery.trim() ? <span className="text-gray-700">{searchQuery}</span> : t.searchPlaceholder}
+                  {t.searchPlaceholder}
                 </div>
                 <Search className="absolute left-4 rtl:right-4 rtl:left-auto top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <div className="absolute right-3 rtl:left-3 rtl:right-auto top-1/2 -translate-y-1/2 flex items-center gap-1.5">
@@ -1270,268 +1100,25 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
 
       {/* Search Palette Modal */}
       {isSearchPaletteOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-[#12214f]/40 backdrop-blur-sm px-4 pt-16" onClick={() => { if (!paletteAiLoading) setIsSearchPaletteOpen(false); }}>
-          <form onSubmit={handleSearch} className="max-w-5xl mx-auto" onClick={(e) => e.stopPropagation()}>
-            <div ref={searchBoxRef} className="bg-white rounded-xl border border-gray-200 shadow-2xl overflow-hidden">
-              <div className="relative border-b border-gray-200">
-                {paletteAiAnswer || paletteAiLoading ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaletteAiAnswer(null);
-                      setPaletteAiLoading(false);
-                      setSuggestionsOpen(searchQuery.trim().length > 0);
-                    }}
-                    className="absolute left-5 rtl:right-5 rtl:left-auto top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-700 transition-colors"
-                    aria-label="Back"
-                  >
-                    <ArrowRight className="w-7 h-7 rotate-180 rtl:rotate-0" />
-                  </button>
-                ) : (
-                  <Search className="absolute left-5 rtl:right-5 rtl:left-auto top-1/2 -translate-y-1/2 text-indigo-500 w-7 h-7" />
-                )}
-                <input
-                  ref={paletteInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setSuggestionsOpen(searchQuery.trim().length > 0)}
-                  onKeyDown={(e) => {
-                    const hasQuery = searchQuery.trim().length > 0;
-                    const selectableCount = hasQuery ? suggestions.length + 1 : suggestions.length;
-                    if (!suggestionsOpen || selectableCount === 0) return;
-
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      setActiveSuggestionIndex((prev) => (prev + 1) % selectableCount);
-                      return;
-                    }
-
-                    if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      setActiveSuggestionIndex((prev) => (prev <= 0 ? selectableCount - 1 : prev - 1));
-                      return;
-                    }
-
-                    if (e.key === 'Enter' && activeSuggestionIndex >= 0 && activeSuggestionIndex < selectableCount) {
-                      e.preventDefault();
-                      if (hasQuery && activeSuggestionIndex === 0) {
-                        void executeSearch();
-                        return;
-                      }
-
-                      const suggestionIndex = hasQuery ? activeSuggestionIndex - 1 : activeSuggestionIndex;
-                      if (suggestionIndex >= 0 && suggestionIndex < suggestions.length) {
-                        void handleSuggestionSelect(suggestions[suggestionIndex]);
-                      }
-                    }
-                  }}
-                  placeholder={t.palettePlaceholder}
-                  className="w-full py-5 pl-16 rtl:pl-4 rtl:pr-16 pr-14 text-[2rem] leading-tight text-gray-800 placeholder:text-indigo-300 outline-none"
-                  readOnly={paletteAiAnswer !== null || paletteAiLoading}
-                />
-                {searchQuery.trim().length > 0 && (
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); handleClear(); }}
-                    className="absolute right-16 rtl:left-16 rtl:right-auto top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-700 transition-colors text-sm font-semibold px-3 py-2 z-10"
-                  >
-                    {lang === 'en' ? 'Clear' : 'مسح'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsSearchPaletteOpen(false)}
-                  className="absolute right-4 rtl:left-4 rtl:right-auto top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label="Close"
-                >
-                  <X className="w-7 h-7" />
-                </button>
-              </div>
-
-              {(paletteAiAnswer || paletteAiLoading) && (
-                <div className="border-b border-gray-200">
-                  <div className="px-6 py-4 text-[1.9rem] text-indigo-300 font-semibold border-b border-gray-100">
-                    {paletteAiLoading ? t.answering : t.askAnother}
-                  </div>
-                  <div className="px-6 py-4 text-[1.05rem] text-indigo-700 bg-indigo-50/40 border-b border-gray-100">
-                    {t.verifyDisclaimer}
-                  </div>
-                  <div className="p-6 max-h-[48vh] overflow-auto bg-white">
-                    {paletteAiLoading ? (
-                      <div className="flex items-center gap-3 text-gray-500 text-lg">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        {t.answering}
-                      </div>
-                    ) : (
-                      <div className="text-gray-800">
-                        <h4 className="text-4xl font-bold mb-4">{paletteAiAnswer?.query}</h4>
-                        <FormattedAnswer text={paletteAiAnswer?.answer ?? ''} className="text-[1.1rem]" />
-                        {paletteAiAnswer && paletteAiAnswer.relatedTopics.length > 0 && (
-                          <div className="mt-6 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
-                            {paletteAiAnswer.relatedTopics.map((topic, idx) => (
-                              <button
-                                key={`${topic}-${idx}`}
-                                type="button"
-                                onClick={() => handleTopicClick(topic)}
-                                className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-wassel-blue hover:text-white transition-colors border border-gray-200"
-                              >
-                                {topic}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {!paletteAiAnswer && !paletteAiLoading && searchQuery.trim().length === 0 && kbTopics.length > 0 && (
-                <div className="border-b border-gray-200 px-4 py-4">
-                  <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                    {lang === 'en' ? 'Browse topics' : 'تصفح المواضيع'}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {kbTopics.map((topic) => (
-                      <button
-                        key={topic.code}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setSearchQuery(topic.name);
-                          setSuggestionsOpen(true);
-                          setTimeout(() => paletteInputRef.current?.focus(), 0);
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border border-gray-200 bg-gray-50 text-gray-700 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
-                      >
-                        {topic.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {!paletteAiAnswer && !paletteAiLoading && !suggestionsOpen && searchQuery.trim().length === 0 && recentSearches.length > 0 && (
-                <div className="border-b border-gray-200">
-                  <div className="px-4 pt-4 pb-2 text-sm font-bold text-gray-700">
-                    {lang === 'en' ? 'Recent searches' : 'عمليات البحث الأخيرة'}
-                  </div>
-                  {recentSearches.map((query) => (
-                    <div
-                      key={query}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-indigo-50 group transition-colors"
-                    >
-                      <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { setSearchQuery(query); setTimeout(() => paletteInputRef.current?.focus(), 0); }}
-                        className="flex-1 text-left rtl:text-right text-base text-gray-800 truncate"
-                      >
-                        {query}
-                      </button>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => removeRecentSearch(query)}
-                        className="text-gray-300 hover:text-gray-500 transition-colors opacity-0 group-hover:opacity-100"
-                        aria-label="Remove"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {suggestionsOpen && !paletteAiAnswer && !paletteAiLoading && (
-                <div className="max-h-80 overflow-auto border-b border-gray-200">
-                  {searchQuery.trim().length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => { void executeSearch(); }}
-                      className={`w-full text-left rtl:text-right px-4 py-4 border-b border-gray-200 transition-colors ${
-                        activeSuggestionIndex === 0 ? 'bg-indigo-100' : 'bg-indigo-50 hover:bg-indigo-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 text-3xl sm:text-[2rem] leading-tight">
-                        <Sparkles className="w-6 h-6 text-indigo-500 shrink-0" />
-                        <span className="text-gray-600">{t.askAiLabel}</span>
-                        <span className="text-blue-600 font-semibold">{searchQuery.trim()}</span>
-                      </div>
-                    </button>
-                  )}
-
-                  {searchQuery.trim().length > 0 && (
-                    <div className="px-4 pt-4 pb-2 text-gray-700 font-bold text-sm uppercase tracking-wide">
-                      {t.workflowsTitle}
-                    </div>
-                  )}
-
-                  {suggestionsLoading && (
-                    <div className="px-4 py-3 text-sm text-gray-500 flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      {lang === 'en' ? 'Searching suggestions...' : 'جاري البحث عن اقتراحات...'}
-                    </div>
-                  )}
-
-                  {!suggestionsLoading && suggestions.length === 0 && (
-                    <div className="px-4 py-3 text-sm text-gray-500">
-                      {lang === 'en' ? 'No suggestions found.' : 'لا توجد اقتراحات.'}
-                    </div>
-                  )}
-
-                  {!suggestionsLoading && (() => {
-                    const elements: React.ReactNode[] = [];
-                    let lastTopic = '';
-                    suggestions.forEach((item, index) => {
-                      if (item.topicName !== lastTopic) {
-                        lastTopic = item.topicName;
-                        elements.push(
-                          <div key={`topic-${item.topicName}-${index}`} className="px-4 pt-4 pb-1 text-xs font-bold text-gray-400 uppercase tracking-widest">
-                            {item.topicName}
-                          </div>
-                        );
-                      }
-                      elements.push(
-                        <button
-                          type="button"
-                          key={`${item.questionId}-${index}`}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { void handleSuggestionSelect(item); }}
-                          className={`w-full text-left rtl:text-right px-4 py-3 transition-colors ${
-                            index + 1 === activeSuggestionIndex ? 'bg-blue-50' : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="text-base text-gray-900 font-medium line-clamp-2">{item.question}</div>
-                        </button>
-                      );
-                    });
-                    return elements;
-                  })()}
-                </div>
-              )}
-
-              <div className="px-4 py-3 bg-gray-50 text-gray-500 text-sm flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-gray-500">↓</span>
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white text-gray-500">↑</span>
-                  <span>{lang === 'en' ? 'Navigate' : 'تنقل'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2 h-6 rounded border border-gray-300 bg-white text-gray-500 text-xs font-semibold">
-                    <CornerDownLeft className="w-3 h-3" />
-                  </span>
-                  <span>{lang === 'en' ? 'Select' : 'اختيار'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center px-2 h-6 rounded border border-gray-300 bg-white text-gray-500 text-xs font-semibold">ESC</span>
-                  <span>{lang === 'en' ? 'Close' : 'إغلاق'}</span>
-                </div>
-              </div>
-            </div>
-          </form>
+        <div className="fixed inset-0 z-[9999] bg-[#12214f]/40 backdrop-blur-sm px-4 pt-16" onClick={() => setIsSearchPaletteOpen(false)}>
+          <div className="max-w-5xl mx-auto" onClick={(e) => e.stopPropagation()}>
+            <AssistantSearchPalette
+              lang={lang}
+              onClose={() => setIsSearchPaletteOpen(false)}
+              onInterceptQuery={(query) => {
+                const trackingId = isTrackingQuery(query);
+                if (trackingId && onTrack) {
+                  onTrack(trackingId);
+                  return true;
+                }
+                return false;
+              }}
+              onSelectSuggestion={(item) => {
+                setIsSearchPaletteOpen(false);
+                navigate(`${resourcesBasePath}/question/${item.questionId}/${encodeURIComponent(toSlug(item.question))}`);
+              }}
+            />
+          </div>
         </div>
       , document.body)}
 
@@ -1540,10 +1127,10 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
 
         {/* KB Question Detail View */}
         {(selectedQuestion || selectedQuestionLoading || selectedQuestionError) && (
-          <div className="mb-16">
+          <div className="mb-16 -mt-16 md:-mt-20 relative z-20">
             <div
               dir={lang === 'ar' ? 'rtl' : 'ltr'}
-              className="mb-5 inline-flex items-center gap-2 text-[15px] text-gray-400 text-left rtl:text-right"
+              className="mb-6 inline-flex items-center gap-2 text-sm text-gray-400 text-left rtl:text-right bg-white rounded-full border border-gray-100 px-4 py-2 shadow-sm"
             >
               <button
                 type="button"
@@ -1561,52 +1148,52 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
             </div>
 
             {selectedQuestionLoading && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-5 text-gray-600 flex items-center gap-2">
+              <div className="bg-white rounded-[1.75rem] ring-1 ring-gray-100 shadow-sm p-6 text-gray-600 flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 {t.loadingQuestion}
               </div>
             )}
 
             {!selectedQuestionLoading && selectedQuestionError && (
-              <div className="bg-white rounded-2xl border border-red-100 p-5 text-red-600">
+              <div className="bg-white rounded-[1.75rem] ring-1 ring-red-100 shadow-sm p-6 text-red-600">
                 {selectedQuestionError}
               </div>
             )}
 
             {!selectedQuestionLoading && selectedQuestion && (
               <>
-                <div className="mb-8 text-left rtl:text-right">
-                  <p className="text-sm font-semibold text-indigo-500 uppercase tracking-wide mb-2">{selectedQuestion.topicName}</p>
-                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">{selectedQuestion.question}</h2>
+                <div className="mb-8 text-left rtl:text-right bg-white rounded-[1.75rem] ring-1 ring-gray-100 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_1px_1px_rgba(15,23,42,0.03)] p-6 md:p-10">
+                  <p className="text-sm font-bold text-wassel-blue uppercase tracking-wide mb-3">{selectedQuestion.topicName}</p>
+                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-5 text-balance">{selectedQuestion.question}</h2>
                   <FormattedAnswer text={selectedQuestion.answer} className="text-lg text-gray-700" />
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-2xl font-bold text-gray-900">{t.youMightAskNext}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{t.youMightAskNext}</h3>
 
                   {followUpLoading && (
-                    <div className="bg-white rounded-2xl border border-gray-200 p-5 text-gray-600 flex items-center gap-2">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-5 text-gray-600 flex items-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       {t.loadingFollowUps}
                     </div>
                   )}
 
                   {!followUpLoading && followUpQuestions.length === 0 && (
-                    <div className="bg-white rounded-2xl border border-gray-200 p-5 text-gray-600">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-5 text-gray-600">
                       {t.noFollowUpQuestions}
                     </div>
                   )}
 
                   {!followUpLoading && followUpQuestions.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {followUpQuestions.map((q) => (
                         <button
                           key={q.questionId}
                           type="button"
                           onClick={() => navigate(`${resourcesBasePath}/question/${q.questionId}/${encodeURIComponent(toSlug(q.question))}`)}
-                          className="text-left rtl:text-right bg-white rounded-2xl border border-gray-200 p-5 hover:border-wassel-blue hover:shadow-md transition-all"
+                          className="group text-left rtl:text-right bg-white rounded-2xl ring-1 ring-gray-100 p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:ring-wassel-blue/20 hover:shadow-[0_12px_28px_-14px_rgba(0,43,73,0.25)] hover:-translate-y-0.5 transition-all duration-200"
                         >
-                          <p className="text-lg font-semibold text-gray-900">{q.question}</p>
+                          <p className="text-[15px] font-semibold text-gray-900 group-hover:text-wassel-blue transition-colors">{q.question}</p>
                           <p className="text-sm text-gray-500 mt-1">{q.topicName}</p>
                         </button>
                       ))}
@@ -1619,62 +1206,191 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
         )}
 
         {/* Standard Resources Grid */}
-        <div className={`mb-16 ${(selectedQuestion || selectedQuestionLoading || selectedQuestionError) ? 'hidden' : ''}`}>
-          {!selectedResourceGroup && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {allDisplayGroups
-                .filter(group => activeCodes === null || activeCodes.has(group.id))
-                .map((group) => {
-                  const apiMeta = apiCategoryMap[group.id];
-                  const displayTitle = apiMeta
-                    ? (lang === 'ar' ? apiMeta.title_ar : (apiMeta.title_en ?? group.title))
-                    : group.title;
-                  const resolvedImg = resolveGroupImage(group.id);
-                  return (
-                <button
-                  key={group.id}
-                  type="button"
-                  onClick={() => handleResourceGroupSelect(group.id)}
-                  className="bg-white rounded-3xl overflow-hidden text-left rtl:text-right group transition-all duration-300 hover:-translate-y-1"
-                >
-                  <div className={`${sharedResourceCardColor} h-44 relative overflow-hidden flex items-center justify-center`}>
-                    {resolvedImg ? (
-                      <img
-                        src={resolvedImg}
-                        alt={displayTitle}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <>
-                        <div className="absolute inset-0 opacity-70">
-                          <div className="absolute -top-8 -left-8 w-28 h-28 rounded-full bg-white/30" />
-                          <div className="absolute bottom-4 right-6 w-24 h-24 rounded-full border border-white/40" />
-                          <div className="absolute top-10 right-16 w-20 h-2 rounded-full bg-white/40" />
-                          <div className="absolute top-16 right-20 w-14 h-2 rounded-full bg-white/30" />
-                        </div>
-                        <div className="relative w-24 h-24 rounded-3xl bg-white/80 flex items-center justify-center backdrop-blur-sm">
-                          <group.icon className="w-10 h-10 opacity-90 shrink-0" />
-                        </div>
-                      </>
-                    )}
+        <div className={`mb-16 -mt-16 md:-mt-20 relative z-20 ${(selectedQuestion || selectedQuestionLoading || selectedQuestionError) ? 'hidden' : ''}`}>
+          {!selectedResourceGroup && (() => {
+            const categories = allDisplayGroups.filter(group => activeCodes === null || activeCodes.has(group.id));
+            const activeCategory = guidedCategoryId ? categories.find(g => g.id === guidedCategoryId) ?? null : null;
+            const categoryApiItems = activeCategory ? (apiSubItems[activeCategory.id] ?? []) : [];
+            const categoryTitle = activeCategory
+              ? (apiCategoryMap[activeCategory.id]
+                  ? (lang === 'ar' ? apiCategoryMap[activeCategory.id].title_ar : (apiCategoryMap[activeCategory.id].title_en ?? activeCategory.title))
+                  : activeCategory.title)
+              : '';
+
+            const sectionOf = (i: typeof categoryApiItems[number]) => lang === 'en' ? (i.section_en ?? i.section_ar) : i.section_ar;
+            const hasSections = categoryApiItems.some(i => sectionOf(i));
+
+            const sectionLabels: string[] = [];
+            if (hasSections) {
+              for (const item of categoryApiItems) {
+                const label = sectionOf(item);
+                if (label && !sectionLabels.includes(label)) sectionLabels.push(label);
+              }
+            }
+
+            // Flat categories (no sections) fall back to the static item list when the API has none yet.
+            const flatItems = categoryApiItems.length > 0
+              ? categoryApiItems
+              : (activeCategory?.items ?? []).map((title, i) => ({ title_ar: title, title_en: title, question_id: null as number | null, __fallbackIndex: i }));
+
+            const itemsInSection = guidedSection
+              ? categoryApiItems.filter(i => sectionOf(i) === guidedSection)
+              : [];
+
+            const openItem = (titleAr: string, titleEn: string | null, questionId: number | null, index: number) => {
+              const title = lang === 'en' ? (titleEn ?? titleAr) : titleAr;
+              if (questionId) {
+                navigate(`${resourcesBasePath}/question/${questionId}/${encodeURIComponent(toSlug(title))}`);
+                return;
+              }
+              if (!activeCategory) return;
+              setSelectedResourceGroupId(activeCategory.id);
+              void handleResourceItemSelect(title, index, false);
+              navigate(toResourceItemPath(activeCategory.id, title, index));
+            };
+
+            const level: 0 | 1 | 2 = !activeCategory ? 0 : (hasSections && !guidedSection) ? 1 : 2;
+
+            return (
+              <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="bg-white rounded-[1.75rem] ring-1 ring-gray-100 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_24px_48px_-24px_rgba(0,43,73,0.16)] overflow-hidden">
+                <div className="px-5 md:px-6 pt-5 pb-4 border-b border-gray-100">
+                  <p className="text-xs font-bold uppercase tracking-wider text-wassel-blue/60">{t.categoriesTitle}</p>
+                </div>
+                <div className="flex flex-col md:flex-row md:divide-x md:divide-gray-100 rtl:md:divide-x-reverse">
+
+                  {/* Panel 0 — main topics */}
+                  <div className={`md:w-1/3 md:shrink-0 ${level === 0 ? 'block' : 'hidden md:block'}`}>
+                    <ul className="divide-y divide-gray-50">
+                      {categories.map(group => {
+                        const apiMeta = apiCategoryMap[group.id];
+                        const displayTitle = apiMeta
+                          ? (lang === 'ar' ? apiMeta.title_ar : (apiMeta.title_en ?? group.title))
+                          : group.title;
+                        const isActive = group.id === guidedCategoryId;
+                        return (
+                          <li key={group.id}>
+                            <button
+                              type="button"
+                              onClick={() => { setGuidedCategoryId(group.id); setGuidedSection(null); }}
+                              className={`relative w-full flex items-center gap-3 px-5 py-4 text-start transition-colors ${isActive ? 'bg-wassel-blue/5' : 'hover:bg-gray-50'}`}
+                            >
+                              {isActive && (
+                                <span className="absolute inset-y-0 left-0 rtl:left-auto rtl:right-0 w-[3px] bg-wassel-yellow" />
+                              )}
+                              <span className={`flex items-center justify-center w-10 h-10 rounded-xl shrink-0 transition-colors ${isActive ? 'bg-gradient-to-br from-wassel-blue to-[#00518a] text-white shadow-md shadow-wassel-blue/20' : 'bg-gray-100 text-gray-500'}`}>
+                                <group.icon className="w-4 h-4" />
+                              </span>
+                              <span className={`flex-1 text-[15px] font-semibold ${isActive ? 'text-wassel-blue' : 'text-gray-800'}`}>{displayTitle}</span>
+                              <ChevronRight className={`w-4 h-4 shrink-0 rtl:rotate-180 ${isActive ? 'text-wassel-blue' : 'text-gray-300'}`} />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
-                  <div className="p-5">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{displayTitle}</h3>
-                    <p className="text-gray-600 text-base leading-relaxed mb-4 min-h-[72px]">
-                      {groupDescription(group.id)}
-                    </p>
-                  </div>
-                </button>
-                  );
-                })}
-            </div>
-          )}
+
+                  {/* Panel 1 — sections, or items directly for flat categories */}
+                  {activeCategory && (
+                    <div className={`md:w-1/3 md:shrink-0 ${level === 1 ? 'block' : 'hidden md:block'}`}>
+                      <button
+                        type="button"
+                        onClick={() => setGuidedCategoryId(null)}
+                        className="md:hidden w-full flex items-center gap-2 px-5 py-3 text-sm font-medium text-gray-500 border-b border-gray-50 bg-gray-50/60"
+                      >
+                        <ChevronRight className="w-4 h-4 rotate-180 rtl:rotate-0" />
+                        {t.guidedBackToTopics}
+                      </button>
+                      <h4 className="px-5 pt-4 pb-2 text-xs font-bold uppercase tracking-wider text-wassel-blue/60">{categoryTitle}</h4>
+                      <ul className="divide-y divide-gray-50">
+                        {hasSections
+                          ? sectionLabels.map(label => (
+                              <li key={label}>
+                                <button
+                                  type="button"
+                                  onClick={() => setGuidedSection(label)}
+                                  className={`relative w-full flex items-center gap-3 px-5 py-3.5 text-start transition-colors ${guidedSection === label ? 'bg-wassel-blue/5 text-wassel-blue' : 'text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                  {guidedSection === label && (
+                                    <span className="absolute inset-y-0 left-0 rtl:left-auto rtl:right-0 w-[3px] bg-wassel-yellow" />
+                                  )}
+                                  <span className="flex-1 text-sm font-medium">{label}</span>
+                                  <ChevronRight className={`w-3.5 h-3.5 shrink-0 rtl:rotate-180 ${guidedSection === label ? 'text-wassel-blue' : 'text-gray-300'}`} />
+                                </button>
+                              </li>
+                            ))
+                          : flatItems.map((item, index) => (
+                              <li key={('id' in item ? item.id : index)}>
+                                <button
+                                  type="button"
+                                  onClick={() => openItem(item.title_ar, item.title_en, item.question_id, index)}
+                                  className="w-full flex items-center gap-3 px-5 py-3.5 text-start text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  <span className="flex-1 text-sm font-medium">{lang === 'en' ? (item.title_en ?? item.title_ar) : item.title_ar}</span>
+                                  <ChevronRight className="w-3.5 h-3.5 shrink-0 text-gray-300 rtl:rotate-180" />
+                                </button>
+                              </li>
+                            ))
+                        }
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => handleResourceGroupSelect(activeCategory.id)}
+                            className="w-full px-5 py-3.5 text-start text-xs font-bold uppercase tracking-wide text-wassel-blue hover:bg-wassel-blue/5 transition-colors"
+                          >
+                            {t.guidedViewAll}
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Panel 2 — items within the selected section */}
+                  {activeCategory && hasSections && guidedSection && (
+                    <div className={`md:w-1/3 md:shrink-0 ${level === 2 ? 'block' : 'hidden md:block'}`}>
+                      <button
+                        type="button"
+                        onClick={() => setGuidedSection(null)}
+                        className="md:hidden w-full flex items-center gap-2 px-5 py-3 text-sm font-medium text-gray-500 border-b border-gray-50 bg-gray-50/60"
+                      >
+                        <ChevronRight className="w-4 h-4 rotate-180 rtl:rotate-0" />
+                        {t.guidedBackToCategory}
+                      </button>
+                      <h4 className="px-5 pt-4 pb-2 text-xs font-bold uppercase tracking-wider text-wassel-blue/60">{guidedSection}</h4>
+                      <ul className="divide-y divide-gray-50">
+                        {itemsInSection.map((item, index) => (
+                          <li key={item.id}>
+                            <button
+                              type="button"
+                              onClick={() => openItem(item.title_ar, item.title_en, item.question_id, index)}
+                              className="w-full flex items-center gap-3 px-5 py-3.5 text-start text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <span className="flex-1 text-sm font-medium">{lang === 'en' ? (item.title_en ?? item.title_ar) : item.title_ar}</span>
+                              <ChevronRight className="w-3.5 h-3.5 shrink-0 text-gray-300 rtl:rotate-180" />
+                            </button>
+                          </li>
+                        ))}
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => handleResourceGroupSelect(activeCategory.id)}
+                            className="w-full px-5 py-3.5 text-start text-xs font-bold uppercase tracking-wide text-wassel-blue hover:bg-wassel-blue/5 transition-colors"
+                          >
+                            {t.guidedViewAll}
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {selectedResourceGroup && (
             <div className="pt-6 md:pt-8">
               <div
                 dir={lang === 'ar' ? 'rtl' : 'ltr'}
-                className="mb-5 inline-flex items-center gap-2 text-[15px] text-gray-400 text-left rtl:text-right"
+                className="mb-6 inline-flex items-center gap-2 text-sm text-gray-400 text-left rtl:text-right bg-white rounded-full border border-gray-100 px-4 py-2 shadow-sm"
               >
                 <button
                   type="button"
@@ -1781,22 +1497,72 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="space-y-10">
                     {(() => {
                       const apiItems = apiSubItems[selectedResourceGroup.id];
-                      const displayItems: string[] = apiItems && apiItems.length > 0
-                        ? apiItems.map(i => lang === 'en' ? (i.title_en ?? i.title_ar) : i.title_ar)
-                        : selectedResourceGroup.items;
-                      return displayItems.map((item, index) => (
-                      <button
-                        type="button"
-                        onClick={() => { void handleResourceItemSelect(item, index); }}
-                        key={`${selectedResourceGroup.id}-${index}`}
-                        className="bg-white rounded-[1.75rem] border border-gray-200 p-7 text-left rtl:text-right min-h-[170px] hover:bg-gray-50 transition-colors"
-                      >
-                        <h3 className="text-[2rem] leading-tight font-bold text-gray-900 mb-3">{item}</h3>
-                        <p className="text-gray-600 text-[1.05rem] leading-relaxed max-w-[30ch]">{itemDescription(item)}</p>
-                      </button>
+                      const displayItems: Array<{ title: string; description: string | null; questionId: number | null; section: string | null }> = apiItems && apiItems.length > 0
+                        ? apiItems.map(i => ({
+                            title: lang === 'en' ? (i.title_en ?? i.title_ar) : i.title_ar,
+                            description: lang === 'en' ? i.description_en : i.description_ar,
+                            questionId: i.question_id,
+                            section: lang === 'en' ? (i.section_en ?? i.section_ar) : i.section_ar,
+                          }))
+                        : selectedResourceGroup.items.map(title => ({ title, description: null, questionId: null, section: null }));
+                      const GroupIcon = selectedResourceGroup.icon;
+
+                      // Group consecutive items sharing a section label — sub-items are
+                      // already ordered so each section's cards stay contiguous.
+                      const sections: Array<{ label: string | null; items: typeof displayItems }> = [];
+                      for (const item of displayItems) {
+                        const last = sections[sections.length - 1];
+                        if (last && last.label === item.section) last.items.push(item);
+                        else sections.push({ label: item.section, items: [item] });
+                      }
+
+                      let globalIndex = 0;
+                      return sections.map((section, sectionIdx) => (
+                        <div key={`${selectedResourceGroup.id}-section-${sectionIdx}`}>
+                          {section.label && (
+                            <h3 className="text-lg font-bold text-gray-800 mb-4">{section.label}</h3>
+                          )}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {section.items.map(({ title, description, questionId }) => {
+                              const index = globalIndex++;
+                              return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (questionId) {
+                                    navigate(`${resourcesBasePath}/question/${questionId}/${encodeURIComponent(toSlug(title))}`);
+                                  } else {
+                                    void handleResourceItemSelect(title, index);
+                                  }
+                                }}
+                                key={`${selectedResourceGroup.id}-${index}`}
+                                className="group relative flex flex-col items-start gap-4 overflow-hidden bg-white rounded-[1.75rem] p-6 text-left rtl:text-right ring-1 ring-gray-100 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_1px_1px_rgba(15,23,42,0.03)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_24px_40px_-16px_rgba(0,43,73,0.22)] hover:ring-wassel-blue/10"
+                              >
+                                <div className="pointer-events-none absolute -top-8 -right-8 rtl:-right-auto rtl:-left-8 w-32 h-32 rounded-full bg-gradient-to-br from-wassel-yellow/20 to-transparent blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+
+                                <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-wassel-blue to-[#00518a] text-white shadow-md shadow-wassel-blue/20 transition-transform duration-300 ease-out group-hover:scale-110">
+                                  <GroupIcon className="w-5 h-5" />
+                                </div>
+
+                                <div className="relative">
+                                  <h4 className="text-lg font-bold text-gray-900 mb-1.5 leading-snug tracking-tight">{title}</h4>
+                                  <p className="text-sm text-gray-500 leading-relaxed line-clamp-2">{description || fallbackItemDescription(title)}</p>
+                                </div>
+
+                                <div className="relative flex items-center gap-1 text-xs font-bold text-wassel-blue">
+                                  <span className="opacity-0 -translate-x-1 rtl:translate-x-1 transition-all duration-300 ease-out group-hover:opacity-100 group-hover:translate-x-0">
+                                    {t.viewMore}
+                                  </span>
+                                  <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180 transition-transform duration-300 ease-out group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5" />
+                                </div>
+                              </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       ));
                     })()}
                   </div>

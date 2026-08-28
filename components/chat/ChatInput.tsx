@@ -1,14 +1,19 @@
-import React, { useState, KeyboardEvent } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import React, { useRef, useState, KeyboardEvent, ChangeEvent } from 'react';
+import { Send, Loader2, Paperclip } from 'lucide-react';
+
+const ACCEPTED_FILE_TYPES = 'image/*,video/*,audio/*,application/pdf';
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
 interface ChatInputProps {
   lang: 'ar' | 'en';
   disabled?: boolean;
   onSend: (text: string) => void;
+  onSendFile: (file: File) => void;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ lang, disabled, onSend }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ lang, disabled, onSend, onSendFile }) => {
   const [text, setText] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isAr = lang === 'ar';
 
   const handleSend = () => {
@@ -25,11 +30,38 @@ export const ChatInput: React.FC<ChatInputProps> = ({ lang, disabled, onSend }) 
     }
   };
 
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || disabled) return;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      alert(isAr ? 'الملف كبير جدًا (الحد الأقصى 15 ميغابايت)' : 'File is too large (15MB max)');
+      return;
+    }
+    onSendFile(file);
+  };
+
   return (
     <div
       className="flex items-end gap-2 border-t border-gray-100 p-3 bg-white"
       dir={isAr ? 'rtl' : 'ltr'}
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED_FILE_TYPES}
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        disabled={disabled}
+        title={isAr ? 'إرفاق ملف' : 'Attach file'}
+        aria-label={isAr ? 'إرفاق ملف' : 'Attach file'}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-40"
+      >
+        <Paperclip className="w-4 h-4" />
+      </button>
       <textarea
         rows={1}
         maxLength={7000}

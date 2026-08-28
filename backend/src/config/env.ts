@@ -36,11 +36,33 @@ export const env = {
   // CORS
   FRONTEND_URL: optional('FRONTEND_URL', 'http://localhost:5173'),
 
+  // Wassel internal AWB details API (Basic auth) — proxied by /api/wassel/track*
+  // and used by the AI agent's tracking summary.
+  WASSEL_AWB_BASE_URL: optional('WASSEL_AWB_BASE_URL', 'http://external.wassel.ps:4040'),
+  WASSEL_AWB_USERNAME: optional('WASSEL_AWB_USERNAME', ''),
+  WASSEL_AWB_PASSWORD: optional('WASSEL_AWB_PASSWORD', ''),
+
   // QuickRate shipping proxy
   QUICKRATE_API_KEY: optional('QUICKRATE_API_KEY', ''),
   QUICKRATE_BASE_URL: optional('QUICKRATE_BASE_URL', 'https://quickrate.wassel.ps'),
   // 'lowest' returns only the cheapest quote (carrier/service hidden) | 'all' returns every quote
   QUICKRATE_RESULT_MODE: optional('QUICKRATE_RESULT_MODE', 'lowest') as 'lowest' | 'all',
+
+  // DHL MyDHL API (Express) — tracking requires Basic Auth (key+secret) plus
+  // the plugin/platform identification headers DHL's portal issues per account.
+  DHL_API_KEY: optional('DhlApiKey', ''),
+  DHL_API_SECRET: optional('DhlApiSecret', ''),
+  DHL_ACCOUNT_NUMBER: optional('DhlAccountNumber', ''),
+  DHL_ENVIRONMENT: optional('DhlEnvironment', 'production'),
+  DHL_API_VERSION: optional('DhlApiVersion', '2.11.0'),
+  DHL_PLUGIN_NAME: optional('DhlPluginName', ''),
+  DHL_PLUGIN_VERSION: optional('DhlPluginVersion', ''),
+  DHL_PLATFORM_NAME: optional('DhlPlatformName', ''),
+  DHL_PLATFORM_VERSION: optional('DhlPlatformVersion', ''),
+
+  // FedEx Track API v1 — OAuth2 client-credentials
+  FEDEX_TRACK_CLIENT_ID: optional('FedExTrackClientId', ''),
+  FEDEX_TRACK_CLIENT_SECRET: optional('FedExTrackClientSecret', ''),
 
   // AI Chat
   AI_PROVIDER:               optional('AI_PROVIDER', 'none') as 'openai' | 'azure' | 'none',
@@ -54,6 +76,10 @@ export const env = {
   AI_PROJECT_API_KEY:        optional('AI_PROJECT_API_KEY', ''),
   AI_AGENT_NAME:             optional('AI_AGENT_NAME', 'WSLAIV52'),
   AI_AGENT_VERSION:          optional('AI_AGENT_VERSION', '4'),
+  // Separate agent used only for drafting the internal "AI suggestion" attached to
+  // Contact Us emails — a distinct, non-conversational task from the public KB chatbot above.
+  AI_CONTACT_AGENT_NAME:     optional('AI_CONTACT_AGENT_NAME', 'WEBSITEAI'),
+  AI_CONTACT_AGENT_VERSION:  optional('AI_CONTACT_AGENT_VERSION', '1'),
   CHAT_RATE_LIMIT_PER_MINUTE: parseInt(optional('CHAT_RATE_LIMIT_PER_MINUTE', '20'), 10),
 
   // Respond.io handoff
@@ -67,9 +93,25 @@ export const env = {
   SMTP_PASSWORD: optional('SMTP_PASSWORD', ''),
   PICKUP_NOTIFY_EMAIL: optional('PICKUP_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
   CONTACT_NOTIFY_EMAIL: optional('CONTACT_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
+  SHIPPING_REQUEST_NOTIFY_EMAIL: optional('SHIPPING_REQUEST_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
 
   // Portal login security
   LOGIN_MAX_ATTEMPTS: parseInt(optional('LOGIN_MAX_ATTEMPTS', '3'), 10),
   LOGIN_BLOCK_HOURS: parseInt(optional('LOGIN_BLOCK_HOURS', '24'), 10),
   LOGIN_ALERT_EMAILS: optional('LOGIN_ALERT_EMAILS', 'mqaqour@wassel.ps,oziq@wassel.ps'),
+
+  // Portal session auth (JWT) + authenticator-app (TOTP) second factor.
+  // AUTH_JWT_SECRET MUST be set in production — a startup check enforces it below.
+  AUTH_JWT_SECRET: (() => {
+    const fromEnv = process.env.AUTH_JWT_SECRET;
+    if (fromEnv && fromEnv.length >= 16) return fromEnv;
+    if ((process.env.NODE_ENV ?? 'development') === 'production') {
+      throw new Error('Missing required environment variable: AUTH_JWT_SECRET (>= 16 chars) in production');
+    }
+    // Dev fallback — ephemeral, sessions won't survive a restart.
+    return 'dev-only-insecure-secret-change-me';
+  })(),
+  AUTH_TOKEN_TTL_HOURS: parseInt(optional('AUTH_TOKEN_TTL_HOURS', '12'), 10),
+  AUTH_TOTP_ISSUER: optional('AUTH_TOTP_ISSUER', 'Wassel Portal'),
+  AUTH_COOKIE_NAME: optional('AUTH_COOKIE_NAME', 'wsl_session'),
 };

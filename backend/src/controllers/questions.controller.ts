@@ -130,6 +130,37 @@ export async function getTopics(
 }
 
 /**
+ * GET /api/topics/trending?language={ar|en}&limit={n}
+ *
+ * Returns the top `limit` topics ranked by recent search volume, falling back
+ * to question count when there isn't enough log data. Limit defaults to 7 and
+ * is capped at 20.
+ */
+export async function getTrendingTopics(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const language = String(req.query.language ?? 'ar').trim();
+  const limit = Math.min(20, Math.max(1, parseInt(String(req.query.limit ?? '7'), 10) || 7));
+  try {
+    const topics = await questionSuggestionService.getTrendingTopics(language, limit);
+    res.json({ language, topics });
+  } catch (err) {
+    const anyErr = err as { code?: string; message?: string };
+    const isDbError = anyErr?.code === 'ECONNREFUSED' ||
+      anyErr?.code === 'ESOCKET' ||
+      anyErr?.code === 'ETIMEOUT' ||
+      String(anyErr?.message ?? '').toLowerCase().includes('connection');
+    if (isDbError) {
+      res.json({ language, topics: [] });
+      return;
+    }
+    next(err);
+  }
+}
+
+/**
  * POST /api/questions
  *
  * Creates a new question with Arabic and English translations.

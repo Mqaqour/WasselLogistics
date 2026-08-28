@@ -16,6 +16,7 @@ export const ChatButton: React.FC<ChatButtonProps> = ({ isOpen, lang, onClick, u
       onClick={onClick}
       aria-label={label}
       title={label}
+      data-quick-action="chat"
       className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-[#002B49] px-4 py-3 text-white shadow-2xl hover:bg-[#003a61] transition-all duration-300 hover:scale-105 active:scale-95"
       dir={lang === 'ar' ? 'rtl' : 'ltr'}
     >

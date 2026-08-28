@@ -10,12 +10,19 @@ export const startChatSchema = z.object({
   language:       z.enum(['ar', 'en']).default('ar'),
 });
 
+const sendMessageAttachmentSchema = z.object({
+  url:            z.string().url('Invalid attachment URL'),
+  attachmentType: z.enum(['image', 'video', 'audio', 'file']),
+  mimeType:       z.string().min(1).max(255),
+  fileName:       z.string().min(1).max(255),
+});
+
 export const sendMessageSchema = z.object({
-  sessionId: z.string().uuid('Invalid session ID'),
-  message:   z
-    .string()
-    .min(1, 'Message cannot be empty')
-    .max(7000, 'Message exceeds 7000 character limit'),
+  sessionId:  z.string().uuid('Invalid session ID'),
+  message:    z.string().max(7000, 'Message exceeds 7000 character limit').optional(),
+  attachment: sendMessageAttachmentSchema.optional(),
+}).refine((data) => (data.message && data.message.trim().length > 0) || !!data.attachment, {
+  message: 'Message or attachment is required',
 });
 
 export const closeSessionSchema = z.object({

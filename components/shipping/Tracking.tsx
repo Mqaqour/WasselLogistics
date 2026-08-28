@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, MapPin, Truck, CheckCircle, Clock, Bell, AlertTriangle, FileText, CreditCard, Package, MessageCircle, X, Send, Globe, Scale, Tag, ArrowRight, DollarSign, Copy, RefreshCw } from 'lucide-react';
+import { Search, MapPin, Truck, CheckCircle, Clock, Bell, AlertTriangle, FileText, CreditCard, Package, MessageCircle, X, Send, Globe, Scale, Tag, ArrowRight, DollarSign, Copy, RefreshCw, Plane, IdCard, FileCheck, Ship, Container, Loader2 } from 'lucide-react';
 import { TrackingEvent, Language } from '../../types';
+import { useTypewriter } from '../../hooks/useTypewriter';
+
+// Icons for the track button, synced by index to the placeholder's typewriter word list
+const TRACK_ICONS = [Package, Plane, Truck, IdCard, FileCheck, Ship, Container];
 
 interface TrackingProps {
     lang: Language;
-    onNavigateToPayment: (ref: string, service: string, billDetails?: { label: string; amount: number }[]) => void;
     initialTrackingId?: string;
     isPopup?: boolean;
     mode?: 'standard' | 'customs';
@@ -32,9 +35,39 @@ const WASSEL_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/wasse
 
 const JO_PASSPORT_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/jopassport/track`;
 
+const DHL_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/dhl/track`;
+
+const FEDEX_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/fedex/track`;
+
+const WAITING_SHIPMENTS_BASE_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/waiting-shipments`;
+const WAITING_SHIPMENTS_URL = `${WAITING_SHIPMENTS_BASE_URL}/register`;
+const WAITING_SHIPMENTS_CHECK_URL = `${WAITING_SHIPMENTS_BASE_URL}/check`;
+
+type Carrier = 'wassel' | 'dhl' | 'fedex' | 'passport';
+
 const isJordanPassportNumber = (id: string): boolean => {
   const upper = id.trim().toUpperCase();
-  return upper.length === 13 && (upper.startsWith('QW') || upper.startsWith('RA'));
+  return upper.length === 13 && (upper.startsWith('QW') || upper.startsWith('RA')) && upper.endsWith('JO');
+};
+
+// Routes a tracking number to a carrier by its known number format, before ever calling an API.
+// Checked most-specific-first (prefixed formats) so a bare-length fallback can't shadow them —
+// e.g. a FedEx number starting with "88" must still match the Wassel rule, not the FedEx one.
+const detectCarrier = (id: string): Carrier => {
+  const trimmed = id.trim();
+  const upper = trimmed.toUpperCase();
+
+  if (isJordanPassportNumber(trimmed)) return 'passport';
+  if (trimmed.length === 12 && trimmed.startsWith('88')) return 'wassel';
+  if (trimmed.length === 10 && trimmed.startsWith('500')) return 'wassel';
+  if (upper.length === 21 && upper.startsWith('JDD')) return 'dhl';
+
+  // Bare-length fallbacks — only reached once no prefixed format matched.
+  if (trimmed.length === 10) return 'dhl';
+  if (trimmed.length === 12) return 'fedex';
+
+  // Unrecognized format — keep existing behavior: try Wassel, offer the carrier picker on miss.
+  return 'wassel';
 };
 
 const parsePassportJson = (
@@ -227,14 +260,128 @@ const parseAwbJson = (record: any, lang: Language) => {
   return { shipmentInfo, trackingResult, requiredAction };
 };
 
-export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, initialTrackingId, isPopup = false, mode = 'standard', onContact }) => {
+const formatAddress = (address: any): string => {
+  if (!address) return '—';
+  return [address.addressLocality, address.countryCode].filter(Boolean).join(', ') || '—';
+};
+
+// DHL's postalAddress fields (cityName/postalCode) come back empty in practice —
+// serviceArea's description (e.g. "Ramallah-West Bank-IL") is the field that's
+// actually populated, so it's used as the primary source for a readable place name.
+const formatDhlPlace = (details: any): string => {
+  const areaDesc = details?.serviceArea?.[0]?.description;
+  if (areaDesc) return areaDesc;
+  return formatAddress({ addressLocality: details?.postalAddress?.cityName, countryCode: details?.postalAddress?.countryCode });
+};
+
+const parseDhlJson = (shipment: any, lang: Language) => {
+  const shipmentInfo: ShipmentInfo = {
+    category: lang === 'en' ? 'International' : 'دولي',
+    serviceType: shipment.description ? `DHL — ${shipment.description}` : 'DHL',
+    origin: formatDhlPlace(shipment.shipperDetails),
+    destination: formatDhlPlace(shipment.receiverDetails),
+    weight: shipment.totalWeight
+      ? `${shipment.totalWeight} ${shipment.unitOfMeasurements === 'metric' ? 'kg' : 'lb'}`
+      : '—',
+  };
+
+  const events: any[] = Array.isArray(shipment.events) ? shipment.events : [];
+
+  const trackingResult: TrackingEvent[] = [...events]
+    .sort((a: any, b: any) => {
+      const ta = new Date(`${a?.date}T${a?.time}`).getTime();
+      const tb = new Date(`${b?.date}T${b?.time}`).getTime();
+      if (!isNaN(tb) && !isNaN(ta)) return tb - ta;
+      return 0;
+    })
+    .map((event) => {
+      const status = event.description || '—';
+      const location = event.serviceArea?.[0]?.description || '—';
+      const dt = event.date && event.time ? new Date(`${event.date}T${event.time}`) : null;
+      return {
+        status,
+        location,
+        timestamp: `${event.date || '—'} - ${event.time || '—'}`,
+        description: status,
+        icon: getEventIcon(status),
+        relativeTime: '—',
+        day: dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', { weekday: 'long' }) : '—',
+        date: event.date || '—',
+        time: event.time || '—',
+      } as TrackingEvent;
+    });
+
+  return { shipmentInfo, trackingResult, requiredAction: null as ActionRequired | null };
+};
+
+const formatFedexAddress = (address: any): string =>
+  address ? [address.city, address.stateOrProvinceCode, address.countryCode].filter(Boolean).join(', ') : '—';
+
+const parseFedexJson = (trackResult: any, lang: Language) => {
+  const shipperAddr = trackResult.shipperInformation?.address;
+  const recipientAddr = trackResult.recipientInformation?.address;
+
+  // Weight lives under packageDetails.weightAndDimensions.weight (or shipmentDetails.weight) —
+  // an array of {value, unit} entries, one per unit system. Prefer the KG entry.
+  const weightEntries: any[] = trackResult.packageDetails?.weightAndDimensions?.weight
+    ?? trackResult.shipmentDetails?.weight
+    ?? [];
+  const weightEntry = weightEntries.find((w) => w.unit === 'KG') ?? weightEntries[0];
+
+  const shipmentInfo: ShipmentInfo = {
+    category: lang === 'en' ? 'International' : 'دولي',
+    serviceType: trackResult.serviceDetail?.description || 'FedEx',
+    origin: formatFedexAddress(shipperAddr),
+    destination: formatFedexAddress(recipientAddr),
+    weight: weightEntry?.value ? `${weightEntry.value} ${weightEntry.unit || ''}`.trim() : '—',
+  };
+
+  const scanEvents: any[] = Array.isArray(trackResult.scanEvents) ? trackResult.scanEvents : [];
+
+  const trackingResult: TrackingEvent[] = scanEvents.map((event) => {
+    const status = event.eventDescription || event.derivedStatus || '—';
+    const loc = event.scanLocation;
+    const location = loc ? [loc.city, loc.stateOrProvinceCode, loc.countryCode].filter(Boolean).join(', ') : '—';
+    const dt = event.date ? new Date(event.date) : null;
+    const dateStr = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US') : '—';
+    const timeStr = dt && !isNaN(dt.getTime()) ? dt.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '—';
+    return {
+      status,
+      location,
+      timestamp: `${dateStr} - ${timeStr}`,
+      description: status,
+      icon: getEventIcon(status),
+      relativeTime: '—',
+      day: dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', { weekday: 'long' }) : '—',
+      date: dateStr,
+      time: timeStr,
+    } as TrackingEvent;
+  });
+
+  return { shipmentInfo, trackingResult, requiredAction: null as ActionRequired | null };
+};
+
+export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isPopup = false, mode = 'standard', onContact }) => {
   const [trackingId, setTrackingId] = useState(initialTrackingId || '');
+  const placeholderWords = useMemo(() => ({
+    ar: ['واصل', 'فيديكس', 'دي اتش ال', 'جواز السفر', 'المعاملة الجمركية', 'الشحن البحري', 'الكونتينر'],
+    en: ['Wassel', 'FedEx', 'DHL', 'Passport', 'Customs Transaction', 'Sea Freight', 'Container'],
+  }), []);
+  const placeholderTypewriter = useTypewriter(lang === 'en' ? placeholderWords.en : placeholderWords.ar);
+  const placeholderTypedWord = placeholderTypewriter.text;
+  const TrackButtonIcon = TRACK_ICONS[placeholderTypewriter.index % TRACK_ICONS.length];
   const [trackingResult, setTrackingResult] = useState<TrackingEvent[] | null>(null);
   const [shipmentInfo, setShipmentInfo] = useState<ShipmentInfo | null>(null);
   const [requiredAction, setRequiredAction] = useState<ActionRequired | null>(null);
+  const [notificationName, setNotificationName] = useState('');
   const [notificationEmail, setNotificationEmail] = useState('');
+  const [notificationPhone, setNotificationPhone] = useState('');
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [notified, setNotified] = useState(false);
+  const [notifySubmitting, setNotifySubmitting] = useState(false);
+  const [notifyError, setNotifyError] = useState('');
+  const [notifyChecking, setNotifyChecking] = useState(false);
+  const [notifyAlreadyRegistered, setNotifyAlreadyRegistered] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [selectedCarrier, setSelectedCarrier] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -266,7 +413,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
       errorLoading: lang === 'en' ? 'Unable to reach Wassel tracking right now. Please try again.' : 'تعذر الوصول إلى تتبع واصل حالياً. يرجى المحاولة مرة أخرى.',
       trackingIdLabel: lang === 'en' ? 'Tracking ID:' : 'رقم التتبع:',
       shipmentType: lang === 'en' ? 'Standard International Shipping' : 'شحن دولي قياسي',
-      getUpdates: lang === 'en' ? 'Get Updates' : 'تلقي التحديثات',
+      getUpdates: lang === 'en' ? 'Notify me when it arrives' : 'أبلغني عند وصولها',
       updatesTitle: lang === 'en' ? 'Get Shipment Updates' : 'احصل على تحديثات الشحنة',
       eventsTitle: lang === 'en' ? 'Tracking History' : 'سجل التتبع',
       eventsWhen: lang === 'en' ? 'When' : 'الوقت النسبي',
@@ -275,10 +422,19 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
       eventsTime: lang === 'en' ? 'Time' : 'الوقت',
       eventsStatus: lang === 'en' ? 'Status' : 'الحالة',
       eventsLocation: lang === 'en' ? 'Location' : 'الموقع',
-      updatesDesc: lang === 'en' ? 'Receive an email notification as soon as this shipment arrives at a Wassel facility or changes status.' : 'استلم إشعار عبر البريد الإلكتروني بمجرد وصول الشحنة إلى مرافق واصل أو تغيير حالتها.',
+      updatesDesc: lang === 'en'
+        ? 'We could not find this tracking number yet. Leave your details and we will check again and email you as soon as it appears.'
+        : 'لم نتمكن من العثور على رقم التتبع هذا بعد. اترك بياناتك وسنعيد التحقق ونرسل لك بريداً إلكترونياً بمجرد ظهورها.',
+      notifyNameLabel: lang === 'en' ? 'Full Name' : 'الاسم الكامل',
+      notifyPhoneLabel: lang === 'en' ? 'Mobile Number' : 'رقم الجوال',
       emailLabel: lang === 'en' ? 'Email Address' : 'البريد الإلكتروني',
       emailPlaceholder: lang === 'en' ? 'you@example.com' : 'you@example.com',
       notifyMe: lang === 'en' ? 'Notify Me' : 'أبلغني',
+      notifyError: lang === 'en' ? 'Could not save your request. Please try again.' : 'تعذر حفظ طلبك. يرجى المحاولة مرة أخرى.',
+      notifyDuplicate: lang === 'en'
+        ? 'This shipment is already registered — we\'ll email and text you as soon as it appears.'
+        : 'هذه الشحنة مسجَّلة لدينا بالفعل — سنرسل لك إشعاراً بالبريد والرسائل النصية بمجرد ظهورها.',
+      submitting: lang === 'en' ? 'Saving...' : 'جاري الحفظ...',
       subscribed: lang === 'en' ? 'Subscribed!' : 'تم الاشتراك!',
       cancel: lang === 'en' ? 'Cancel' : 'إلغاء',
       contactSupport: lang === 'en' ? 'Contact Us About This' : 'تواصل معنا بخصوص هذا',
@@ -348,7 +504,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
       }
   };
 
-  const executeTracking = async (id: string) => {
+  const executeTracking = async (id: string, carrierOverride?: Carrier) => {
     const trimmedId = id.trim();
     if (!trimmedId) return;
 
@@ -363,8 +519,10 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
     setAwbRecord(null);
     setPendingBillDetails(undefined);
 
+    const carrier: Carrier = carrierOverride ?? detectCarrier(trimmedId);
+
     try {
-      if (isJordanPassportNumber(trimmedId)) {
+      if (carrier === 'passport') {
         const response = await fetch(JO_PASSPORT_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -388,6 +546,44 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
 
         const parsed = parsePassportJson(records[0], lang);
         setAwbRecord(records[0]);
+        setShipmentInfo(parsed.shipmentInfo);
+        setTrackingResult(parsed.trackingResult);
+        setRequiredAction(parsed.requiredAction);
+      } else if (carrier === 'dhl') {
+        const response = await fetch(`${DHL_API_URL}?trackingNumber=${encodeURIComponent(trimmedId)}`, {
+          headers: { Accept: 'application/json' },
+        });
+
+        const json = await response.json();
+        const shipment = json?.shipments?.[0];
+
+        if (!response.ok || !shipment) {
+          setNotFound(true);
+          return;
+        }
+
+        const parsed = parseDhlJson(shipment, lang);
+        setAwbRecord(shipment);
+        setShipmentInfo(parsed.shipmentInfo);
+        setTrackingResult(parsed.trackingResult);
+        setRequiredAction(parsed.requiredAction);
+      } else if (carrier === 'fedex') {
+        const response = await fetch(FEDEX_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trackingNumber: trimmedId }),
+        });
+
+        const json = await response.json();
+        const trackResult = json?.output?.completeTrackResults?.[0]?.trackResults?.[0];
+
+        if (!response.ok || !trackResult || trackResult.error) {
+          setNotFound(true);
+          return;
+        }
+
+        const parsed = parseFedexJson(trackResult, lang);
+        setAwbRecord(trackResult);
         setShipmentInfo(parsed.shipmentInfo);
         setTrackingResult(parsed.trackingResult);
         setRequiredAction(parsed.requiredAction);
@@ -437,14 +633,62 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
     executeTracking(trackingId);
   };
 
-  const handleNotifySubmit = (e: React.FormEvent) => {
+  const handleOpenNotifyModal = async () => {
+    setNotifyError('');
+    setNotifyAlreadyRegistered(false);
+    setNotifyChecking(true);
+    try {
+      const response = await fetch(`${WAITING_SHIPMENTS_CHECK_URL}?trackingNumber=${encodeURIComponent(trackingId)}`);
+      const data = await response.json().catch(() => ({}));
+      setNotifyAlreadyRegistered(!!data?.registered);
+    } catch {
+      // If the check itself fails, fall back to showing the normal form —
+      // the register call will still catch a real duplicate on submit.
+      setNotifyAlreadyRegistered(false);
+    } finally {
+      setNotifyChecking(false);
+      setShowNotifyModal(true);
+    }
+  };
+
+  const handleNotifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setNotified(true);
-    setTimeout(() => {
+    setNotifyError('');
+    setNotifySubmitting(true);
+    try {
+      const response = await fetch(WAITING_SHIPMENTS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trackingNumber: trackingId,
+          customerName: notificationName,
+          customerEmail: notificationEmail,
+          customerPhone: notificationPhone,
+          carrier: selectedCarrier ?? undefined,
+          language: lang,
+        }),
+      });
+
+      if (response.status === 409) {
+        setNotifyError(t.notifyDuplicate);
+        return;
+      }
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      setNotified(true);
+      setTimeout(() => {
         setShowNotifyModal(false);
         setNotified(false);
+        setNotificationName('');
         setNotificationEmail('');
-    }, 2000);
+        setNotificationPhone('');
+      }, 2000);
+    } catch {
+      setNotifyError(t.notifyError);
+    } finally {
+      setNotifySubmitting(false);
+    }
   };
 
   const handleContactSubmit = (e: React.FormEvent) => {
@@ -491,13 +735,13 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
                 <input
                     type="text"
                     className="block w-full rounded-xl border-0 py-6 pl-8 pr-40 sm:pr-56 text-gray-900 ring-1 ring-inset ring-gray-100 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-wassel-yellow text-lg sm:text-2xl sm:leading-relaxed rtl:pr-8 rtl:pl-40 sm:rtl:pl-56"
-                    placeholder={t.placeholder}
+                    placeholder={`${t.placeholder} ${placeholderTypedWord}|`}
                     value={trackingId}
                     onChange={(e) => setTrackingId(e.target.value)}
                 />
                 <div className="absolute inset-y-2 right-2 rtl:right-auto rtl:left-2 flex items-center">
                     <button type="submit" disabled={isLoading || !trackingId.trim()} className="h-full rounded-lg bg-wassel-blue px-6 sm:px-10 text-white font-bold text-lg hover:bg-wassel-darkBlue transition-colors flex items-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed">
-                        <Package className="w-6 h-6" />
+                        <TrackButtonIcon className="w-6 h-6" />
                         <span className="hidden sm:inline">{isLoading ? t.trackingNow : t.trackBtn}</span>
                     </button>
                 </div>
@@ -545,7 +789,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
                     <button
                       key={c.key}
                       type="button"
-                      onClick={() => setSelectedCarrier(selectedCarrier === c.key ? null : c.key)}
+                      onClick={() => { setSelectedCarrier(c.key); executeTracking(trackingId, c.key); }}
                       className={`rounded-xl border-2 px-3 py-3 text-sm font-bold transition-colors ${
                         selectedCarrier === c.key
                           ? 'border-wassel-blue bg-wassel-blue text-white'
@@ -580,9 +824,10 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
                         {lang === 'en' ? 'DHL tracking number format:' : 'صيغة رقم تتبع DHL:'}
                       </p>
                       <ul className="list-disc list-inside space-y-1 mt-1">
-                        <li>{lang === 'en' ? 'Usually starts with JJD' : 'عادةً يبدأ بـ JJD'}</li>
-                        <li>{lang === 'en' ? '14 characters in total' : 'يتكون من 14 خانة إجمالاً'}</li>
-                        <li dir="ltr" className="font-mono">{lang === 'en' ? 'Example: JJD01234567890' : 'مثال: JJD01234567890'}</li>
+                        <li>{lang === 'en' ? 'Starts with JDD, 21 characters total' : 'يبدأ بـ JDD، ويتكون من 21 خانة'}</li>
+                        <li dir="ltr" className="font-mono">{lang === 'en' ? 'Example: JDD012345678901234567' : 'مثال: JDD012345678901234567'}</li>
+                        <li>{lang === 'en' ? 'Or 10 digits with no prefix' : 'أو 10 أرقام بدون بادئة'}</li>
+                        <li dir="ltr" className="font-mono">{lang === 'en' ? 'Example: 1234567890' : 'مثال: 1234567890'}</li>
                       </ul>
                     </div>
                   )}
@@ -591,9 +836,10 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
                       <p className="font-bold mb-1">
                         {lang === 'en' ? 'FedEx tracking number format:' : 'صيغة رقم تتبع FedEx:'}
                       </p>
-                      <p className="text-blue-600 italic">
-                        {lang === 'en' ? 'Format details coming soon.' : 'سيتم إضافة تفاصيل الصيغة قريباً.'}
-                      </p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>{lang === 'en' ? 'Usually 12, 15, or 20–22 digits' : 'عادةً 12 أو 15 أو 20-22 رقماً'}</li>
+                        <li dir="ltr" className="font-mono">{lang === 'en' ? 'Example: 449044304137821' : 'مثال: 449044304137821'}</li>
+                      </ul>
                     </div>
                   )}
                   {selectedCarrier === 'wassel' && (
@@ -601,9 +847,12 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
                       <p className="font-bold mb-1">
                         {lang === 'en' ? 'Wassel tracking number format:' : 'صيغة رقم تتبع واصل:'}
                       </p>
-                      <p className="text-blue-600 italic">
-                        {lang === 'en' ? 'Format details coming soon.' : 'سيتم إضافة تفاصيل الصيغة قريباً.'}
-                      </p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>{lang === 'en' ? 'Starts with 88, 12 characters total' : 'يبدأ بـ 88، ويتكون من 12 خانة'}</li>
+                        <li dir="ltr" className="font-mono">{lang === 'en' ? 'Example: 885551234567' : 'مثال: 885551234567'}</li>
+                        <li>{lang === 'en' ? 'Or starts with 500, 10 characters total' : 'أو يبدأ بـ 500، ويتكون من 10 خانات'}</li>
+                        <li dir="ltr" className="font-mono">{lang === 'en' ? 'Example: 5001234567' : 'مثال: 5001234567'}</li>
+                      </ul>
                     </div>
                   )}
                 </div>
@@ -613,6 +862,18 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
                 <button onClick={handleRefreshTracking} className="inline-flex items-center rounded-lg bg-wassel-blue px-4 py-2 text-sm font-semibold text-white hover:bg-wassel-darkBlue transition-colors">
                   <RefreshCw className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
                   {t.retryBtn}
+                </button>
+                <button
+                  onClick={handleOpenNotifyModal}
+                  disabled={notifyChecking}
+                  className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {notifyChecking ? (
+                    <Loader2 className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0 animate-spin" />
+                  ) : (
+                    <Bell className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
+                  )}
+                  {t.getUpdates}
                 </button>
                 <button onClick={() => setShowContactForm(true)} className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
                   <MessageCircle className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
@@ -764,28 +1025,63 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
                     <h3 className="text-lg leading-6 font-medium text-wassel-blue" id="modal-title">
                       {t.updatesTitle}
                     </h3>
+                    {notifyAlreadyRegistered ? (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-600">{t.notifyDuplicate}</p>
+                        <div className="mt-5 sm:mt-4">
+                          <button
+                            type="button"
+                            onClick={() => setShowNotifyModal(false)}
+                            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-wassel-blue text-base font-medium text-white hover:bg-wassel-darkBlue focus:outline-none sm:w-auto sm:text-sm transition-colors"
+                          >
+                            {t.close}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
                         {t.updatesDesc}
                       </p>
                       <form onSubmit={handleNotifySubmit} className="mt-4">
-                          <label htmlFor="email" className="block text-sm font-medium text-gray-700">{t.emailLabel}</label>
-                          <input 
-                            type="email" 
-                            required 
+                          <label htmlFor="notify-name" className="block text-sm font-medium text-gray-700">{t.notifyNameLabel}</label>
+                          <input
+                            type="text"
+                            required
+                            id="notify-name"
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-wassel-yellow focus:border-wassel-yellow sm:text-sm"
+                            value={notificationName}
+                            onChange={(e) => setNotificationName(e.target.value)}
+                          />
+                          <label htmlFor="notify-phone" className="block text-sm font-medium text-gray-700 mt-4">{t.notifyPhoneLabel}</label>
+                          <input
+                            type="tel"
+                            required
+                            id="notify-phone"
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-wassel-yellow focus:border-wassel-yellow sm:text-sm"
+                            value={notificationPhone}
+                            onChange={(e) => setNotificationPhone(e.target.value)}
+                          />
+                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mt-4">{t.emailLabel}</label>
+                          <input
+                            type="email"
+                            required
                             id="email"
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-wassel-yellow focus:border-wassel-yellow sm:text-sm"
                             placeholder={t.emailPlaceholder}
                             value={notificationEmail}
                             onChange={(e) => setNotificationEmail(e.target.value)}
                           />
+                          {notifyError && (
+                            <p className="mt-2 text-sm text-red-600">{notifyError}</p>
+                          )}
                           <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-2 sm:gap-0">
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-wassel-blue text-base font-medium text-white hover:bg-wassel-darkBlue focus:outline-none sm:ml-3 rtl:sm:mr-3 rtl:sm:ml-0 sm:w-auto sm:text-sm disabled:opacity-50 transition-colors"
-                                disabled={notified}
+                                disabled={notified || notifySubmitting}
                             >
-                                {notified ? t.subscribed : t.notifyMe}
+                                {notified ? t.subscribed : notifySubmitting ? t.submitting : t.notifyMe}
                             </button>
                             <button type="button" onClick={() => setShowNotifyModal(false)} className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm transition-colors">
                                 {t.cancel}
@@ -793,6 +1089,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, onNavigateToPayment, i
                         </div>
                       </form>
                     </div>
+                    )}
                   </div>
                 </div>
               </div>

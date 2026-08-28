@@ -1,24 +1,10 @@
-export type PageView = 'home' | 'tracking' | 'rates' | 'pickup' | 'login' | 'dashboard' | 'payment' | 'services' | 'payment-gateway' | 'corporate' | 'about' | 'management' | 'contact' | 'handmade' | 'resources' | 'industries' | 'latest_updates'
-| 'service-clearance' 
-| 'service-express' 
-| 'service-domestic' 
-| 'service-shop' 
-| 'service-idp' 
-| 'service-jordanian'
-| 'service-pick-pack'
-| 'service-corp-daily'
-| 'service-corp-signing'
-| 'service-corp-bulk'
-| 'service-corp-storage'
-| 'service-corp-warehousing'
-| 'service-corp-freight'
-| 'service-multimodal-freight'
+export type PageView = 'home' | 'tracking' | 'rates' | 'pickup' | 'login' | 'dashboard' | 'contact' | 'resources'
 | 'booking_window'
-| 'register-new-app-west-bank'
-| 'kb-admin';
+| 'kb-admin'
+| 'system-settings'
+| 'business-accounts';
 
 export type Language = 'en' | 'ar';
-export type Theme = 'individuals' | 'corporate';
 
 export interface RateResult {
   provider: string;

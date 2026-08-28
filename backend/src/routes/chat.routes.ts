@@ -1,7 +1,8 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import * as chatController from '../controllers/chat.controller';
 import { validateBody } from '../middleware/validateRequest';
-import { startChatLimiter, sendMessageLimiter } from '../middleware/rateLimiter';
+import { startChatLimiter, sendMessageLimiter, uploadAttachmentLimiter } from '../middleware/rateLimiter';
+import { chatUpload } from '../utils/chatUploads';
 import {
   startChatSchema,
   sendMessageSchema,
@@ -9,6 +10,28 @@ import {
 } from '../validators/chat.validators';
 
 const router = Router();
+
+// Wraps multer so a bad/oversized/unsupported file returns 400 instead of
+// falling through to the generic error handler as a 500.
+function handleUpload(req: Request, res: Response, next: NextFunction) {
+  chatUpload.single('file')(req, res, (err: unknown) => {
+    if (err) {
+      const message = err instanceof Error ? err.message : 'Upload failed.';
+      const code = message === 'UNSUPPORTED_FILE_TYPE' ? 'UNSUPPORTED_FILE_TYPE' : 'UPLOAD_ERROR';
+      res.status(400).json({ error: { code, message } });
+      return;
+    }
+    next();
+  });
+}
+
+router.post('/upload',
+  uploadAttachmentLimiter,
+  handleUpload,
+  chatController.uploadAttachment
+);
+
+router.get('/attachments/:filename', chatController.getAttachment);
 
 router.post('/start',
   startChatLimiter,

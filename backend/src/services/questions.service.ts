@@ -16,6 +16,7 @@ import {
   fetchScoringCandidates,
   fetchQuestionWithAnswer,
   fetchActiveTopics,
+  fetchTrendingTopics,
   insertTopic,
   insertQuestion,
   logSuggestion,
@@ -67,7 +68,10 @@ export interface IQuestionSuggestionService {
   }>>;
 
   /** Return all active topics with translated names. */
-  getTopics(language: string): Promise<Array<{ id: number; code: string; name: string; description: string | null }>>;
+  getTopics(language: string): Promise<Array<{ id: number; code: string; name: string; description: string | null; questionCount: number }>>;
+
+  /** Return the top N topics by recent search volume (kb_suggestion_logs), falling back to question count for topics with too little log data. */
+  getTrendingTopics(language: string, limit: number): Promise<Array<{ id: number; code: string; name: string; questionCount: number }>>;
 
   /** Create a new topic. Returns the new id or null on duplicate. */
   createTopic(dto: CreateTopicDto): Promise<number | null>;
@@ -318,8 +322,20 @@ export class QuestionSuggestionService implements IQuestionSuggestionService {
     code: string;
     name: string;
     description: string | null;
+    questionCount: number;
   }>> {
     return fetchActiveTopics(language);
+  }
+
+  // ── getTrendingTopics ─────────────────────────────────────────────────────────
+
+  async getTrendingTopics(language: string, limit: number): Promise<Array<{
+    id: number;
+    code: string;
+    name: string;
+    questionCount: number;
+  }>> {
+    return fetchTrendingTopics(language, limit);
   }
 
   // ── createTopic ────────────────────────────────────────────────────────────

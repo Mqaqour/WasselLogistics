@@ -5,6 +5,8 @@ export interface PortalUserRow {
   username: string;
   passwordHash: string;
   displayName: string | null;
+  totpSecret: string | null;
+  totpEnabled: boolean;
 }
 
 export interface LoginIpBlockRow {
@@ -44,22 +46,68 @@ function toNullableDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+const PORTAL_USER_COLUMNS = `
+        id,
+        username,
+        password_hash AS passwordHash,
+        display_name AS displayName,
+        totp_secret AS totpSecret,
+        CAST(totp_enabled AS BIT) AS totpEnabled`;
+
 export async function findActiveUserByUsername(username: string): Promise<PortalUserRow | null> {
   const pool = await getPool();
   const result = await pool.request()
     .input('username', sql.NVarChar(255), username)
     .query<PortalUserRow>(`
-      SELECT TOP (1)
-        id,
-        username,
-        password_hash AS passwordHash,
-        display_name AS displayName
+      SELECT TOP (1) ${PORTAL_USER_COLUMNS}
       FROM dbo.portal_users
       WHERE username = @username
         AND is_active = 1
     `);
 
   return result.recordset[0] ?? null;
+}
+
+export async function findActiveUserById(id: number): Promise<PortalUserRow | null> {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('id', sql.Int, id)
+    .query<PortalUserRow>(`
+      SELECT TOP (1) ${PORTAL_USER_COLUMNS}
+      FROM dbo.portal_users
+      WHERE id = @id
+        AND is_active = 1
+    `);
+
+  return result.recordset[0] ?? null;
+}
+
+/** Stores a pending secret (enrolment not yet confirmed). */
+export async function setUserTotpSecret(userId: number, secret: string): Promise<void> {
+  const pool = await getPool();
+  await pool.request()
+    .input('id', sql.Int, userId)
+    .input('secret', sql.NVarChar(64), secret)
+    .query(`
+      UPDATE dbo.portal_users
+      SET totp_secret = @secret, totp_enabled = 0, updated_at = SYSUTCDATETIME()
+      WHERE id = @id
+    `);
+}
+
+export async function setUserTotpEnabled(userId: number, enabled: boolean): Promise<void> {
+  const pool = await getPool();
+  await pool.request()
+    .input('id', sql.Int, userId)
+    .input('enabled', sql.Bit, enabled)
+    .input('secret', sql.NVarChar(64), enabled ? undefined : null)
+    .query(`
+      UPDATE dbo.portal_users
+      SET totp_enabled = @enabled,
+          totp_secret = CASE WHEN @enabled = 1 THEN totp_secret ELSE NULL END,
+          updated_at = SYSUTCDATETIME()
+      WHERE id = @id
+    `);
 }
 
 export async function findIpBlock(ipAddress: string): Promise<LoginIpBlockRow | null> {
