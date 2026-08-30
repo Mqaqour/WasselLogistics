@@ -192,27 +192,31 @@ export function createApp() {
   app.use('/api/resource-sections',   requireAuthForWrites, resourceSectionsRoutes);
   app.use('/api/admin/settings',      requireAuth,           settingsRoutes);
 
-  // Jordan Passport proxy — forwards to jopassports.wassel.ps
+  // Jordan Passport proxy — forwards to the n8n webhook (replaces the old
+  // jopassports.wassel.ps direct integration, which hung indefinitely from
+  // some networks — likely IP-restricted). The webhook takes a single
+  // JoNumber and returns one flat object, not the array the old API gave;
+  // we wrap it here so the frontend's existing array-shaped parsing
+  // (Tracking.tsx / StaticPages.tsx) doesn't need to change.
   app.post('/api/jopassport/track', trackingLimiter, async (req, res) => {
     const { delivery_nos } = req.body;
     if (!delivery_nos) {
       res.status(400).json({ error: 'delivery_nos is required' });
       return;
     }
+    const joNumber = Array.isArray(delivery_nos) ? delivery_nos[0] : delivery_nos;
+    if (!joNumber) {
+      res.status(400).json({ error: 'delivery_nos is required' });
+      return;
+    }
     try {
-      const formData = new URLSearchParams();
-      formData.append('delivery_nos', Array.isArray(delivery_nos) ? JSON.stringify(delivery_nos) : delivery_nos);
-      formData.append('token', 'd5c5d928bfd0409627d725a90e05e120');
-      const upstream = await fetch('https://jopassports.wassel.ps/passport/get_passport_detail_API', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Token': 'd5c5d928bfd0409627d725a90e05e120',
-        },
-        body: formData.toString(),
-      });
-      const data = await upstream.json().catch(() => ({}));
-      res.status(upstream.status).json(data);
+      const upstream = await fetch(
+        `https://n8n.wassel.ps/webhook/2698a590-084f-43a6-a356-9c950a564609?JoNumber=${encodeURIComponent(joNumber)}`,
+        { headers: { Accept: 'application/json' } }
+      );
+      const data = await upstream.json().catch(() => null);
+      const records = data && typeof data === 'object' && Object.keys(data).length > 0 ? [data] : [];
+      res.status(upstream.status).json(records);
     } catch (err) {
       res.status(502).json({ error: 'Passport upstream error' });
     }
