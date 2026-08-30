@@ -108,6 +108,11 @@ jobs:
           _SMTP_PASSWORD:      ${{ secrets.SMTP_PASSWORD }}
           _WASSEL_AWB_USERNAME: ${{ secrets.WASSEL_AWB_USERNAME }}
           _WASSEL_AWB_PASSWORD: ${{ secrets.WASSEL_AWB_PASSWORD }}
+          _DHL_API_KEY:        ${{ secrets.DhlApiKey }}
+          _DHL_API_SECRET:     ${{ secrets.DhlApiSecret }}
+          _DHL_ACCOUNT_NUMBER: ${{ secrets.DhlAccountNumber }}
+          _FEDEX_CLIENT_ID:     ${{ secrets.FedExTrackClientId }}
+          _FEDEX_CLIENT_SECRET: ${{ secrets.FedExTrackClientSecret }}
         run: |
           $lines = @(
             "DB_SERVER=wassel.database.windows.net",
@@ -136,7 +141,18 @@ jobs:
             "SMTP_PASSWORD=`"$env:_SMTP_PASSWORD`"",
             "PICKUP_NOTIFY_EMAIL=Mqaqour@wassel.ps",
             "WASSEL_AWB_USERNAME=`"$env:_WASSEL_AWB_USERNAME`"",
-            "WASSEL_AWB_PASSWORD=`"$env:_WASSEL_AWB_PASSWORD`""
+            "WASSEL_AWB_PASSWORD=`"$env:_WASSEL_AWB_PASSWORD`"",
+            "DhlApiKey=`"$env:_DHL_API_KEY`"",
+            "DhlApiSecret=`"$env:_DHL_API_SECRET`"",
+            "DhlAccountNumber=`"$env:_DHL_ACCOUNT_NUMBER`"",
+            "DhlEnvironment=production",
+            "DhlApiVersion=3.2.2",
+            "DhlPluginName=Wassel",
+            "DhlPluginVersion=1.0",
+            "DhlPlatformName=.NET Framework",
+            "DhlPlatformVersion=4.8",
+            "FedExTrackClientId=`"$env:_FEDEX_CLIENT_ID`"",
+            "FedExTrackClientSecret=`"$env:_FEDEX_CLIENT_SECRET`""
           )
           $lines | Set-Content -Path deploy\.env
 
