@@ -50,22 +50,24 @@ export async function getPool(): Promise<sql.ConnectionPool> {
   if (pool && pool.connected) {
     return pool;
   }
+  let newPool: sql.ConnectionPool;
   if (useTrustedLocalDb) {
     const { default: sqlNative } = await import('mssql/msnodesqlv8');
-    pool = await new (sqlNative as any).ConnectionPool(localDbConfig).connect();
+    newPool = await new (sqlNative as any).ConnectionPool(localDbConfig).connect();
   } else {
-    pool = await new sql.ConnectionPool(config).connect();
+    newPool = await new sql.ConnectionPool(config).connect();
   }
   // ConnectionPool is an EventEmitter — background connection errors (idle
   // timeout, a dropped TCP connection) emit 'error' outside of any in-flight
   // query's promise. Without a listener, Node treats that as unhandled and
   // crashes the whole process, regardless of which request happens to be
   // running at the time.
-  pool.on('error', (err) => {
+  newPool.on('error', (err) => {
     logger.error('SQL Server connection pool error:', err);
   });
+  pool = newPool;
   logger.info('SQL Server connection pool established.');
-  return pool!;
+  return newPool;
 }
 
 export async function closePool(): Promise<void> {
