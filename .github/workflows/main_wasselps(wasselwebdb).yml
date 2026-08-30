@@ -106,6 +106,8 @@ jobs:
           _RESPOND_API_TOKEN:  ${{ secrets.RESPOND_API_TOKEN }}
           _AI_PROJECT_API_KEY: ${{ secrets.AI_PROJECT_API_KEY }}
           _SMTP_PASSWORD:      ${{ secrets.SMTP_PASSWORD }}
+          _WASSEL_AWB_USERNAME: ${{ secrets.WASSEL_AWB_USERNAME }}
+          _WASSEL_AWB_PASSWORD: ${{ secrets.WASSEL_AWB_PASSWORD }}
         run: |
           $lines = @(
             "DB_SERVER=wassel.database.windows.net",
@@ -132,7 +134,9 @@ jobs:
             "SMTP_PORT=587",
             "SMTP_USER=automate@wassel.ps",
             "SMTP_PASSWORD=$env:_SMTP_PASSWORD",
-            "PICKUP_NOTIFY_EMAIL=Mqaqour@wassel.ps"
+            "PICKUP_NOTIFY_EMAIL=Mqaqour@wassel.ps",
+            "WASSEL_AWB_USERNAME=$env:_WASSEL_AWB_USERNAME",
+            "WASSEL_AWB_PASSWORD=$env:_WASSEL_AWB_PASSWORD"
           )
           $lines | Set-Content -Path deploy\.env
 
