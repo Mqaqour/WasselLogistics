@@ -16,15 +16,24 @@ import { logger } from '../utils/logger';
 const memSessions  = new Map<string, ChatSession>();
 const memMessages  = new Map<string, MessageDTO[]>();
 
-let _dbAvailable: boolean | null = null;
+let _dbAvailable = false;
+let _lastCheckedAt = 0;
+// Once the DB is marked unavailable, don't re-attempt a connection on every
+// single request — but do retry periodically so a transient failure (e.g. at
+// process startup) can self-heal without requiring a full app restart, unlike
+// the previous one-shot flag that stuck to `false` for the process's lifetime.
+const RECHECK_INTERVAL_MS = 30_000;
 
-/** Called once at startup so request-time checks are instant. */
+/** Called once at startup so the very first request-time check is instant. */
 export function setDbAvailable(available: boolean): void {
   _dbAvailable = available;
+  _lastCheckedAt = Date.now();
 }
 
 export async function isDbAvailable(): Promise<boolean> {
-  if (_dbAvailable !== null) return _dbAvailable;
+  if (_dbAvailable) return true;
+  if (Date.now() - _lastCheckedAt < RECHECK_INTERVAL_MS) return false;
+  _lastCheckedAt = Date.now();
   try {
     const pool = await getPool();
     _dbAvailable = pool.connected;
