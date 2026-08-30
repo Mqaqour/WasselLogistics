@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ChatButton } from './ChatButton';
+import { ChatHeader } from './ChatHeader';
 import { PreChatForm } from './PreChatForm';
 import { ChatWindow } from './ChatWindow';
 import { chatApi } from './services/chatApi';
@@ -114,7 +115,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
     const { sessionId: sid } = await chatApi.startChat({
       firstName:      data.firstName,
       phone:          data.phone,
-      email:          data.email,
+      email:          data.email?.trim() || undefined,
       serviceType:    data.serviceType,
       trackingNumber: data.trackingNumber,
       language:       data.language,
@@ -200,19 +201,24 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({
           }}
           dir={lang === 'ar' ? 'rtl' : 'ltr'}
         >
-          {lastContentState === 'pre-chat' && (
-            <PreChatForm lang={lang} onSubmit={handlePreChatSubmit} />
-          )}
-          {lastContentState === 'chat' && sessionId && (
-            <ChatWindow
-              lang={lang}
-              sessionId={sessionId}
-              onClose={handleClose}
-              onSessionExpired={resetSession}
-              isExpanded={isExpanded}
-              onToggleExpand={handleToggleExpand}
-            />
-          )}
+          <ChatHeader
+            lang={lang}
+            isExpanded={isExpanded}
+            onToggleExpand={handleToggleExpand}
+            onClose={handleClose}
+          />
+          <div className="flex flex-1 min-h-0 flex-col">
+            {lastContentState === 'pre-chat' && (
+              <PreChatForm lang={lang} onSubmit={handlePreChatSubmit} />
+            )}
+            {lastContentState === 'chat' && sessionId && (
+              <ChatWindow
+                lang={lang}
+                sessionId={sessionId}
+                onSessionExpired={resetSession}
+              />
+            )}
+          </div>
         </div>
       )}
     </>

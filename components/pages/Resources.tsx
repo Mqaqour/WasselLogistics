@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Book, FileText, Box, AlertCircle, HelpCircle, ChevronRight, Download, Globe, Loader2, ArrowRight, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Book, FileText, Box, AlertCircle, HelpCircle, ChevronRight, Download, Globe, Loader2, ArrowRight, Lightbulb, ChevronDown, ChevronUp, Package, Bell, Calculator, Building2 } from 'lucide-react';
 import { Language } from '../../types';
 import { FAQ_DATA } from '../../data/faqs';
 import { suggestKbQuestions, getKbQuestionAnswer, getRelatedKbQuestions, QuestionSuggestionItem, RelatedQuestionItem } from '../../services/questionsKbService';
@@ -11,9 +11,11 @@ import { AssistantSearchPalette } from '../shared/AssistantSearchPalette';
 interface ResourcesProps {
   lang: Language;
   onTrack?: (trackingId: string) => void;
+  /** Opens one of the shared tool popups: 'tracking' | 'rates' | 'quote' | 'notify' | 'open-account'. */
+  onAction?: (action: string) => void;
 }
 
-export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
+export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack, onAction }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -1097,6 +1099,34 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack }) => {
             </button>
         </div>
       </div>
+
+      {/* Quick Tools — landing view only; hidden while a KB question or resource detail is open
+          so its negative top margin doesn't collide with the detail breadcrumb. */}
+      {onAction && !selectedQuestion && !selectedQuestionLoading && !selectedQuestionError && !selectedResourceGroup && (
+        <div className="max-w-5xl mx-auto px-4 relative z-40 -mt-10 mb-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {[
+              { id: 'tracking', icon: Package, label: lang === 'en' ? 'Track a shipment' : 'تتبّع شحنة' },
+              { id: 'notify', icon: Bell, label: lang === 'en' ? 'Notify me on arrival' : 'أبلغني عند الوصول' },
+              { id: 'rates', icon: Calculator, label: lang === 'en' ? 'Get instant rates' : 'أسعار فورية' },
+              { id: 'quote', icon: FileText, label: lang === 'en' ? 'Request a quote' : 'طلب عرض سعر' },
+              { id: 'open-account', icon: Building2, label: lang === 'en' ? 'Open a business account' : 'فتح حساب تجاري' },
+            ].map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                onClick={() => onAction(tool.id)}
+                className="group flex flex-col items-center justify-center gap-2 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-wassel-blue/30 transition-all p-4 text-center"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-wassel-blue/5 text-wassel-blue group-hover:bg-wassel-blue group-hover:text-white transition-colors">
+                  <tool.icon className="w-5 h-5" />
+                </span>
+                <span className="text-sm font-semibold text-gray-800 leading-tight">{tool.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search Palette Modal */}
       {isSearchPaletteOpen && createPortal(

@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { ChatMessage } from './types/chat.types';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
@@ -11,13 +10,10 @@ import { playReplyNotificationSound } from './utils/notificationSound';
 interface ChatWindowProps {
   lang: 'ar' | 'en';
   sessionId: string;
-  onClose: () => void;
   onSessionExpired?: () => void;
-  isExpanded?: boolean;
-  onToggleExpand?: () => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose, onSessionExpired, isExpanded, onToggleExpand }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onSessionExpired }) => {
   const [messages, setMessages]           = useState<ChatMessage[]>([]);
   const [sending, setSending]             = useState(false);
   const [errorMsg, setErrorMsg]           = useState('');
@@ -28,13 +24,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
   // so it doesn't feel unread, even though respond.io gives us no real typing signal.
   const lastMessage    = messages[messages.length - 1];
   const awaitingReply  = !!lastMessage && lastMessage.senderType === 'visitor' && !lastMessage.pending;
-
-  const t = {
-    title:       isAr ? 'مساعد واصل الذكي' : 'Wassel AI Assistant',
-    loading:     isAr ? 'جاري التحميل...' : 'Loading...',
-    expand:      isAr ? 'توسيع كشريط جانبي' : 'Expand to sidebar',
-    collapse:    isAr ? 'طي إلى نافذة عائمة' : 'Collapse to floating',
-  };
 
   // Load history + connect socket
   useEffect(() => {
@@ -144,37 +133,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onClose
 
   return (
     <div
-      className="flex flex-col"
-      style={{ height: '100%' }}
+      className="flex flex-1 min-h-0 flex-col"
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0 border-b border-gray-100 bg-white">
-        <div className="min-w-0 flex-1">
-          <span className="text-sm font-medium truncate block text-gray-900">{t.title}</span>
-        </div>
-        <div className="flex items-center gap-0.5 text-gray-600">
-          {onToggleExpand && (
-            <button
-              onClick={onToggleExpand}
-              title={isExpanded ? t.collapse : t.expand}
-              aria-label={isExpanded ? t.collapse : t.expand}
-              className="flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-gray-100 transition-colors"
-            >
-              {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            aria-label={isAr ? 'إغلاق' : 'Close'}
-            title={isAr ? 'إغلاق' : 'Close'}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 bg-white space-y-1">
         {messages.length === 0 && (

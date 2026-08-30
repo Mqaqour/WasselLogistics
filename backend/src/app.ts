@@ -47,6 +47,29 @@ const CONTACT_TOPIC_LABELS: Record<string, string> = {
   claiming: 'Claiming',
 };
 
+/**
+ * Human-friendly timestamp for notification emails, e.g. `30-08-2026 12:15:55 PM`
+ * (Palestine local time). Replaces the raw ISO string in every notification template.
+ */
+function formatEmailTimestamp(d: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Hebron',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  }).formatToParts(d);
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${pick('day')}-${pick('month')}-${pick('year')} ${pick('hour')}:${pick('minute')}:${pick('second')} ${pick('dayPeriod')}`;
+}
+
+/** Outer wrapper style shared by every notification email — Calibri + right-to-left. */
+const EMAIL_SHELL_STYLE =
+  "font-family: Calibri, 'Segoe UI', Tahoma, Arial, sans-serif; direction:rtl; text-align:right; background:#f5f8fc; padding:24px; color:#0f172a;";
+
 export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
@@ -350,7 +373,7 @@ export function createApp() {
         },
       });
 
-      const submittedAt = new Date().toISOString();
+      const submittedAt = formatEmailTimestamp();
       const subject = `New Pickup Request - ${String(fullName)}`;
       const text = [
         'New pickup request received.',
@@ -367,12 +390,12 @@ export function createApp() {
       ].join('\n');
 
       const html = `
-        <div style="font-family: Arial, sans-serif; background:#f5f8fc; padding:24px; color:#0f172a;">
+        <div style="${EMAIL_SHELL_STYLE}">
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:700px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
             <tr>
               <td style="background:#0b3f77; padding:18px 24px; color:#ffffff;">
                 <h2 style="margin:0; font-size:20px;">New Pickup Request</h2>
-                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">Submitted at ${submittedAt}</p>
+                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">Submitted at <span dir="ltr">${submittedAt}</span></p>
               </td>
             </tr>
             <tr>
@@ -565,7 +588,7 @@ export function createApp() {
       });
 
       const topicLabel = CONTACT_TOPIC_LABELS[String(topic)] ?? String(topic);
-      const submittedAt = new Date().toISOString();
+      const submittedAt = formatEmailTimestamp();
       const subject = `Contact Us: ${topicLabel} — ${String(name)}`;
 
       const extraRows = [
@@ -575,12 +598,12 @@ export function createApp() {
       ].join('');
 
       const html = `
-        <div style="font-family: Arial, sans-serif; background:#f5f8fc; padding:24px; color:#0f172a;">
+        <div style="${EMAIL_SHELL_STYLE}">
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:700px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
             <tr>
               <td style="background:#0b3f77; padding:18px 24px; color:#ffffff;">
                 <h2 style="margin:0; font-size:20px;">Contact Us — ${topicLabel}</h2>
-                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">Submitted at ${submittedAt}</p>
+                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">Submitted at <span dir="ltr">${submittedAt}</span></p>
               </td>
             </tr>
             <tr>
@@ -590,7 +613,6 @@ export function createApp() {
                   <tr><td style="padding:8px 0; color:#64748b;">Mobile</td><td style="padding:8px 0; font-weight:600;">${String(mobile)}</td></tr>
                   ${extraRows}
                   <tr><td style="padding:8px 0; color:#64748b; vertical-align:top;">Message</td><td style="padding:8px 0; font-weight:600;">${String(message).replace(/\n/g, '<br>')}</td></tr>
-                  <tr><td style="padding:8px 0; color:#64748b; vertical-align:top;">AI Answer</td><td style="padding:8px 0; font-weight:600;">${payload.aiAnswer.replace(/\n/g, '<br>')}</td></tr>
                 </table>
               </td>
             </tr>
@@ -607,8 +629,6 @@ export function createApp() {
         trackingNumber ? `Tracking Number: ${trackingNumber}` : '',
         passportNumber ? `Passport Number: ${passportNumber}` : '',
         `Message: ${message}`,
-        `AI Answer: ${payload.aiAnswer}`,
-        payload.aiRelatedTopics.length ? `AI Related Topics: ${payload.aiRelatedTopics.join(', ')}` : '',
       ].filter(Boolean).join('\n');
 
       const recipient = await resolveContactRecipient(String(topic));
@@ -703,7 +723,7 @@ export function createApp() {
         },
       });
 
-      const submittedAt = new Date().toISOString();
+      const submittedAt = formatEmailTimestamp();
       const typeLabel = requestType === 'international'
         ? (isAr ? 'دولي' : 'International')
         : (isAr ? 'محلي' : 'Domestic');
@@ -744,12 +764,12 @@ export function createApp() {
       ).join('');
 
       const html = `
-        <div style="font-family: Arial, sans-serif; background:#f5f8fc; padding:24px; color:#0f172a;">
+        <div style="${EMAIL_SHELL_STYLE}">
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:700px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
             <tr>
               <td style="background:#0b3f77; padding:18px 24px; color:#ffffff;">
                 <h2 style="margin:0; font-size:20px;">${isAr ? 'طلب شحن جديد' : 'New Shipping Request'}</h2>
-                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">${isAr ? 'أُرسل في' : 'Submitted at'} ${submittedAt}</p>
+                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">${isAr ? 'أُرسل في' : 'Submitted at'} <span dir="ltr">${submittedAt}</span></p>
               </td>
             </tr>
             <tr>
@@ -838,7 +858,7 @@ export function createApp() {
         auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
       });
 
-      const submittedAt = new Date().toISOString();
+      const submittedAt = formatEmailTimestamp();
       const subject = `${isAr ? 'طلب فتح حساب تجاري' : 'Business Account Request'} — ${companyName}`;
 
       const rows: Array<[string, string]> = [
@@ -864,12 +884,12 @@ export function createApp() {
       ).join('');
 
       const html = `
-        <div style="font-family: Arial, sans-serif; background:#f5f8fc; padding:24px; color:#0f172a;">
+        <div style="${EMAIL_SHELL_STYLE}">
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:700px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
             <tr>
               <td style="background:#0b3f77; padding:18px 24px; color:#ffffff;">
                 <h2 style="margin:0; font-size:20px;">${isAr ? 'طلب فتح حساب تجاري جديد' : 'New Business Account Request'}</h2>
-                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">${isAr ? 'أُرسل في' : 'Submitted at'} ${submittedAt}</p>
+                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">${isAr ? 'أُرسل في' : 'Submitted at'} <span dir="ltr">${submittedAt}</span></p>
               </td>
             </tr>
             <tr><td style="padding:20px 24px;">
@@ -909,7 +929,7 @@ export function createApp() {
           subject: custSubject,
           text: `${custGreeting}\n\n${custBody}\n\n${custClosing}`,
           html: `
-            <div style="font-family: Arial, sans-serif; background:#f5f8fc; padding:24px; color:#0f172a;">
+            <div style="${EMAIL_SHELL_STYLE}">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
                 <tr><td style="background:#0b3f77; padding:18px 24px; color:#ffffff;">
                   <h2 style="margin:0; font-size:20px;">${isAr ? 'واصل' : 'Wassel'}</h2>

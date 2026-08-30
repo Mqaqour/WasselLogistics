@@ -9,6 +9,8 @@ export * from './shipping/Pickup';
 export * from './shipping/BookingWindow';
 export * from './shipping/IDPOrderModal';
 export * from './shipping/BusinessAccountModal';
+export * from './shipping/NotifyMeModal';
+export * from './shipping/QuoteRequestModal';
 
 export * from './portal/Dashboard';
 export * from './portal/Login';
@@ -19,6 +21,7 @@ export * from './portal/BusinessAccountRequests';
 export * from './support/ChatBot';
 
 export * from './pages/Resources';
+export * from './pages/About';
 export * from './pages/StaticPages';
 
 export * from './sections/AdsBanner';

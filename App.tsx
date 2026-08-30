@@ -11,15 +11,20 @@ import {
   SystemSettings,
   ChatBot,
   Resources,
+  About,
   FloatingActionBar,
   Contact,
   FloatingCircles,
   IDPOrderModal,
   BusinessAccountModal,
   BusinessAccountRequests,
+  NotifyMeModal,
+  QuoteRequestModal,
   BookingWindow,
 } from './components';
 import { ChatWidget } from './components/chat/ChatWidget';
+import { Seo } from './components/Seo';
+import { getPageSeo } from './seo/pageMeta';
 import { useTypewriter } from './hooks/useTypewriter';
 import { adminFetch, clearAdminToken } from './services/adminApi';
 import { PageView, Language } from './types';
@@ -71,6 +76,7 @@ export const App: React.FC = () => {
     dashboard: '/dashboard',
     contact: '/contact',
     resources: '/resources',
+    about: '/about',
     booking_window: '/booking',
     'kb-admin': '/admin/kb',
     'system-settings': '/admin/settings',
@@ -95,6 +101,7 @@ export const App: React.FC = () => {
       '/admin/settings': 'system-settings',
       '/admin/business-accounts': 'business-accounts',
       '/contact': 'contact',
+      '/about': 'about',
       '/booking': 'booking_window',
     };
 
@@ -179,12 +186,8 @@ export const App: React.FC = () => {
     const preloadAssets = async () => {
       try {
         const imageUrls = [
-          `${import.meta.env.BASE_URL}assets/background.jpg`,
+          `${import.meta.env.BASE_URL}assets/background.png`,
           BRAND_LOGO,
-          `${import.meta.env.BASE_URL}assets/airplane.png`,
-          `${import.meta.env.BASE_URL}assets/truck.png`,
-          `${import.meta.env.BASE_URL}assets/warehouse.png`,
-          `${import.meta.env.BASE_URL}assets/corporate-bg.jpg`
         ];
 
         const imagePromises = imageUrls.map((src) => {
@@ -296,7 +299,7 @@ export const App: React.FC = () => {
   }
 
   // Determine if the current view should be treated as a "Landing Page" (Transparent Header & Background)
-  const isLandingPage = currentView === 'home' || currentView === 'resources' || currentView === 'contact';
+  const isLandingPage = currentView === 'home' || currentView === 'resources' || currentView === 'contact' || currentView === 'about';
 
   const renderView = () => {
     switch (currentView) {
@@ -316,9 +319,15 @@ export const App: React.FC = () => {
       case 'pickup':
         return <Pickup lang={lang} />;
       case 'resources':
-        return <Resources lang={lang} onTrack={(id) => { setQuickTrackId(id); setTrackingMode('standard'); setActivePopup('tracking'); }} />;
+        return <Resources
+          lang={lang}
+          onTrack={(id) => { setQuickTrackId(id); setTrackingMode('standard'); setActivePopup('tracking'); }}
+          onAction={handleAction}
+        />;
       case 'contact':
         return <Contact lang={lang} />;
+      case 'about':
+        return <About lang={lang} onAction={handleAction} />;
       case 'login':
         return <Login onLogin={handleLogin} lang={lang} />;
       case 'dashboard':
@@ -337,7 +346,7 @@ export const App: React.FC = () => {
             <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none overflow-hidden bg-[#002B49]">
                 {!bgError ? (
                     <img 
-                        src={`${import.meta.env.BASE_URL}assets/background.jpg`} 
+                        src={`${import.meta.env.BASE_URL}assets/background.png`}
                         alt="Background" 
                         className="w-full h-full object-cover object-top opacity-100"
                         onError={() => setBgError(true)}
@@ -426,6 +435,7 @@ export const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col ${isLandingPage ? 'bg-transparent' : 'bg-white'} text-wassel-blue`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <Seo {...getPageSeo(currentView, lang)} />
       <Navbar
         currentView={currentView}
         setCurrentView={setCurrentView}
@@ -469,13 +479,19 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Business Account wizard — self-contained overlay, launched from the floating bar */}
+      {/* Self-contained overlay modals — launched from the floating bar / Resources tools */}
       {activePopup === 'open-account' && (
         <BusinessAccountModal lang={lang} onClose={() => setActivePopup(null)} />
       )}
+      {activePopup === 'notify' && (
+        <NotifyMeModal lang={lang} onClose={() => setActivePopup(null)} initialTrackingNumber={quickTrackId} />
+      )}
+      {activePopup === 'quote' && (
+        <QuoteRequestModal lang={lang} onClose={() => setActivePopup(null)} />
+      )}
 
       {/* Generic Popup Modal */}
-      {activePopup && activePopup !== 'chat' && activePopup !== 'open-account' && (
+      {activePopup && !['chat', 'open-account', 'notify', 'quote'].includes(activePopup) && (
         <div className="fixed inset-0 z-[60] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
                  {/* Backdrop */}

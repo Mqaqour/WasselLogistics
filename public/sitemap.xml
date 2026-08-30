@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <url>
+    <loc>https://wassel.ps/ar</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar"/>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://wassel.ps/en</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar"/>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <url>
+    <loc>https://wassel.ps/ar/tracking</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/tracking"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/tracking"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/tracking"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://wassel.ps/en/tracking</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/tracking"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/tracking"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/tracking"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://wassel.ps/ar/rates</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/rates"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/rates"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/rates"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://wassel.ps/en/rates</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/rates"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/rates"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/rates"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://wassel.ps/ar/pickup</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/pickup"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/pickup"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/pickup"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://wassel.ps/en/pickup</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/pickup"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/pickup"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/pickup"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://wassel.ps/ar/contact</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/contact"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/contact"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/contact"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://wassel.ps/en/contact</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/contact"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/contact"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/contact"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://wassel.ps/ar/resources</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/resources"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/resources"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/resources"/>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://wassel.ps/en/resources</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/resources"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/resources"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/resources"/>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://wassel.ps/ar/about</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/about"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/about"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/about"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://wassel.ps/en/about</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://wassel.ps/ar/about"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wassel.ps/en/about"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wassel.ps/ar/about"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+</urlset>

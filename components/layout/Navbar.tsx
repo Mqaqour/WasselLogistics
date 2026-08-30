@@ -35,13 +35,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
     loginShort: lang === 'en' ? 'Login' : 'دخول',
     brand: lang === 'en' ? 'WASSEL' : 'واصل',
     assistant: lang === 'en' ? 'Assistant' : 'المساعدة',
+    about: lang === 'en' ? 'About Us' : 'من نحن',
     contactUs: lang === 'en' ? 'Contact Us' : 'تواصل معنا',
   };
 
   const isTransparent = (
     currentView === 'home' ||
     currentView === 'resources' ||
-    currentView === 'contact'
+    currentView === 'contact' ||
+    currentView === 'about'
   ) && !isScrolled && !isOpen;
 
   const topBarBg = isTransparent ? 'bg-transparent border-white/10' : 'bg-wassel-darkBlue border-gray-700/50';
@@ -132,9 +134,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
             <div className="hidden lg:flex items-center gap-1 xl:gap-2">
               <button
                 onClick={() => handleNavClick('resources')}
-                className="flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 text-gray-100 hover:text-wassel-yellow hover:bg-white/5"
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 hover:text-wassel-yellow hover:bg-white/5 ${currentView === 'resources' ? 'text-wassel-yellow' : 'text-gray-100'}`}
               >
                 <span>{t.assistant}</span>
+              </button>
+
+              <button
+                onClick={() => handleNavClick('about')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 hover:text-wassel-yellow hover:bg-white/5 ${currentView === 'about' ? 'text-wassel-yellow' : 'text-gray-100'}`}
+              >
+                <span>{t.about}</span>
               </button>
 
               <div className="h-6 w-px bg-gray-600 mx-2"></div>
@@ -166,6 +175,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
             <div className="border-t border-gray-700/50 pt-2">
               <button onClick={() => handleNavClick('resources')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
                 {t.assistant}
+              </button>
+              <button onClick={() => handleNavClick('about')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
+                {t.about}
               </button>
               <button onClick={() => handleNavClick('contact')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
                 {t.contactUs}

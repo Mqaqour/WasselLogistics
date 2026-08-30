@@ -871,7 +871,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                   {notifyChecking ? (
                     <Loader2 className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0 animate-spin" />
                   ) : (
-                    <Bell className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
+                    <span className="mr-2 rtl:ml-2 rtl:mr-0 text-base leading-none" aria-hidden="true">🔔</span>
                   )}
                   {t.getUpdates}
                 </button>
