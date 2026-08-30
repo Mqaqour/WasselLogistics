@@ -7,6 +7,22 @@ import { setDbAvailable } from './repositories/chat.repository';
 import { logger } from './utils/logger';
 import { seedQuestionsKnowledgeBaseAsync } from './seeds/questionsKnowledgeBase.seed';
 
+// Last-resort safety net. An EventEmitter 'error' with no listener (e.g. a
+// dropped response socket, a DB pool's background connection error) crashes
+// the whole process with no chance for any try/catch to see it — which is
+// exactly why several outages today showed up as a bare iisnode 404/500 with
+// nothing in any log. Logging here at least captures the real error before
+// the (inevitable, unavoidable) restart, instead of losing it entirely.
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception — process will exit:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection — process will exit:', reason);
+  process.exit(1);
+});
+
 async function main() {
   const app        = createApp();
   const httpServer = http.createServer(app);
