@@ -56,6 +56,14 @@ export async function getPool(): Promise<sql.ConnectionPool> {
   } else {
     pool = await new sql.ConnectionPool(config).connect();
   }
+  // ConnectionPool is an EventEmitter — background connection errors (idle
+  // timeout, a dropped TCP connection) emit 'error' outside of any in-flight
+  // query's promise. Without a listener, Node treats that as unhandled and
+  // crashes the whole process, regardless of which request happens to be
+  // running at the time.
+  pool.on('error', (err) => {
+    logger.error('SQL Server connection pool error:', err);
+  });
   logger.info('SQL Server connection pool established.');
   return pool!;
 }
