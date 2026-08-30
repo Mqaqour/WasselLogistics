@@ -113,19 +113,19 @@ jobs:
             "DB_SERVER=wassel.database.windows.net",
             "DB_DATABASE=wasselwebdbuat",
             "DB_USERNAME=sqladmin",
-            "DB_PASSWORD=$env:_DB_PASSWORD",
+            "DB_PASSWORD=`"$env:_DB_PASSWORD`"",
             "DB_PORT=1433",
             "DB_ENCRYPT=true",
             "DB_TRUST_SERVER_CERTIFICATE=false",
-            "QUICKRATE_API_KEY=$env:_QUICKRATE_API_KEY",
+            "QUICKRATE_API_KEY=`"$env:_QUICKRATE_API_KEY`"",
             "QUICKRATE_BASE_URL=https://quickrate.wassel.ps",
             "QUICKRATE_RESULT_MODE=lowest",
             "RESPOND_CHANNEL_ID=9e83805a2b9616a709a2dc556d353a0",
-            "RESPOND_API_TOKEN=$env:_RESPOND_API_TOKEN",
+            "RESPOND_API_TOKEN=`"$env:_RESPOND_API_TOKEN`"",
             "RESPOND_WEBHOOK_URL=https://app.respond.io/custom/channel/webhook/",
             "AI_PROVIDER=azure",
             "AI_PROJECT_ENDPOINT=https://wasselaifoundry.services.ai.azure.com/api/projects/Wassel-default",
-            "AI_PROJECT_API_KEY=$env:_AI_PROJECT_API_KEY",
+            "AI_PROJECT_API_KEY=`"$env:_AI_PROJECT_API_KEY`"",
             "AI_AGENT_NAME=WSLAIV52",
             "AI_AGENT_VERSION=4",
             "FRONTEND_URL=https://wasselwebprod.wassel.ps,https://wasselps-wasselwebprod.azurewebsites.net",
@@ -133,10 +133,10 @@ jobs:
             "SMTP_HOST=smtp.mandrillapp.com",
             "SMTP_PORT=587",
             "SMTP_USER=automate@wassel.ps",
-            "SMTP_PASSWORD=$env:_SMTP_PASSWORD",
+            "SMTP_PASSWORD=`"$env:_SMTP_PASSWORD`"",
             "PICKUP_NOTIFY_EMAIL=Mqaqour@wassel.ps",
-            "WASSEL_AWB_USERNAME=$env:_WASSEL_AWB_USERNAME",
-            "WASSEL_AWB_PASSWORD=$env:_WASSEL_AWB_PASSWORD"
+            "WASSEL_AWB_USERNAME=`"$env:_WASSEL_AWB_USERNAME`"",
+            "WASSEL_AWB_PASSWORD=`"$env:_WASSEL_AWB_PASSWORD`""
           )
           $lines | Set-Content -Path deploy\.env
 
