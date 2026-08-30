@@ -26,7 +26,6 @@ export const PreChatForm: React.FC<PreChatFormProps> = ({ lang, onSubmit }) => {
     phone:        '',
     email:        '',
     serviceType:  'Domestic Shipping',
-    trackingNumber: '',
     firstMessage: '',
     language:     lang,
   });
@@ -40,7 +39,6 @@ export const PreChatForm: React.FC<PreChatFormProps> = ({ lang, onSubmit }) => {
     phone:          isAr ? 'رقم الجوال' : 'Mobile Number',
     email:          isAr ? 'البريد الإلكتروني (اختياري)' : 'Email (optional)',
     serviceType:    isAr ? 'نوع الخدمة' : 'Service Type',
-    trackingNumber: isAr ? 'رقم التتبع (اختياري)' : 'Tracking Number (optional)',
     message:        isAr ? 'الرسالة' : 'Message',
     send:           isAr ? 'إرسال' : 'Send',
     sending:        isAr ? 'جاري الإرسال...' : 'Sending...',
@@ -80,7 +78,7 @@ export const PreChatForm: React.FC<PreChatFormProps> = ({ lang, onSubmit }) => {
   );
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-4 overflow-y-auto" dir={isAr ? 'rtl' : 'ltr'}>
+    <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col gap-3 p-4 overflow-y-auto" dir={isAr ? 'rtl' : 'ltr'}>
       <div>
         <h3 className="text-base font-bold text-[#002B49]">{t.title}</h3>
         <p className="text-xs text-gray-500">{t.subtitle}</p>
@@ -108,8 +106,6 @@ export const PreChatForm: React.FC<PreChatFormProps> = ({ lang, onSubmit }) => {
           ))}
         </select>
       </div>
-
-      {field('trackingNumber', t.trackingNumber, 'text', false)}
 
       <div>
         <label htmlFor="firstMessage" className="block text-xs font-semibold text-gray-600 mb-1">

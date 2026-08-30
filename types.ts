@@ -1,4 +1,4 @@
-export type PageView = 'home' | 'tracking' | 'rates' | 'pickup' | 'login' | 'dashboard' | 'contact' | 'resources'
+export type PageView = 'home' | 'tracking' | 'rates' | 'pickup' | 'login' | 'dashboard' | 'contact' | 'resources' | 'about'
 | 'booking_window'
 | 'kb-admin'
 | 'system-settings'

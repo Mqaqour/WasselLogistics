@@ -5,9 +5,9 @@ export const startChatSchema = z.object({
   lastName:       z.string().max(100).optional(),
   phone:          z.string().min(7, 'Phone number is required').max(30),
   // The frontend sends "" (not undefined) for a blank optional field, which
-  // .email().optional() would still reject — treat empty string as absent.
+  // .email().optional() would still reject — treat empty/blank string as absent.
   email:          z.preprocess(
-                    (v) => (v === '' ? undefined : v),
+                    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
                     z.string().email('Invalid email address').max(150).optional()
                   ),
   serviceType:    z.string().min(1, 'Service type is required').max(100),

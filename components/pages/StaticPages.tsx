@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Language } from '../../types';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle, Loader2, Globe, AlertTriangle, MessageCircle } from 'lucide-react';
-import { suggestKbQuestions, getKbQuestionAnswer } from '../../services/questionsKbService';
 
 interface PageProps {
   lang: Language;
@@ -16,17 +15,6 @@ type ContactFormData = {
     trackingNumber: string;
     passportNumber: string;
 };
-
-type ContactAiSuggestion = {
-    answer: string;
-    relatedTopics: string[];
-};
-
-type ContactSuggestionResult = {
-    suggestion: ContactAiSuggestion;
-    logId: number;
-};
-
 
 // Jordan passport delivery numbers: 13 chars, start with RA/QW, end with JO — same rule used in Tracking.tsx.
 const isValidJordanPassportNumber = (id: string): boolean => {
@@ -125,7 +113,6 @@ const fetchLastShipmentStatus = async (
 };
 
 export const Contact: React.FC<PageProps> = ({ lang }) => {
-    const showContactAiSuggestedQuestions = false;
     const [formData, setFormData] = useState<ContactFormData>({
         topic: '',
         name: '',
@@ -138,10 +125,6 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSent, setIsSent] = useState(false);
     const [submitError, setSubmitError] = useState('');
-    const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
-    const [agentError, setAgentError] = useState('');
-    const [agentSuggestion, setAgentSuggestion] = useState<ContactAiSuggestion | null>(null);
-    const [contactLogId, setContactLogId] = useState<number | null>(null);
     const [passportStatus, setPassportStatus] = useState<{ status: string; date: string } | null>(null);
     const [passportStatusLoading, setPassportStatusLoading] = useState(false);
     const [shipmentStatus, setShipmentStatus] = useState<LastShipmentStatus | null>(null);
@@ -297,39 +280,10 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
 
     const updateField = (key: keyof ContactFormData, value: string) => {
         setFormData((prev) => ({ ...prev, [key]: value }));
-        if (agentSuggestion) {
-            setAgentSuggestion(null);
-        }
-        setContactLogId(null);
-        setAgentError('');
         setSubmitError('');
     };
 
-    const persistAiSuggestionLog = async (suggestion: ContactAiSuggestion): Promise<number> => {
-        const res = await fetch('/api/contact/log-ai-suggestion', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ...formData,
-                language: lang,
-                aiSuggestion: suggestion,
-            }),
-        });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error((err as { error?: string }).error ?? 'Failed to persist AI suggestion');
-        }
-
-        const data = await res.json() as { logId?: number };
-        if (typeof data.logId !== 'number' || data.logId <= 0) {
-            throw new Error('Contact log id is missing from AI persistence response');
-        }
-
-        return data.logId;
-    };
-
-    const sendContactMessage = async (suggestion?: ContactAiSuggestion | null, logId?: number | null) => {
+    const sendContactMessage = async () => {
         setIsSubmitting(true);
         setSubmitError('');
         try {
@@ -339,8 +293,6 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                 body: JSON.stringify({
                     ...formData,
                     language: lang,
-                    logId: logId ?? contactLogId,
-                    aiSuggestion: suggestion ?? agentSuggestion,
                 }),
             });
             if (!res.ok) {
@@ -355,99 +307,9 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         }
     };
 
-    const runAgentSuggestion = async (): Promise<ContactSuggestionResult | null> => {
-        setIsGeneratingSuggestion(true);
-        setAgentError('');
-
-        const resolveQueryLanguage = (input: string): 'ar' | 'en' => {
-            if (/[\u0600-\u06FF]/.test(input)) return 'ar';
-            if (/[A-Za-z]/.test(input)) return 'en';
-            return lang === 'ar' ? 'ar' : 'en';
-        };
-
-        const runKbFallbackSuggestion = async (): Promise<{ answer: string; relatedTopics: string[] } | null> => {
-            const topicKeywords: Record<string, string> = {
-                general: lang === 'en' ? 'general inquiry support' : 'استفسار عام دعم',
-                shipment: lang === 'en' ? 'shipment tracking delivery status' : 'تتبع شحنة حالة التسليم',
-                passport: lang === 'en' ? 'jordan passport renewal issuance' : 'الجواز الأردني تجديد إصدار',
-                complaint: lang === 'en' ? 'complaint shipment issue delay' : 'شكوى تأخير مشكلة شحنة',
-                claiming: lang === 'en' ? 'claim damaged lost shipment' : 'مطالبة شحنة مفقودة متضررة',
-            };
-
-            const queryParts = [
-                topicKeywords[formData.topic] ?? '',
-                formData.message,
-                formData.trackingNumber,
-                formData.passportNumber,
-            ].filter(Boolean);
-
-            const query = queryParts.join(' ').trim();
-            if (!query) return null;
-
-            const queryLang = resolveQueryLanguage(query);
-            const suggestions = await suggestKbQuestions(query, queryLang);
-            if (!suggestions.length) return null;
-
-            const topAnswer = await getKbQuestionAnswer(suggestions[0].questionId, queryLang);
-            const relatedTopics = Array.from(new Set(suggestions.slice(0, 4).map((item) => item.question))).filter(Boolean);
-
-            return {
-                answer: topAnswer.answer,
-                relatedTopics,
-            };
-        };
-
-        try {
-            const res = await fetch('/api/contact/ai-suggestion', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    topic: formData.topic,
-                    name: formData.name,
-                    mobile: formData.mobile,
-                    email: formData.email || undefined,
-                    trackingNumber: formData.trackingNumber || undefined,
-                    passportNumber: formData.passportNumber || undefined,
-                    message: formData.message,
-                    language: lang,
-                }),
-            });
-
-            if (!res.ok) {
-                throw new Error(`AI suggestion request failed (${res.status})`);
-            }
-
-            const result = await res.json() as { answer: string; relatedTopics: string[] };
-            const suggestion = {
-                answer: result.answer,
-                relatedTopics: result.relatedTopics,
-            };
-            const persistedLogId = await persistAiSuggestionLog(suggestion);
-            setContactLogId(persistedLogId);
-            setAgentSuggestion(suggestion);
-            return { suggestion, logId: persistedLogId };
-        } catch {
-            try {
-                const kbSuggestion = await runKbFallbackSuggestion();
-                if (kbSuggestion) {
-                    const persistedLogId = await persistAiSuggestionLog(kbSuggestion);
-                    setContactLogId(persistedLogId);
-                    setAgentSuggestion(kbSuggestion);
-                    return { suggestion: kbSuggestion, logId: persistedLogId };
-                }
-            } catch {
-                // ignore secondary fallback errors
-            }
-            setAgentError(lang === 'en' ? 'Could not generate AI suggestions right now.' : 'تعذر توليد اقتراحات الذكاء الاصطناعي حالياً.');
-            return null;
-        } finally {
-            setIsGeneratingSuggestion(false);
-        }
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (isSubmitting || isGeneratingSuggestion) {
+        if (isSubmitting) {
             return;
         }
 
@@ -456,11 +318,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
             return;
         }
 
-        const suggestionResult = agentSuggestion
-            ? { suggestion: agentSuggestion, logId: contactLogId }
-            : await runAgentSuggestion();
-
-        await sendContactMessage(suggestionResult?.suggestion ?? null, suggestionResult?.logId ?? contactLogId);
+        await sendContactMessage();
     };
 
     const t = {
@@ -505,9 +363,6 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
         selectTopic: lang === 'en' ? 'Select a topic...' : 'اختر موضوعاً...',
         btnSubmit: lang === 'en' ? 'Send Message' : 'إرسال الرسالة',
         sending: lang === 'en' ? 'Sending...' : 'جاري الإرسال...',
-        generatingSuggestion: lang === 'en' ? 'Generating AI suggestions...' : 'جاري توليد الاقتراحات الذكية...',
-        continueSend: lang === 'en' ? 'Continue Sending Email' : 'متابعة إرسال الرسالة',
-        aiSuggestedQuestions: lang === 'en' ? 'Suggested Questions' : 'الأسئلة المقترحة',
         successTitle: lang === 'en' ? 'Message Sent Successfully!' : 'تم إرسال الرسالة بنجاح!',
         successDesc: lang === 'en' ? 'Thank you for contacting us. Our team will review your message and respond as soon as possible.' : 'شكراً لتواصلك معنا. سيقوم فريقنا بمراجعة رسالتك والرد في أقرب وقت ممكن.',
         sendNew: lang === 'en' ? 'Send Another Message' : 'إرسال رسالة أخرى',
@@ -843,43 +698,10 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                         </div>
                                     )}
 
-                                    {(isGeneratingSuggestion || agentSuggestion || agentError) && (
-                                        <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 space-y-3">
-                                            {isGeneratingSuggestion && (
-                                                <div className="flex items-center gap-2 text-sm text-gray-700">
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                    {t.generatingSuggestion}
-                                                </div>
-                                            )}
-
-                                            {!isGeneratingSuggestion && agentSuggestion && (
-                                                <>
-                                                    <p className="text-base text-gray-800 whitespace-pre-wrap leading-relaxed">{agentSuggestion.answer}</p>
-                                                    {showContactAiSuggestedQuestions && agentSuggestion.relatedTopics.length > 0 && (
-                                                        <div className="space-y-2">
-                                                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t.aiSuggestedQuestions}</p>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {agentSuggestion.relatedTopics.map((topic, idx) => (
-                                                                    <span key={`${topic}-${idx}`} className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-blue-200 text-xs font-medium text-wassel-blue">
-                                                                        {topic}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </>
-                                            )}
-
-                                            {!isGeneratingSuggestion && agentError && (
-                                                <p className="text-sm text-red-600">{agentError}</p>
-                                            )}
-                                        </div>
-                                    )}
-
                                     {!notifyRequested && (
                                         <button
                                             type="submit"
-                                            disabled={isSubmitting || isGeneratingSuggestion}
+                                            disabled={isSubmitting}
                                             className="w-full bg-wassel-blue text-white font-bold py-4 rounded-xl shadow-lg hover:bg-wassel-darkBlue transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
                                         >
                                             {isSubmitting ? (
@@ -887,15 +709,10 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                                     <Loader2 className="w-5 h-5 animate-spin" />
                                                     {t.sending}
                                                 </>
-                                            ) : isGeneratingSuggestion ? (
-                                                <>
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                                    {t.generatingSuggestion}
-                                                </>
                                             ) : (
                                                 <>
                                                     <Send className="w-5 h-5 rtl:rotate-180" />
-                                                    {agentSuggestion ? t.continueSend : t.btnSubmit}
+                                                    {t.btnSubmit}
                                                 </>
                                             )}
                                         </button>
