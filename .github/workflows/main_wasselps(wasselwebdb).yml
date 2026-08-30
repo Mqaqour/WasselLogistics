@@ -118,7 +118,7 @@ jobs:
             "QUICKRATE_API_KEY=$env:_QUICKRATE_API_KEY",
             "QUICKRATE_BASE_URL=https://quickrate.wassel.ps",
             "QUICKRATE_RESULT_MODE=lowest",
-            "RESPOND_CHANNEL_ID=08d7f8165160db9866145bc7dcbb031",
+            "RESPOND_CHANNEL_ID=9e83805a2b9616a709a2dc556d353a0",
             "RESPOND_API_TOKEN=$env:_RESPOND_API_TOKEN",
             "RESPOND_WEBHOOK_URL=https://app.respond.io/custom/channel/webhook/",
             "AI_PROVIDER=azure",
