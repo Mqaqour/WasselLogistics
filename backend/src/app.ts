@@ -209,16 +209,32 @@ export function createApp() {
       res.status(400).json({ error: 'delivery_nos is required' });
       return;
     }
+    // If the client disconnects (nav away, retry) while the upstream call is
+    // still in flight, writing to res afterwards can emit a socket 'error'
+    // with no listener — which crashes the whole process, not just this
+    // request (see the uncaughtException note in server.ts). Guard both ends.
+    res.on('error', (err) => {
+      logger.warn('jopassport/track: response socket error (client likely disconnected):', err);
+    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
       const upstream = await fetch(
         `https://n8n.wassel.ps/webhook/2698a590-084f-43a6-a356-9c950a564609?JoNumber=${encodeURIComponent(joNumber)}`,
-        { headers: { Accept: 'application/json' } }
+        { headers: { Accept: 'application/json' }, signal: controller.signal }
       );
       const data = await upstream.json().catch(() => null);
       const records = data && typeof data === 'object' && Object.keys(data).length > 0 ? [data] : [];
-      res.status(upstream.status).json(records);
+      if (!res.headersSent && !res.writableEnded) {
+        res.status(upstream.status).json(records);
+      }
     } catch (err) {
-      res.status(502).json({ error: 'Passport upstream error' });
+      logger.error('jopassport/track: upstream request failed:', err);
+      if (!res.headersSent && !res.writableEnded) {
+        res.status(502).json({ error: 'Passport upstream error' });
+      }
+    } finally {
+      clearTimeout(timeout);
     }
   });
 
