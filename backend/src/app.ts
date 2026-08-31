@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
+import https from 'https';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from './config/env';
 import * as repo from './repositories/chat.repository';
@@ -198,6 +199,45 @@ export function createApp() {
   // JoNumber and returns one flat object, not the array the old API gave;
   // we wrap it here so the frontend's existing array-shaped parsing
   // (Tracking.tsx / StaticPages.tsx) doesn't need to change.
+  //
+  // n8n.wassel.ps's nginx front-end serves only the leaf certificate, not
+  // the Sectigo intermediate (`openssl s_client -showcerts -connect
+  // n8n.wassel.ps:443` → "Verify return code: 21 (unable to verify the
+  // first certificate)"). Windows/curl and browsers paper over this via AIA
+  // chasing / a cached intermediate; Node's TLS stack does not, so both
+  // fetch() and https.request() fail every call with
+  // UNABLE_TO_VERIFY_LEAF_SIGNATURE. rejectUnauthorized is relaxed here as
+  // an interim workaround for this internal server only — the real fix is
+  // for nginx to serve the full chain (leaf + intermediate), after which
+  // this should be reverted.
+  function fetchJoPassportTracking(joNumber: string, timeoutMs = 15_000): Promise<{ status: number; body: unknown }> {
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        `https://n8n.wassel.ps/webhook/2698a590-084f-43a6-a356-9c950a564609?JoNumber=${encodeURIComponent(joNumber)}`,
+        {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          timeout: timeoutMs,
+          rejectUnauthorized: false,
+        },
+        (upstreamRes) => {
+          const chunks: Buffer[] = [];
+          upstreamRes.on('data', (chunk) => chunks.push(chunk));
+          upstreamRes.on('end', () => {
+            const raw = Buffer.concat(chunks).toString('utf8');
+            let body: unknown = null;
+            try { body = raw ? JSON.parse(raw) : null; } catch { body = null; }
+            resolve({ status: upstreamRes.statusCode ?? 502, body });
+          });
+          upstreamRes.on('error', reject);
+        }
+      );
+      req.on('timeout', () => req.destroy(new Error('Passport upstream request timed out')));
+      req.on('error', reject);
+      req.end();
+    });
+  }
+
   app.post('/api/jopassport/track', trackingLimiter, async (req, res) => {
     const { delivery_nos } = req.body;
     if (!delivery_nos) {
@@ -216,25 +256,17 @@ export function createApp() {
     res.on('error', (err) => {
       logger.warn('jopassport/track: response socket error (client likely disconnected):', err);
     });
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
-      const upstream = await fetch(
-        `https://n8n.wassel.ps/webhook/2698a590-084f-43a6-a356-9c950a564609?JoNumber=${encodeURIComponent(joNumber)}`,
-        { headers: { Accept: 'application/json' }, signal: controller.signal }
-      );
-      const data = await upstream.json().catch(() => null);
-      const records = data && typeof data === 'object' && Object.keys(data).length > 0 ? [data] : [];
+      const { status, body } = await fetchJoPassportTracking(joNumber);
+      const records = body && typeof body === 'object' && Object.keys(body).length > 0 ? [body] : [];
       if (!res.headersSent && !res.writableEnded) {
-        res.status(upstream.status).json(records);
+        res.status(status).json(records);
       }
     } catch (err) {
       logger.error('jopassport/track: upstream request failed:', err);
       if (!res.headersSent && !res.writableEnded) {
         res.status(502).json({ error: 'Passport upstream error' });
       }
-    } finally {
-      clearTimeout(timeout);
     }
   });
 
