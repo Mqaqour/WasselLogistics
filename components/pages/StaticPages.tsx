@@ -22,6 +22,42 @@ const isValidJordanPassportNumber = (id: string): boolean => {
     return upper.length === 13 && (upper.startsWith('RA') || upper.startsWith('QW')) && upper.endsWith('JO');
 };
 
+// Unifies the alef/ya/ta-marbuta variants and drops tatweel/diacritics so status
+// strings from the passport API match regardless of how they were typed upstream.
+const normalizeArabic = (s: string): string =>
+    s
+        .replace(/[أإآٱ]/g, 'ا')
+        .replace(/ى/g, 'ي')
+        .replace(/ة/g, 'ه')
+        .replace(/[ـً-ٰٟ]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+// Passport processing stages during which we show the "no need to contact us"
+// notice instead of expecting the customer to ask. Matched as substrings against
+// the Arabic status, after normalization.
+const PASSPORT_IN_PROGRESS_KEYWORDS = [
+    'ادخال الطلب',
+    'قيد النقل',
+    'قيد التجديد',
+    'تم الوصول',
+    'تم التسليم',
+    'قيد التسليم',
+].map(normalizeArabic);
+
+// Expected working-days turnaround by passport-number prefix: RA = 30, QW = 14.
+const passportProcessingDays = (passportNumber: string): number | null => {
+    const upper = passportNumber.trim().toUpperCase();
+    if (upper.startsWith('RA')) return 30;
+    if (upper.startsWith('QW')) return 14;
+    return null;
+};
+
+const passportStatusInProgress = (statusAr: string): boolean => {
+    const normalized = normalizeArabic(statusAr);
+    return PASSPORT_IN_PROGRESS_KEYWORDS.some((kw) => normalized.includes(kw));
+};
+
 const JO_PASSPORT_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/jopassport/track`;
 const WASSEL_TRACK_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/wassel/track`;
 const DHL_TRACK_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/dhl/track`;
@@ -125,7 +161,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSent, setIsSent] = useState(false);
     const [submitError, setSubmitError] = useState('');
-    const [passportStatus, setPassportStatus] = useState<{ status: string; date: string } | null>(null);
+    const [passportStatus, setPassportStatus] = useState<{ status: string; statusAr: string; date: string; creationDate: string } | null>(null);
     const [passportStatusLoading, setPassportStatusLoading] = useState(false);
     const [shipmentStatus, setShipmentStatus] = useState<LastShipmentStatus | null>(null);
     const [shipmentStatusLoading, setShipmentStatusLoading] = useState(false);
@@ -144,6 +180,13 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
     ];
 
     const currentTopic = topics.find(t => t.id === formData.topic);
+
+    // Show the full passport processing notice (instead of the one-line status
+    // badge) when the number is RA/QW and the transaction is still in progress.
+    const passportNoticeDays = passportProcessingDays(formData.passportNumber);
+    const showPassportNotice = !!passportStatus
+        && passportNoticeDays !== null
+        && passportStatusInProgress(passportStatus.statusAr);
 
     // Once the customer opts into "notify me when it arrives", the message-sending
     // path is hidden — they're taking the waiting-list route instead.
@@ -193,9 +236,16 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                     : (lang === 'en'
                         ? (record.status_front_en || record.status_desc || record.status || '')
                         : (record.status_front_ar || record.status_desc || record.status || ''));
+                // Arabic status kept regardless of UI language so the processing-notice
+                // keyword match below doesn't depend on the site being in Arabic.
+                const statusAr = latest
+                    ? (latest.status_front_ar || latest.status || '')
+                    : (record.status_front_ar || record.status_desc || record.status || '');
                 const date = latest ? (latest.date || '') : (record.created_date || '');
 
-                if (!cancelled) setPassportStatus(status ? { status, date: date || '—' } : null);
+                if (!cancelled) setPassportStatus(status
+                    ? { status, statusAr, date: date || '—', creationDate: record.created_date || '' }
+                    : null);
             } catch {
                 if (!cancelled) setPassportStatus(null);
             } finally {
@@ -342,6 +392,18 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
             : 'رقم تتبع الجواز يجب أن يتكون من 13 رمزاً، ويبدأ بـ RA أو QW، وينتهي بـ JO.',
         checkingPassportStatus: lang === 'en' ? 'Checking status...' : 'جاري التحقق من الحالة...',
         lastPassportStatus: lang === 'en' ? 'Last status' : 'آخر حالة',
+        passportNoticeHeading: lang === 'en' ? 'About your passport transaction' : 'معلومات عن معاملة جواز السفر',
+        passportNoticeCurrentStatus: lang === 'en' ? 'Current status:' : 'الحالة الحالية:',
+        passportNoticeLastUpdate: lang === 'en' ? 'Last update:' : 'تاريخ آخر تحديث:',
+        passportNoticeBody: (days: number, creationDate: string) => lang === 'en'
+            ? `Issuing or renewing a passport currently takes around ${days} working days in general from the date the application was submitted${creationDate ? ` on ${creationDate}` : ''}. Processing time may vary from one application to another depending on the procedures and approvals required by the relevant official authorities.`
+            : `تستغرق معاملات إصدار أو تجديد جواز السفر خلال الفترة الحالية نحو ${days} يوم عمل بشكل عام من تاريخ تقديم الطلب${creationDate ? ` في ${creationDate}` : ''}، وقد تختلف مدة الإنجاز من معاملة إلى أخرى حسب الإجراءات والموافقات المطلوبة لدى الجهات الرسمية المختصة.`,
+        passportNoticeAuto: lang === 'en'
+            ? 'The status shown above is the latest update available on your application, and it will be updated automatically once there are any developments.'
+            : 'الحالة الظاهرة أعلاه هي آخر تحديث متوفر على معاملتكم، وسيتم تحديثها تلقائيًا عند ورود أي مستجدات.',
+        passportNoticeNoContact: lang === 'en'
+            ? 'There is no need to contact Wassel to follow up on the application as long as its status has not changed. You will be notified when there is an update or when the passport is ready for collection.'
+            : 'لا يتطلب الأمر التواصل مع واصل لمتابعة المعاملة ما دامت حالتها لم تتغير، وسيتم إشعاركم عند وجود تحديث أو عند جاهزية جواز السفر للاستلام.',
         checkingShipmentStatus: lang === 'en' ? 'Checking shipment status...' : 'جاري التحقق من حالة الشحنة...',
         lastShipmentStatus: lang === 'en' ? 'Last shipment status' : 'آخر حالة للشحنة',
         noShipmentStatus: lang === 'en'
@@ -636,13 +698,38 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                                                     {t.checkingPassportStatus}
                                                 </p>
                                             )}
-                                            {!passportStatusLoading && passportStatus && (
+                                            {!passportStatusLoading && passportStatus && !showPassportNotice && (
                                                 <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-gray-700">
                                                     <span className="font-semibold">{t.lastPassportStatus}: </span>
                                                     {passportStatus.status}
                                                     {passportStatus.date && passportStatus.date !== '—' && (
                                                         <span className="text-gray-500"> — {passportStatus.date}</span>
                                                     )}
+                                                </div>
+                                            )}
+                                            {!passportStatusLoading && passportStatus && showPassportNotice && (
+                                                <div className="mt-3 overflow-hidden rounded-xl border-2 border-wassel-blue/25 bg-blue-50 shadow-md border-s-[6px] border-s-wassel-yellow animate-enter">
+                                                    <div className="flex items-center gap-2 bg-wassel-blue px-4 py-2.5 text-white">
+                                                        <Clock className="h-4 w-4 shrink-0 text-wassel-yellow" />
+                                                        <span className="text-sm font-bold">{t.passportNoticeHeading}</span>
+                                                    </div>
+                                                    <div className="space-y-3 px-4 py-3.5 text-[13px] leading-relaxed text-gray-800">
+                                                        <div className="rounded-lg bg-white px-3 py-2.5 shadow-sm">
+                                                            <div>
+                                                                <span className="font-semibold text-wassel-blue">{t.passportNoticeCurrentStatus} </span>
+                                                                <span className="font-semibold">{passportStatus.status}</span>
+                                                            </div>
+                                                            {passportStatus.date && passportStatus.date !== '—' && (
+                                                                <div className="mt-1 text-gray-600">
+                                                                    <span className="font-semibold text-wassel-blue">{t.passportNoticeLastUpdate} </span>
+                                                                    {passportStatus.date}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <p>{t.passportNoticeBody(passportNoticeDays as number, passportStatus.creationDate)}</p>
+                                                        <p>{t.passportNoticeAuto}</p>
+                                                        <p className="font-semibold text-wassel-blue">{t.passportNoticeNoContact}</p>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
