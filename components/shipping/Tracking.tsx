@@ -1111,7 +1111,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                             <MessageCircle className="w-5 h-5 text-wassel-yellow" />
                             {t.inquiryTitle}
                         </h3>
-                        <button title={lang === 'en' ? 'Close inquiry form' : 'إغلاق نموذج الاستفسار'} aria-label={lang === 'en' ? 'Close inquiry form' : 'إغلاق نموذج الاستفسار'} onClick={resetContactForm} className="text-gray-300 hover:text-white transition-colors">
+                        <button title={lang === 'en' ? 'Close inquiry form' : 'إغلاق نموذج الاستفسار'} aria-label={lang === 'en' ? 'Close inquiry form' : 'إغلاق نموذج الاستفسار'} onClick={resetContactForm} className="-m-2 p-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors">
                             <X className="w-5 h-5" />
                         </button>
                     </div>

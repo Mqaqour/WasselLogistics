@@ -223,7 +223,7 @@ export const ShippingRequestModal: React.FC<ShippingRequestModalProps> = ({ lang
       >
         <div className="flex items-center justify-between bg-wassel-blue px-5 py-4 text-white">
           <h3 className="text-lg font-bold">{submitted ? t.successTitle : t.title}</h3>
-          <button onClick={onClose} aria-label={t.close} className="text-gray-300 hover:text-white transition-colors">
+          <button onClick={onClose} aria-label={t.close} className="-m-2 p-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>

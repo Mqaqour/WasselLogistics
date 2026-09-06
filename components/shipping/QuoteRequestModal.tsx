@@ -118,7 +118,7 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({ lang, onCl
             onClick={onClose}
             aria-label={t.close}
             title={t.close}
-            className="absolute top-4 right-4 rtl:left-4 rtl:right-auto text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute top-2 right-2 rtl:left-2 rtl:right-auto p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

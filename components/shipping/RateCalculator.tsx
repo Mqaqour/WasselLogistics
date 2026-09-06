@@ -27,6 +27,24 @@ const PALESTINIAN_CITIES = [
   { en: 'Jerusalem', ar: 'القدس' }
 ];
 
+// Carriers occasionally return an ETA sooner than we can realistically fulfil.
+// Never advertise an estimated delivery date less than this many calendar days out.
+const MIN_ETA_DAYS = 10;
+
+const atMidnight = (d: Date): Date => {
+  const c = new Date(d);
+  c.setHours(0, 0, 0, 0);
+  return c;
+};
+
+// Returns the ETA to display: the carrier's date when it is at least MIN_ETA_DAYS
+// away, otherwise today + MIN_ETA_DAYS.
+const clampEtaToMinDays = (etaDate: Date): Date => {
+  const floor = atMidnight(new Date());
+  floor.setDate(floor.getDate() + MIN_ETA_DAYS);
+  return atMidnight(etaDate) < floor ? floor : etaDate;
+};
+
 export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = false, initialTab = 'international' }) => {
   const [type, setType] = useState<'international' | 'domestic'>(initialTab);
   const origin = 'IL';
@@ -45,16 +63,17 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
   const [results, setResults] = useState<RateResult[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [noService, setNoService] = useState(false);
   const [carrierErrors, setCarrierErrors] = useState<{ carrier: string; message: string }[]>([]);
   const [requestModalDetails, setRequestModalDetails] = useState<ShippingRequestDetails | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   // Scroll the results (or error) into view once the rate calculation finishes
   useEffect(() => {
-    if (!loading && (results || apiError)) {
+    if (!loading && (results || apiError || noService)) {
       resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [loading, results, apiError]);
+  }, [loading, results, apiError, noService]);
 
   useEffect(() => {
     setType(initialTab);
@@ -94,6 +113,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       width: lang === 'en' ? 'Width' : 'العرض',
       height: lang === 'en' ? 'Height' : 'الارتفاع',
       noRates: lang === 'en' ? 'No rates available for the selected route.' : 'لا توجد أسعار متاحة للمسار المحدد.',
+      noService: lang === 'en' ? 'No service available' : 'لا توجد خدمة متاحة',
       carrierError: lang === 'en' ? 'Note: some carriers could not be reached.' : 'ملاحظة: لم يتمكن بعض الناقلين من الاستجابة.',
       requestShipment: lang === 'en' ? 'Request This Shipment' : 'اطلب هذه الشحنة',
   };
@@ -139,6 +159,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
     setLoading(true);
     setResults(null);
     setApiError(null);
+    setNoService(false);
     setCarrierErrors([]);
 
     if (type === 'international') {
@@ -191,8 +212,11 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
           const price = Number(quote.price);
           if (!Number.isFinite(price)) return acc;
 
-          const etaDate = quote.etaDays ? new Date(quote.etaDays) : null;
-          const deliveryDate = etaDate && !isNaN(etaDate.getTime())
+          const rawEtaDate = quote.etaDays ? new Date(quote.etaDays) : null;
+          const etaDate = rawEtaDate && !isNaN(rawEtaDate.getTime())
+            ? clampEtaToMinDays(rawEtaDate)
+            : null;
+          const deliveryDate = etaDate
             ? etaDate.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB', {
                 year: 'numeric', month: 'short', day: 'numeric',
               })
@@ -218,6 +242,13 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
     }
 
     // ── Domestic rates ───────────────────────────────────────────────────────
+    // Wassel does not currently serve Gaza as a destination.
+    if (destination === 'Gaza') {
+      setNoService(true);
+      setLoading(false);
+      return;
+    }
+
     setTimeout(() => {
       const isJerusalemRoute =
         domesticOriginCity === 'Jerusalem' || destination === 'Jerusalem';
@@ -256,14 +287,14 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
       <div className="bg-white shadow-xl rounded-lg border border-gray-100 animate-pop delay-200">
         <div className="flex border-b border-gray-200">
           <button
-            onClick={() => { setType('international'); setResults(null); setDestination(''); setDestCity(''); setDestZip(''); setHasSelectedDestination(false); }}
+            onClick={() => { setType('international'); setResults(null); setNoService(false); setDestination(''); setDestCity(''); setDestZip(''); setHasSelectedDestination(false); }}
             className={`flex-1 py-4 text-center font-medium flex items-center justify-center gap-2 transition-colors ${type === 'international' ? 'bg-slate-50 text-wassel-yellow border-b-2 border-wassel-yellow' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Globe className="w-5 h-5" />
             <span>{t.international}</span>
           </button>
           <button
-            onClick={() => { setType('domestic'); setResults(null); setDestination(''); setDestCity(''); setDestZip(''); setHasSelectedDestination(false); }}
+            onClick={() => { setType('domestic'); setResults(null); setNoService(false); setDestination(''); setDestCity(''); setDestZip(''); setHasSelectedDestination(false); }}
             className={`flex-1 py-4 text-center font-medium flex items-center justify-center gap-2 transition-colors ${type === 'domestic' ? 'bg-slate-50 text-wassel-yellow border-b-2 border-wassel-yellow' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <Map className="w-5 h-5" />
@@ -486,6 +517,12 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
         </div>
       )}
 
+      {noService && (
+        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center font-medium">
+          {t.noService}
+        </div>
+      )}
+
       {results && results.length === 0 && !apiError && (
         <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 text-sm text-center">
           {t.noRates}
@@ -503,7 +540,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
             return (
               <div className="bg-white p-4 rounded-lg shadow border border-gray-100 flex flex-col md:flex-row justify-between items-center hover:shadow-md transition-shadow">
                 <div className="mb-4 md:mb-0 w-full md:w-auto">
-                  <p className="text-xs text-green-600 mt-1 flex items-center">
+                  <p className="text-sm text-green-600 mt-1 flex items-center">
                     <span className="w-2 h-2 bg-green-500 rounded-full rtl:ml-1 ltr:mr-1"></span>
                     {t.estDelivery} {lowestRate.deliveryDate}
                   </p>
