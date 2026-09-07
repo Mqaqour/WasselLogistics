@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MessageCircle, Package, Calculator, CreditCard, Sparkles, Search, Building2 } from 'lucide-react';
 import { Language } from '../../types';
 import { AssistantSearchPalette } from '../shared/AssistantSearchPalette';
+import { CopilotToggle } from '../shared/CopilotToggle';
 
 interface FloatingActionBarProps {
     lang: Language;
@@ -111,6 +112,46 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
 
                     {visibleItems.map((item) => {
                         const isActive = activeAction === item.id;
+
+                        // The "Chat" launcher is the mouse-tracking mascot toggle: its eyes
+                        // follow the cursor, it blinks, and it goes solid red while there are
+                        // unread replies. Kept as a plain <div> (not <button>) so the nested
+                        // <button> inside CopilotToggle stays valid; data-quick-action="chat"
+                        // is preserved so ChatWidget can still animate its panel toward it.
+                        if (item.id === 'chat') {
+                            return (
+                                <div
+                                    key={item.id}
+                                    data-quick-action="chat"
+                                    className={`
+                                        group relative flex min-h-[56px] min-w-[56px] flex-col items-center justify-center
+                                        sm:min-w-[64px] transition-all duration-300
+                                        ${isActive ? 'scale-110' : 'hover:scale-105 opacity-90 hover:opacity-100'}
+                                    `}
+                                >
+                                    <div className="relative">
+                                        <CopilotToggle
+                                            size={38}
+                                            label={item.label}
+                                            alert={chatUnreadCount > 0}
+                                            onClick={() => onAction('chat')}
+                                        />
+                                        {chatUnreadCount > 0 && (
+                                            <span className="pointer-events-none absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border border-wassel-darkBlue">
+                                                {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className={`text-[10px] sm:text-xs font-medium mt-1 transition-colors ${isActive ? 'text-wassel-yellow' : 'text-gray-300'}`}>
+                                        {item.label}
+                                    </span>
+                                    {isActive && (
+                                        <span className="absolute w-1.5 h-1.5 rounded-full bg-wassel-yellow -top-1 right-1 md:top-2 md:-right-2"></span>
+                                    )}
+                                </div>
+                            );
+                        }
+
                         return (
                             <button
                                 key={item.id}

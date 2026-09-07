@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Maximize2, Minimize2 } from 'lucide-react';
+import { CopilotToggle } from '../shared/CopilotToggle';
 
 interface ChatHeaderProps {
   lang: 'ar' | 'en';
@@ -22,7 +23,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ lang, isExpanded, onTogg
 
   return (
     <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0 border-b border-gray-100 bg-white">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 flex items-center gap-2">
+        <CopilotToggle size={26} interactive={false} label={t.title} className="shrink-0" />
         <span className="text-sm font-medium truncate block text-gray-900">{t.title}</span>
       </div>
       <div className="flex items-center gap-0.5 text-gray-600">

@@ -11,3 +11,88 @@
   --font-sans: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
   --font-arabic: "IBM Plex Sans Arabic", sans-serif;
 }
+
+/* --- Mouse-tracking mascot toggle (components/shared/CopilotToggle.tsx) --- */
+.copilot-toggle {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease;
+}
+.copilot-toggle:hover,
+.copilot-toggle:focus-visible {
+  transform: translateY(-1px);
+}
+.copilot-toggle:active {
+  transform: translateY(0) scale(0.96);
+}
+.copilot-toggle:focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: 3px;
+  border-radius: 20px;
+}
+.copilot-toggle svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Decorative avatar (interactive={false}) â no click affordance, no hover lift. */
+.copilot-toggle.is-static {
+  display: inline-block;
+  cursor: default;
+  transition: none;
+}
+.copilot-toggle.is-static:hover,
+.copilot-toggle.is-static:active {
+  transform: none;
+}
+
+/* Solid red state fades in over the gradient. */
+.copilot-toggle .toggle-flush {
+  transition: opacity 0.2s ease;
+}
+.copilot-toggle.is-alert .toggle-flush {
+  opacity: 1 !important;
+}
+
+/* Small smoothing on the pupil offset between mouse-move updates. */
+.copilot-toggle .toggle-gaze {
+  transition: transform 0.12s ease-out;
+}
+
+/* "perk" = eyes nudge up and widen on hover, like it noticed your cursor. */
+.copilot-toggle .toggle-perk {
+  transform-origin: 48px 47px;
+  transition: transform 0.18s ease;
+}
+.copilot-toggle:hover .toggle-perk,
+.copilot-toggle:focus-visible .toggle-perk {
+  transform: translateY(-1.5px) scaleY(1.08);
+}
+
+/* blink = briefly collapse the eyelid group vertically. */
+.copilot-toggle .toggle-lid {
+  transform-origin: 48px 47px;
+  transition: transform 0.09s ease-in;
+}
+.copilot-toggle .toggle-lid.is-blinking {
+  transform: scaleY(0.08);
+}
+
+.copilot-toggle .toggle-eye-l,
+.copilot-toggle .toggle-eye-r {
+  transition: fill 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-toggle,
+  .copilot-toggle * {
+    transition: none !important;
+  }
+}
