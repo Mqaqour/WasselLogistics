@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 
 interface CopilotToggleProps
   extends Omit<React.ComponentPropsWithoutRef<'button'>, 'aria-label'> {
-  /** Fades the solid red "flush" squircle in over the gradient (error / attention state). */
+  /** Fades the Wassel-blue "flush" squircle in over the yellow gradient (attention state). */
   alert?: boolean;
   /** Stops the eyes from following the cursor (and re-centres them). */
   paused?: boolean;
@@ -24,10 +24,12 @@ interface CopilotToggleProps
 const MAX_OFFSET = 5;
 
 /**
- * Mouse-tracking mascot button: the eyes follow the cursor anywhere on the page,
- * it blinks on its own at human-ish intervals, and `alert` fades a red squircle
- * in over the blue/violet gradient. Motion is disabled under
- * `prefers-reduced-motion`. Styling lives in index.css under `.copilot-toggle`.
+ * Mouse-tracking mascot button in Wassel brand colours: a Wassel-yellow squircle
+ * (--color-wassel-yellow â --color-wassel-lightYellow) with white eyes that
+ * follow the cursor anywhere on the page. It blinks on its own at human-ish
+ * intervals; `alert` fades the body to Wassel blue (the white eyes stay
+ * legible). Motion is disabled under `prefers-reduced-motion`. Styling lives in
+ * index.css under `.copilot-toggle`.
  */
 export const CopilotToggle: React.FC<CopilotToggleProps> = ({
   onClick,
@@ -104,9 +106,10 @@ export const CopilotToggle: React.FC<CopilotToggleProps> = ({
   const face = (
     <svg viewBox="0 0 96 96" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
       <defs>
+        {/* Wassel yellow â light yellow (matches --color-wassel-yellow / --color-wassel-lightYellow). */}
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#1B70FF" />
-          <stop offset="100%" stopColor="#7C3AED" />
+          <stop offset="0%" stopColor="#FFD733" />
+          <stop offset="100%" stopColor="#FFCD00" />
         </linearGradient>
       </defs>
       <g className="toggle-body">
@@ -116,7 +119,7 @@ export const CopilotToggle: React.FC<CopilotToggleProps> = ({
         />
         <path
           className="toggle-flush"
-          fill="#E11D48"
+          fill="#002B49"
           opacity="0"
           d="M38 8 H58 A34 34 0 0 1 92 42 V54 A34 34 0 0 1 58 88 H38 A34 34 0 0 1 4 54 V42 A34 34 0 0 1 38 8 Z"
         />

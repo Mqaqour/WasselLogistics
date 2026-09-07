@@ -31,7 +31,7 @@
   transform: translateY(0) scale(0.96);
 }
 .copilot-toggle:focus-visible {
-  outline: 2px solid #7c3aed;
+  outline: 2px solid #ffffff; /* the only focusable instance sits on the dark floating bar */
   outline-offset: 3px;
   border-radius: 20px;
 }
@@ -53,7 +53,8 @@
   transform: none;
 }
 
-/* Solid red state fades in over the gradient. */
+/* Attention state: Wassel blue fades in over the yellow gradient
+   (white eyes stay legible on it). */
 .copilot-toggle .toggle-flush {
   transition: opacity 0.2s ease;
 }
@@ -83,11 +84,6 @@
 }
 .copilot-toggle .toggle-lid.is-blinking {
   transform: scaleY(0.08);
-}
-
-.copilot-toggle .toggle-eye-l,
-.copilot-toggle .toggle-eye-r {
-  transition: fill 0.2s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

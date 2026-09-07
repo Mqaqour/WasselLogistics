@@ -114,8 +114,8 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
                         const isActive = activeAction === item.id;
 
                         // The "Chat" launcher is the mouse-tracking mascot toggle: its eyes
-                        // follow the cursor, it blinks, and it goes solid red while there are
-                        // unread replies. Kept as a plain <div> (not <button>) so the nested
+                        // follow the cursor, it blinks, and it goes Wassel blue while there
+                        // are unread replies. Kept as a plain <div> (not <button>) so the nested
                         // <button> inside CopilotToggle stays valid; data-quick-action="chat"
                         // is preserved so ChatWidget can still animate its panel toward it.
                         if (item.id === 'chat') {
