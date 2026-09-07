@@ -7,6 +7,7 @@ import { FAQ_DATA } from '../../data/faqs';
 import { suggestKbQuestions, getKbQuestionAnswer, getRelatedKbQuestions, QuestionSuggestionItem, RelatedQuestionItem } from '../../services/questionsKbService';
 import { FormattedAnswer } from '../FormattedAnswer';
 import { AssistantSearchPalette } from '../shared/AssistantSearchPalette';
+import { CopilotToggle } from '../shared/CopilotToggle';
 
 interface ResourcesProps {
   lang: Language;
@@ -1070,7 +1071,13 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack, onAction })
 
         <div className="max-w-3xl mx-auto px-4 relative z-30 text-center">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 tracking-tight animate-slide-up">
-                <span className="mr-3 rtl:ml-3 rtl:mr-0">👋</span>{t.heroTitle}
+                <CopilotToggle
+                    interactive={false}
+                    size={48}
+                    label={t.heroTitle}
+                    className="mr-3 rtl:ml-3 rtl:mr-0 align-middle"
+                />
+                {t.heroTitle}
             </h1>
             <p className="text-base md:text-lg text-blue-200 mb-10 max-w-xl mx-auto animate-slide-up delay-100">
                 {t.heroSubtitle}
