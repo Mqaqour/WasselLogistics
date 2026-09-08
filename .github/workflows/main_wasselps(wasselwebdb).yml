@@ -113,6 +113,7 @@ jobs:
           _DHL_ACCOUNT_NUMBER: ${{ secrets.DhlAccountNumber }}
           _FEDEX_CLIENT_ID:     ${{ secrets.FedExTrackClientId }}
           _FEDEX_CLIENT_SECRET: ${{ secrets.FedExTrackClientSecret }}
+          _HADARA_SMS_API_KEY:  ${{ secrets.HADARA_SMS_API_KEY }}
         run: |
           $lines = @(
             "DB_SERVER=wassel.database.windows.net",
@@ -152,7 +153,9 @@ jobs:
             "DhlPlatformName=.NET Framework",
             "DhlPlatformVersion=4.8",
             "FedExTrackClientId=`"$env:_FEDEX_CLIENT_ID`"",
-            "FedExTrackClientSecret=`"$env:_FEDEX_CLIENT_SECRET`""
+            "FedExTrackClientSecret=`"$env:_FEDEX_CLIENT_SECRET`"",
+            "HADARA_SMS_BASE_URL=http://smsservice.hadara.ps:4545/SMS.ashx/bulkservice/sessionvalue/sendmessage/",
+            "HADARA_SMS_API_KEY=`"$env:_HADARA_SMS_API_KEY`""
           )
           $lines | Set-Content -Path deploy\.env
 
