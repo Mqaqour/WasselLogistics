@@ -23,12 +23,21 @@ interface ActionRequired {
     service: string;
 }
 
+// FedEx's "ancillary details" on a held/delayed shipment — a reason code plus the
+// human-readable explanation and (when FedEx provides one) what the importer needs to do.
+interface DelayReasonInfo {
+    code: string;
+    reason: string;
+    action: string;
+}
+
 interface ShipmentInfo {
     category: string;
     serviceType: string;
     origin: string;
     destination: string;
     weight: string;
+    delayReasons?: DelayReasonInfo[];
 }
 
 const WASSEL_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/wassel/track`;
@@ -317,7 +326,36 @@ const parseDhlJson = (shipment: any, lang: Language) => {
 const formatFedexAddress = (address: any): string =>
   address ? [address.city, address.stateOrProvinceCode, address.countryCode].filter(Boolean).join(', ') : '—';
 
-const parseFedexJson = (trackResult: any, lang: Language) => {
+// FedEx returns one entry per associated piece for a multi-piece shipment (MPS) — the
+// delay/exception reason we actually want to surface can land on any of them, not just
+// the first, so this is collected separately from the single piece used for the rest
+// of the summary below.
+const collectFedexDelayReasons = (trackResults: any[]): DelayReasonInfo[] => {
+  const reasons: DelayReasonInfo[] = [];
+  const seen = new Set<string>();
+
+  trackResults.forEach((piece) => {
+    const ancillaryDetails: any[] = Array.isArray(piece?.latestStatusDetail?.ancillaryDetails)
+      ? piece.latestStatusDetail.ancillaryDetails
+      : [];
+
+    ancillaryDetails.forEach((detail) => {
+      const reason = detail.actionDescription || detail.reasonDescription || '';
+      const action = detail.action || '';
+      if (!reason && !action) return; // FedEx sometimes sends a bare code with no text at all
+
+      const key = `${detail.reason || ''}|${reason}|${action}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      reasons.push({ code: detail.reason || '', reason, action });
+    });
+  });
+
+  return reasons;
+};
+
+const parseFedexJson = (trackResults: any[], lang: Language) => {
+  const trackResult = trackResults[0] ?? {};
   const shipperAddr = trackResult.shipperInformation?.address;
   const recipientAddr = trackResult.recipientInformation?.address;
 
@@ -328,12 +366,15 @@ const parseFedexJson = (trackResult: any, lang: Language) => {
     ?? [];
   const weightEntry = weightEntries.find((w) => w.unit === 'KG') ?? weightEntries[0];
 
+  const delayReasons = collectFedexDelayReasons(trackResults);
+
   const shipmentInfo: ShipmentInfo = {
     category: lang === 'en' ? 'International' : 'دولي',
     serviceType: trackResult.serviceDetail?.description || 'FedEx',
     origin: formatFedexAddress(shipperAddr),
     destination: formatFedexAddress(recipientAddr),
     weight: weightEntry?.value ? `${weightEntry.value} ${weightEntry.unit || ''}`.trim() : '—',
+    delayReasons: delayReasons.length > 0 ? delayReasons : undefined,
   };
 
   const scanEvents: any[] = Array.isArray(trackResult.scanEvents) ? trackResult.scanEvents : [];
@@ -445,6 +486,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
       infoWeight: lang === 'en' ? 'Weight' : 'الوزن',
       infoCategory: lang === 'en' ? 'Type' : 'النوع',
       infoService: lang === 'en' ? 'Service' : 'الخدمة',
+      delayReasonTitle: lang === 'en' ? 'Clearance Delay — Reason' : 'تأخير جمركي — السبب',
 
       // Contact Form
       inquiryTitle: lang === 'en' ? 'Inquire About Shipment' : 'استفسار بخصوص الشحنة',
@@ -575,14 +617,15 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
         });
 
         const json = await response.json();
-        const trackResult = json?.output?.completeTrackResults?.[0]?.trackResults?.[0];
+        const trackResults: any[] = json?.output?.completeTrackResults?.[0]?.trackResults ?? [];
+        const trackResult = trackResults[0];
 
         if (!response.ok || !trackResult || trackResult.error) {
           setNotFound(true);
           return;
         }
 
-        const parsed = parseFedexJson(trackResult, lang);
+        const parsed = parseFedexJson(trackResults, lang);
         setAwbRecord(trackResult);
         setShipmentInfo(parsed.shipmentInfo);
         setTrackingResult(parsed.trackingResult);
@@ -902,6 +945,28 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                   </button>
                 </div>
               </div>
+
+              {shipmentInfo?.delayReasons && shipmentInfo.delayReasons.length > 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-amber-800">
+                    <AlertTriangle className="w-5 h-5 shrink-0" />
+                    <span className="text-sm font-bold">{t.delayReasonTitle}</span>
+                  </div>
+                  <ul className="flex flex-col gap-2.5 ps-7">
+                    {shipmentInfo.delayReasons.map((delay, i) => (
+                      <li key={`${delay.code}-${i}`} className="text-sm leading-snug">
+                        <p className="font-semibold text-amber-900">
+                          {delay.reason}
+                          {delay.code && <span className="font-normal text-amber-600"> ({delay.code})</span>}
+                        </p>
+                        {delay.action && delay.action !== delay.reason && (
+                          <p className="text-amber-700 mt-0.5">{delay.action}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {shipmentInfo && (
                 <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
