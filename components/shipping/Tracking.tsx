@@ -31,6 +31,16 @@ interface DelayReasonInfo {
     action: string;
 }
 
+// A single scan event that carried an exception code — the raw history behind the
+// current reason above (e.g. an earlier "clearance instructions required" scan).
+interface DelayExceptionInfo {
+    code: string;
+    description: string;
+    eventDescription: string;
+    date: string;
+    time: string;
+}
+
 interface ShipmentInfo {
     category: string;
     serviceType: string;
@@ -38,6 +48,7 @@ interface ShipmentInfo {
     destination: string;
     weight: string;
     delayReasons?: DelayReasonInfo[];
+    delayExceptions?: DelayExceptionInfo[];
 }
 
 const WASSEL_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/wassel/track`;
@@ -354,6 +365,41 @@ const collectFedexDelayReasons = (trackResults: any[]): DelayReasonInfo[] => {
   return reasons;
 };
 
+// The raw exception history behind the current reason: every scan event across all
+// pieces that carried a non-empty exceptionCode, most recent first.
+const collectFedexExceptions = (trackResults: any[], lang: Language): DelayExceptionInfo[] => {
+  const exceptions: (DelayExceptionInfo & { sortKey: number })[] = [];
+  const seen = new Set<string>();
+
+  trackResults.forEach((piece) => {
+    const scanEvents: any[] = Array.isArray(piece?.scanEvents) ? piece.scanEvents : [];
+
+    scanEvents.forEach((event) => {
+      const code = event.exceptionCode || '';
+      if (!code) return;
+
+      const description = event.exceptionDescription || '';
+      const eventDescription = event.eventDescription || event.derivedStatus || '';
+      const key = `${event.date || ''}|${code}|${description}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      const dt = event.date ? new Date(event.date) : null;
+      const valid = dt && !isNaN(dt.getTime());
+      exceptions.push({
+        code,
+        description,
+        eventDescription,
+        date: valid ? dt!.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US') : '—',
+        time: valid ? dt!.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '—',
+        sortKey: valid ? dt!.getTime() : 0,
+      });
+    });
+  });
+
+  return exceptions.sort((a, b) => b.sortKey - a.sortKey).map(({ sortKey, ...rest }) => rest);
+};
+
 const parseFedexJson = (trackResults: any[], lang: Language) => {
   const trackResult = trackResults[0] ?? {};
   const shipperAddr = trackResult.shipperInformation?.address;
@@ -367,6 +413,7 @@ const parseFedexJson = (trackResults: any[], lang: Language) => {
   const weightEntry = weightEntries.find((w) => w.unit === 'KG') ?? weightEntries[0];
 
   const delayReasons = collectFedexDelayReasons(trackResults);
+  const delayExceptions = collectFedexExceptions(trackResults, lang);
 
   const shipmentInfo: ShipmentInfo = {
     category: lang === 'en' ? 'International' : 'دولي',
@@ -375,6 +422,7 @@ const parseFedexJson = (trackResults: any[], lang: Language) => {
     destination: formatFedexAddress(recipientAddr),
     weight: weightEntry?.value ? `${weightEntry.value} ${weightEntry.unit || ''}`.trim() : '—',
     delayReasons: delayReasons.length > 0 ? delayReasons : undefined,
+    delayExceptions: delayExceptions.length > 0 ? delayExceptions : undefined,
   };
 
   const scanEvents: any[] = Array.isArray(trackResult.scanEvents) ? trackResult.scanEvents : [];
@@ -487,6 +535,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
       infoCategory: lang === 'en' ? 'Type' : 'النوع',
       infoService: lang === 'en' ? 'Service' : 'الخدمة',
       delayReasonTitle: lang === 'en' ? 'Clearance Delay — Reason' : 'تأخير جمركي — السبب',
+      delayExceptionTitle: lang === 'en' ? 'Exception history' : 'سجل الاستثناءات',
 
       // Contact Form
       inquiryTitle: lang === 'en' ? 'Inquire About Shipment' : 'استفسار بخصوص الشحنة',
@@ -965,6 +1014,22 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                       </li>
                     ))}
                   </ul>
+
+                  {shipmentInfo.delayExceptions && shipmentInfo.delayExceptions.length > 0 && (
+                    <div className="border-t border-amber-200 pt-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">{t.delayExceptionTitle}</p>
+                      <ul className="flex flex-col gap-2 ps-7">
+                        {shipmentInfo.delayExceptions.map((exc, i) => (
+                          <li key={`${exc.code}-${exc.date}-${exc.time}-${i}`} className="text-xs leading-snug text-amber-800">
+                            <span className="text-amber-500">{exc.date} · {exc.time}</span>
+                            {' — '}
+                            <span>{exc.description || exc.eventDescription}</span>
+                            {exc.code && <span className="text-amber-500"> ({exc.code})</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
 
