@@ -71,9 +71,20 @@ export function scheduleOrphanCleanup(filePath: string): void {
  * Serve the file — possibly more than once (HEAD probes, Range requests, retries
  * all legitimately re-request the same URL). Deletion is left entirely to
  * `scheduleOrphanCleanup`'s timer; see the file-level comment for why.
+ *
+ * The global helmet config locks these responses down for the site itself
+ * (`Cross-Origin-Resource-Policy: same-origin`, a strict CSP, `X-Frame-Options`).
+ * respond.io renders the attachment with an <img> in the agent's browser on a
+ * different site, so those defaults make the browser block it and show a broken
+ * image. Relax them for this one endpoint: the unguessable UUID URL is the
+ * access control, and the payload carries nothing sensitive.
  */
 export function sendChatAttachment(res: import('express').Response, filePath: string): void {
-  res.sendFile(filePath, (err) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.removeHeader('Content-Security-Policy');
+  res.removeHeader('X-Frame-Options');
+  res.sendFile(filePath, { headers: { 'Content-Disposition': 'inline' } }, (err) => {
     if (err) logger.warn(`Failed to send chat upload ${filePath}: ${err.message}`);
   });
 }
