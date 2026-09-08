@@ -30,7 +30,19 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ lang, sessionId, onSessi
     let cancelled = false;
 
     chatApi.getMessages(sessionId)
-      .then(({ messages: hist }) => { if (!cancelled) setMessages(hist); })
+      .then(({ messages: hist }) => {
+        if (cancelled) return;
+        // Merge rather than replace: a reply can arrive over the socket while this
+        // history fetch is still in flight, and a plain overwrite would wipe it back
+        // out the moment the (now-stale) REST snapshot lands.
+        setMessages((prev) => {
+          const histIds = new Set(hist.map((m) => m.messageId));
+          const extra = prev.filter((m) => !histIds.has(m.messageId));
+          return [...hist, ...extra].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        });
+      })
       .catch((err) => {
         if (err instanceof Error && err.message === 'Session not found.') {
           onSessionExpired?.();
