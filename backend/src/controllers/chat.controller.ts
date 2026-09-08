@@ -8,7 +8,7 @@ import {
   UPLOAD_DIR,
   attachmentTypeForMime,
   scheduleOrphanCleanup,
-  sendChatAttachmentOnce,
+  sendChatAttachment,
 } from '../utils/chatUploads';
 
 const ATTACHMENT_FILENAME_RE = /^[a-f0-9-]{36}(\.[a-zA-Z0-9]{1,10})?$/;
@@ -78,7 +78,9 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
 /**
  * GET /api/chat/attachments/:filename
  *
- * Serves an uploaded attachment exactly once, then deletes it (burn-after-read).
+ * Serves an uploaded attachment — repeatably, since a single logical download can
+ * involve more than one request (HEAD probe, Range chunks, a retry). The file is
+ * cleaned up on a timer (scheduleOrphanCleanup), not after a single response.
  */
 export function getAttachment(req: Request, res: Response): void {
   const { filename } = req.params;
@@ -93,7 +95,7 @@ export function getAttachment(req: Request, res: Response): void {
     return;
   }
 
-  sendChatAttachmentOnce(res, filePath);
+  sendChatAttachment(res, filePath);
 }
 
 /**

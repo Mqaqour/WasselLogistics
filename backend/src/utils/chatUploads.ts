@@ -3,9 +3,18 @@
 //
 // respond.io's Custom Channel API requires attachments to be sent as a public
 // URL it fetches from — there is no inline/base64 option. Since we don't want
-// to run real file storage for this, uploads are written to a temp folder,
-// served exactly once, and deleted right after (with a timed fallback in case
-// the file is never fetched, e.g. the respond.io forward fails).
+// to run real file storage for this, uploads are written to a temp folder and
+// deleted on a timer a few minutes later.
+//
+// IMPORTANT: this used to delete the file the instant it was served once
+// ("burn after read"), which broke real-world delivery — a fetcher can
+// legitimately hit the URL more than once for a single download (a HEAD
+// request to check content-type/size before the GET, a Range request that
+// gets split into multiple requests, an automatic retry on a slow/dropped
+// connection, ...). respond.io does exactly this, so the second request was
+// landing on an already-deleted file and the image silently failed to reach
+// the agent. The UUID filename is the actual access control (unguessable);
+// the timer is just cleanup, not a single-use guarantee.
 // ─────────────────────────────────────────────────────────────────────────────
 import fs from 'fs';
 import path from 'path';
@@ -15,7 +24,7 @@ import { logger } from './logger';
 
 export const UPLOAD_DIR = path.join(__dirname, '../../tmp/chat-uploads');
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB — comfortably under respond.io's media limits
-const ORPHAN_CLEANUP_MS = 10 * 60 * 1000; // delete unfetched uploads after 10 minutes
+const ORPHAN_CLEANUP_MS = 10 * 60 * 1000; // delete every upload 10 minutes after it's stored, fetched or not
 
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/', 'audio/'];
 const ALLOWED_MIME_EXACT = ['application/pdf'];
@@ -58,14 +67,13 @@ export function scheduleOrphanCleanup(filePath: string): void {
   }, ORPHAN_CLEANUP_MS).unref();
 }
 
-/** Serve the file once, then delete it — burn-after-read. */
-export function sendChatAttachmentOnce(res: import('express').Response, filePath: string): void {
+/**
+ * Serve the file — possibly more than once (HEAD probes, Range requests, retries
+ * all legitimately re-request the same URL). Deletion is left entirely to
+ * `scheduleOrphanCleanup`'s timer; see the file-level comment for why.
+ */
+export function sendChatAttachment(res: import('express').Response, filePath: string): void {
   res.sendFile(filePath, (err) => {
-    fs.unlink(filePath, (unlinkErr) => {
-      if (unlinkErr && unlinkErr.code !== 'ENOENT') {
-        logger.warn(`Failed to delete chat upload after serving ${filePath}: ${unlinkErr.message}`);
-      }
-    });
     if (err) logger.warn(`Failed to send chat upload ${filePath}: ${err.message}`);
   });
 }
