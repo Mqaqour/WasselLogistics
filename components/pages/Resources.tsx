@@ -96,12 +96,25 @@ export const Resources: React.FC<ResourcesProps> = ({ lang, onTrack, onAction })
       .then(r => r.json())
       .then(d => { if (Array.isArray(d.categories)) setApiCategories(d.categories); })
       .catch(() => {});
-    fetch('/api/resource-sub-items?active=true')
-      .then(r => r.json())
-      .then(d => {
-        if (Array.isArray(d.items)) {
-          const grouped: Record<string, typeof d.items> = {};
-          for (const item of d.items) {
+    Promise.all([
+      fetch('/api/resource-sub-items?active=true').then(r => r.json()).catch(() => ({})),
+      fetch('/api/resource-sections').then(r => r.json()).catch(() => ({})),
+    ])
+      .then(([itemsData, sectionsData]) => {
+        // Sections hidden by an admin: drop every sub-item that references one by name.
+        const hiddenSections: Record<string, Set<string>> = {};
+        if (Array.isArray(sectionsData?.sections)) {
+          for (const s of sectionsData.sections) {
+            if (s.is_active) continue;
+            if (!hiddenSections[s.category_code]) hiddenSections[s.category_code] = new Set();
+            hiddenSections[s.category_code].add(String(s.title_ar ?? '').trim());
+          }
+        }
+        if (Array.isArray(itemsData?.items)) {
+          const grouped: Record<string, typeof itemsData.items> = {};
+          for (const item of itemsData.items) {
+            const hidden = hiddenSections[item.category_code];
+            if (hidden && item.section_ar && hidden.has(String(item.section_ar).trim())) continue;
             if (!grouped[item.category_code]) grouped[item.category_code] = [];
             grouped[item.category_code].push(item);
           }

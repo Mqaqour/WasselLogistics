@@ -5,5 +5,6 @@ const router = Router();
 
 router.get('/', controller.listSections);
 router.post('/', controller.createSection);
+router.patch('/:id', controller.updateSection);
 
 export default router;

@@ -287,6 +287,7 @@ interface GroupedResourceSection {
   titleAr: string | null;
   titleEn: string | null;
   sortOrder: number;
+  isActive: boolean;
   items: ResourceSubItem[];
 }
 
@@ -357,6 +358,8 @@ const api = {
     adminFetch(`/api/resource-sections?categoryCode=${encodeURIComponent(categoryCode)}`).then(r => r.json()),
   createResourceSection: (body: object) =>
     adminFetch('/api/resource-sections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+  updateResourceSection: (id: number, body: object) =>
+    adminFetch(`/api/resource-sections/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
 };
 
 // ── Shared style tokens ───────────────────────────────────────────────────────
@@ -708,6 +711,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
         titleAr,
         titleEn: section.title_en?.trim() || null,
         sortOrder: section.sort_order,
+        isActive: section.is_active,
         items: [],
       });
     }
@@ -729,6 +733,7 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
         titleAr,
         titleEn,
         sortOrder: item.sort_order,
+        isActive: true,
         items: [item],
       });
     }
@@ -1059,6 +1064,14 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
     const res = await api.updateSubItem(item.id, { isActive: !item.is_active });
     if (res.item) {
       setSubItemsMap(m => ({ ...m, [catCode]: (m[catCode] ?? []).map(i => i.id === item.id ? { ...i, is_active: !item.is_active } : i) }));
+    } else flash(res.error ?? 'فشل التحديث', false);
+  };
+
+  const handleToggleSectionActive = async (section: { id: number | null; isActive: boolean }, catCode: string) => {
+    if (section.id == null) return;
+    const res = await api.updateResourceSection(section.id, { isActive: !section.isActive });
+    if (res.section) {
+      setSectionsMap(m => ({ ...m, [catCode]: (m[catCode] ?? []).map(s => s.id === section.id ? { ...s, is_active: !section.isActive } : s) }));
     } else flash(res.error ?? 'فشل التحديث', false);
   };
 
@@ -2149,9 +2162,14 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
 
                                 return (
                                 <div key={section.key} className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                                  <div className={`flex flex-wrap items-center justify-between gap-3 bg-gray-50 px-4 py-3 ${isSectionCollapsed ? '' : 'border-b border-gray-100'}`}>
+                                  <div className={`flex flex-wrap items-center justify-between gap-3 bg-gray-50 px-4 py-3 ${isSectionCollapsed ? '' : 'border-b border-gray-100'} ${section.id != null && !section.isActive ? 'opacity-60' : ''}`}>
                                     <div>
-                                      <h4 className="text-sm font-bold text-gray-800">{section.titleAr ?? 'بدون قسم'}</h4>
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="text-sm font-bold text-gray-800">{section.titleAr ?? 'بدون قسم'}</h4>
+                                        {section.id != null && !section.isActive && (
+                                          <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">مخفي</span>
+                                        )}
+                                      </div>
                                       {section.titleEn && (
                                         <p className="mt-0.5 text-xs text-gray-400" dir="ltr">{section.titleEn}</p>
                                       )}
@@ -2161,6 +2179,17 @@ export const KnowledgeBaseAdmin: React.FC<KnowledgeBaseAdminProps> = ({ lang }) 
                                       {section.titleAr && (
                                         <button className="text-xs font-medium text-blue-700 hover:text-blue-800" onClick={() => openSubItemForm(section)}>
                                           <PlusCircle size={13} className="inline-block align-text-bottom" /> إضافة عنوان
+                                        </button>
+                                      )}
+                                      {section.id != null && (
+                                        <button
+                                          type="button"
+                                          title={section.isActive ? 'إخفاء القسم من صفحة المصادر' : 'إظهار القسم في صفحة المصادر'}
+                                          aria-label={section.isActive ? 'إخفاء القسم' : 'إظهار القسم'}
+                                          onClick={() => handleToggleSectionActive(section, cat.code)}
+                                          className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${section.isActive ? 'bg-blue-600' : 'bg-gray-300'}`}
+                                        >
+                                          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${section.isActive ? 'right-0.5' : 'left-0.5'}`} />
                                         </button>
                                       )}
                                       <button

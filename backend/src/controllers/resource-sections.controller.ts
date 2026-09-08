@@ -67,3 +67,50 @@ export async function createSection(req: Request, res: Response): Promise<void> 
     res.status(500).json({ error: 'Failed to create resource section' });
   }
 }
+
+/** PATCH /api/resource-sections/:id — partial update; `isActive` toggles public visibility */
+export async function updateSection(req: Request, res: Response): Promise<void> {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
+
+    const { titleAr, titleEn, sortOrder, isActive } = req.body as Record<string, unknown>;
+    const sets: string[] = [];
+    const request = (await getPool()).request().input('id', sql.Int, id);
+
+    if (titleAr !== undefined) {
+      request.input('titleAr', sql.NVarChar(200), String(titleAr).trim());
+      sets.push('title_ar = @titleAr');
+    }
+    if (titleEn !== undefined) {
+      request.input('titleEn', sql.NVarChar(200), titleEn ? String(titleEn).trim() : null);
+      sets.push('title_en = @titleEn');
+    }
+    if (sortOrder !== undefined) {
+      request.input('sortOrder', sql.Int, Number(sortOrder));
+      sets.push('sort_order = @sortOrder');
+    }
+    if (isActive !== undefined) {
+      request.input('isActive', sql.Bit, isActive ? 1 : 0);
+      sets.push('is_active = @isActive');
+    }
+
+    if (!sets.length) { res.status(400).json({ error: 'No fields to update' }); return; }
+
+    const result = await request.query(
+      `UPDATE [dbo].[resource_sections] SET ${sets.join(', ')}
+       OUTPUT INSERTED.id, INSERTED.category_code, INSERTED.title_ar, INSERTED.title_en, INSERTED.sort_order, INSERTED.is_active
+       WHERE id = @id`
+    );
+
+    if (!result.recordset.length) { res.status(404).json({ error: 'Section not found' }); return; }
+    res.json({ section: result.recordset[0] });
+  } catch (err) {
+    const anyErr = err as { number?: number };
+    if (anyErr.number === 2627 || anyErr.number === 2601) {
+      res.status(409).json({ error: 'A section with this Arabic title already exists in this card' });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to update resource section' });
+  }
+}
