@@ -23,6 +23,7 @@ export * from './support/ChatBot';
 export * from './pages/Resources';
 export * from './pages/About';
 export * from './pages/StaticPages';
+export * from './pages/Maintenance';
 
 export * from './sections/AdsBanner';
 export * from './sections/SignUpBenefits';

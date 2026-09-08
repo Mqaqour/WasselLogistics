@@ -21,6 +21,8 @@ import {
   NotifyMeModal,
   QuoteRequestModal,
   BookingWindow,
+  Maintenance,
+  MaintenanceConfig,
 } from './components';
 import { ChatWidget } from './components/chat/ChatWidget';
 import { Seo } from './components/Seo';
@@ -168,6 +170,18 @@ export const App: React.FC = () => {
   // Background Image State
   const [bgError, setBgError] = useState(false);
 
+  // Maintenance / "under construction" takeover — driven by public/maintenance.json
+  // so ops can flip it without a rebuild. Null until the flag is fetched.
+  const [maintenance, setMaintenance] = useState<MaintenanceConfig | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${import.meta.env.BASE_URL}maintenance.json`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (!cancelled && data && typeof data === 'object') setMaintenance(data as MaintenanceConfig); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   // Keep legacy booking query support while routing to /booking
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -281,6 +295,17 @@ export const App: React.FC = () => {
         setIsChatOpen(false); 
     }
   };
+
+  // MAINTENANCE TAKEOVER — shown to customers only. Logged-in staff and the
+  // /admin and /login routes keep working so the site can be managed while it's on.
+  const maintenanceBypass =
+    isLoggedIn ||
+    /\/(admin|login)(\/|$)/.test(pathnameWithoutLocale) ||
+    new URLSearchParams(location.search).has('nomaintenance');
+  const showMaintenance = Boolean(maintenance?.enabled) && !maintenanceBypass;
+  if (showMaintenance) {
+    return <Maintenance lang={lang} config={maintenance} />;
+  }
 
   // --- SPECIAL RENDER FOR BOOKING WINDOW (No Layout) ---
   if (currentView === 'booking_window') {
