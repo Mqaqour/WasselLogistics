@@ -42,6 +42,19 @@
   overflow: visible;
 }
 
+/* Colours are pulled from the Wassel @theme tokens rather than hard-coded in the
+   SVG, so a brand palette change flows through. */
+.copilot-toggle .toggle-grad-start {
+  stop-color: var(--color-wassel-lightYellow);
+}
+.copilot-toggle .toggle-grad-end {
+  stop-color: var(--color-wassel-yellow);
+}
+.copilot-toggle .toggle-eye-l ellipse,
+.copilot-toggle .toggle-eye-r ellipse {
+  fill: #fff;
+}
+
 /* Decorative avatar (interactive={false}) â no click affordance, no hover lift. */
 .copilot-toggle.is-static {
   display: inline-block;
@@ -56,6 +69,7 @@
 /* Attention state: Wassel blue fades in over the yellow gradient
    (white eyes stay legible on it). */
 .copilot-toggle .toggle-flush {
+  fill: var(--color-wassel-blue);
   transition: opacity 0.2s ease;
 }
 .copilot-toggle.is-alert .toggle-flush {

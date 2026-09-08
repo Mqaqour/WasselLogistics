@@ -372,8 +372,14 @@ export function createApp() {
       return;
     }
 
-    const baseUrl = 'http://smsservice.hadara.ps:4545/SMS.ashx/bulkservice/sessionvalue/sendmessage/?apikey=2B3C10E978E7F0696AE217D97DF1451F';
-    const url = `${baseUrl}&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
+    if (!env.HADARA_SMS_API_KEY) {
+      res.status(503).json({ error: 'SMS gateway not configured' });
+      return;
+    }
+
+    const url =
+      `${env.HADARA_SMS_BASE_URL}?apikey=${encodeURIComponent(env.HADARA_SMS_API_KEY)}` +
+      `&to=${encodeURIComponent(to)}&msg=${encodeURIComponent(msg)}`;
 
     try {
       const upstream = await fetch(url, { method: 'GET' });

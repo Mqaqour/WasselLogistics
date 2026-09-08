@@ -95,6 +95,16 @@ export const env = {
   CONTACT_NOTIFY_EMAIL: optional('CONTACT_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
   SHIPPING_REQUEST_NOTIFY_EMAIL: optional('SHIPPING_REQUEST_NOTIFY_EMAIL', 'mqaqour@wassel.ps'),
 
+  // SMS verification gateway (Hadara). The API key MUST come from the environment —
+  // never hard-code it. BASE_URL is the message-send endpoint; the apikey/to/msg
+  // query params are appended by the caller.
+  // TODO: move BASE_URL to https once Hadara TLS support on :4545 is confirmed.
+  HADARA_SMS_BASE_URL: optional(
+    'HADARA_SMS_BASE_URL',
+    'http://smsservice.hadara.ps:4545/SMS.ashx/bulkservice/sessionvalue/sendmessage/',
+  ),
+  HADARA_SMS_API_KEY: optional('HADARA_SMS_API_KEY', ''),
+
   // Portal login security
   LOGIN_MAX_ATTEMPTS: parseInt(optional('LOGIN_MAX_ATTEMPTS', '3'), 10),
   LOGIN_BLOCK_HOURS: parseInt(optional('LOGIN_BLOCK_HOURS', '24'), 10),

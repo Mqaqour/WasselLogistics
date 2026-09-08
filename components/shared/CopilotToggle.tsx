@@ -106,10 +106,11 @@ export const CopilotToggle: React.FC<CopilotToggleProps> = ({
   const face = (
     <svg viewBox="0 0 96 96" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        {/* Wassel yellow â light yellow (matches --color-wassel-yellow / --color-wassel-lightYellow). */}
+        {/* Stop / fill colours are set in index.css from the Wassel @theme tokens
+            (--color-wassel-lightYellow, --color-wassel-yellow, --color-wassel-blue). */}
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFD733" />
-          <stop offset="100%" stopColor="#FFCD00" />
+          <stop className="toggle-grad-start" offset="0%" />
+          <stop className="toggle-grad-end" offset="100%" />
         </linearGradient>
       </defs>
       <g className="toggle-body">
@@ -119,7 +120,6 @@ export const CopilotToggle: React.FC<CopilotToggleProps> = ({
         />
         <path
           className="toggle-flush"
-          fill="#002B49"
           opacity="0"
           d="M38 8 H58 A34 34 0 0 1 92 42 V54 A34 34 0 0 1 58 88 H38 A34 34 0 0 1 4 54 V42 A34 34 0 0 1 38 8 Z"
         />
@@ -128,10 +128,10 @@ export const CopilotToggle: React.FC<CopilotToggleProps> = ({
             <g className={`toggle-lid${blinking ? ' is-blinking' : ''}`}>
               <g className="toggle-blink">
                 <g className="toggle-eye-l">
-                  <ellipse cx="38" cy="47" rx="6" ry="10" fill="#FFFFFF" />
+                  <ellipse cx="38" cy="47" rx="6" ry="10" />
                 </g>
                 <g className="toggle-eye-r">
-                  <ellipse cx="58" cy="47" rx="6" ry="10" fill="#FFFFFF" />
+                  <ellipse cx="58" cy="47" rx="6" ry="10" />
                 </g>
               </g>
             </g>
