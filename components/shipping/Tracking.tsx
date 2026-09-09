@@ -473,6 +473,9 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
   const [notifyAlreadyRegistered, setNotifyAlreadyRegistered] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [selectedCarrier, setSelectedCarrier] = useState<string | null>(null);
+  // Carrier that actually produced the current result — drives per-carrier
+  // display tweaks (e.g. Jordan passport history has no meaningful location).
+  const [resultCarrier, setResultCarrier] = useState<Carrier | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [copiedTracking, setCopiedTracking] = useState(false);
@@ -607,10 +610,12 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
     setRequiredAction(null);
     setNotFound(false);
     setSelectedCarrier(null);
+    setResultCarrier(null);
     setAwbRecord(null);
     setPendingBillDetails(undefined);
 
     const carrier: Carrier = carrierOverride ?? detectCarrier(trimmedId);
+    setResultCarrier(carrier);
 
     try {
       if (carrier === 'passport') {
@@ -1104,14 +1109,16 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                           <tr>
                             <th className="px-4 py-3 text-start font-semibold">{t.eventsTime}</th>
                             <th className="px-4 py-3 text-start font-semibold">{t.eventsStatus}</th>
-                            <th className="px-4 py-3 text-start font-semibold">{t.eventsLocation}</th>
+                            {resultCarrier !== 'passport' && (
+                              <th className="px-4 py-3 text-start font-semibold">{t.eventsLocation}</th>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="bg-white">
                           {groups.map((group) => (
                             <React.Fragment key={group.date}>
                               <tr className="bg-gray-50 border-t border-gray-200">
-                                <td colSpan={3} className="px-4 py-2">
+                                <td colSpan={resultCarrier === 'passport' ? 2 : 3} className="px-4 py-2">
                                   <span className="font-bold text-wassel-blue text-sm">{group.date}</span>
                                   <span className="mx-2 text-gray-300">·</span>
                                   <span className="text-xs text-gray-500">{group.day}</span>
@@ -1123,7 +1130,9 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                                 <tr key={`${event.timestamp}-${idx}`} className="border-t border-gray-100">
                                   <td className="px-4 py-3 text-gray-600 w-28">{event.time || '—'}</td>
                                   <td className="px-4 py-3 font-medium text-gray-900">{event.status}</td>
-                                  <td className="px-4 py-3 text-gray-600">{event.location || '—'}</td>
+                                  {resultCarrier !== 'passport' && (
+                                    <td className="px-4 py-3 text-gray-600">{event.location || '—'}</td>
+                                  )}
                                 </tr>
                               ))}
                             </React.Fragment>
