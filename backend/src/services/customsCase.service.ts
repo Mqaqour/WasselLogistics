@@ -14,6 +14,8 @@
 // (PublicTrackingView). See also services/generalTracking.service.ts for the
 // same never-throw + TTL-cache shape.
 // ─────────────────────────────────────────────────────────────────────────────
+import http from 'http';
+import https from 'https';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
@@ -125,20 +127,55 @@ async function fetchCustomsCase(awb: string, carrier?: string): Promise<CustomsC
   url.searchParams.set('awb', awb);
   if (carrier) url.searchParams.set('carrier', carrier);
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
-      headers: { 'x-api-key': env.CUSTOMS_API_KEY, Accept: 'application/json' },
-      signal: controller.signal,
-    });
-    if (!res.ok) return EMPTY;
-    const data = await res.json().catch(() => null);
-    return coerce(data) ?? EMPTY;
+    const { status, body } = await httpGetJson(url);
+    if (status < 200 || status >= 300) return EMPTY;
+    return coerce(body) ?? EMPTY;
   } catch (err) {
     logger.warn(`customs-case: lookup failed for ${awb}: ${err instanceof Error ? err.message : String(err)}`);
     return EMPTY;
-  } finally {
-    clearTimeout(timer);
   }
+}
+
+/**
+ * Plain GET returning `{ status, body }` (body = parsed JSON or null). Uses the
+ * node http/https modules rather than fetch so that, like the n8n proxy in
+ * app.ts (fetchJoPassportTracking), TLS verification can be relaxed for the
+ * WasselCustoms host only.
+ *
+ * INTERIM: `wasselwebuat.wassel.ps` currently serves an expired certificate,
+ * which Node's TLS stack rejects (fetch would throw before any response). The
+ * relaxation is scoped to *.wassel.ps HTTPS hosts and to this one request path;
+ * remove it once WasselCustoms renews the certificate.
+ */
+function httpGetJson(url: URL): Promise<{ status: number; body: unknown }> {
+  const isHttps = url.protocol === 'https:';
+  const relaxTls = isHttps && /(^|\.)wassel\.ps$/i.test(url.hostname);
+  const client = isHttps ? https : http;
+
+  return new Promise((resolve, reject) => {
+    const req = client.request(
+      url,
+      {
+        method: 'GET',
+        headers: { 'x-api-key': env.CUSTOMS_API_KEY, Accept: 'application/json' },
+        timeout: UPSTREAM_TIMEOUT_MS,
+        ...(relaxTls ? { rejectUnauthorized: false } : {}),
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          let body: unknown = null;
+          try { body = raw ? JSON.parse(raw) : null; } catch { body = null; }
+          resolve({ status: res.statusCode ?? 502, body });
+        });
+        res.on('error', reject);
+      },
+    );
+    req.on('timeout', () => req.destroy(new Error('customs upstream request timed out')));
+    req.on('error', reject);
+    req.end();
+  });
 }
