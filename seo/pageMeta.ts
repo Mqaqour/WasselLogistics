@@ -7,14 +7,14 @@ const SITE_URL = (import.meta.env.VITE_SITE_URL || 'https://wassel.ps').replace(
 // Fill these with the real values so Google can attach them to the brand /
 // knowledge panel. Empty entries are simply left out of the JSON-LD.
 const ORG_SAME_AS: string[] = [
-  // 'https://www.facebook.com/…',
-  // 'https://www.instagram.com/…',
-  // 'https://www.linkedin.com/company/…',
+  'https://www.facebook.com/WasselLogistics',
+  'https://www.instagram.com/wassel.logistics',
+  'https://www.linkedin.com/company/wassel-logistics',
 ];
 const ORG_ADDRESS = {
-  streetAddress: '',
-  addressLocality: '', // e.g. 'Ramallah'
-  addressRegion: '',
+  streetAddress: 'Al Masyoun, Edward Said St., opposite the Legislative Council roundabout, Al-Qalaa Building',
+  addressLocality: 'Ramallah',
+  addressRegion: 'West Bank',
   addressCountry: 'PS',
 };
 const ORG_PHONE = '1700974444';
