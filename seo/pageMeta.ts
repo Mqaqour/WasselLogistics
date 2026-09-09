@@ -29,7 +29,7 @@ const SERVICE_PILLARS: Array<{ en: string; ar: string; path: string }> = [
   { en: 'Jordanian Passport Delivery', ar: 'خدمة توصيل الجوازات الأردنية', path: '/resources' },
 ];
 
-type Meta = { title: string; description: string; path: string; noindex?: boolean };
+type Meta = { title: string; description: string; path: string; noindex?: boolean; exactTitle?: boolean };
 
 const PAGES: Record<Language, Partial<Record<PageView, Meta>>> = {
   en: {
@@ -79,7 +79,8 @@ const PAGES: Record<Language, Partial<Record<PageView, Meta>>> = {
   ar: {
     home: {
       path: '/',
-      title: 'شركة واصل لوجستيك — الشحن والتخزين والتخليص الجمركي في فلسطين',
+      title: 'واصل لوجيستكس - نصل فلسطين بالعالم',
+      exactTitle: true,
       description:
         'شركة واصل لوجستيك في فلسطين: الشحن المحلي والدولي، التخزين والخدمات اللوجستية (3PL)، التخليص الجمركي، وخدمة توصيل الجوازات الأردنية. تتبّع شحنتك واحصل على سعر فوري.',
     },
@@ -196,6 +197,7 @@ export function getPageSeo(view: PageView, lang: Language): SeoProps {
     description: meta.description,
     path: meta.path,
     noindex: meta.noindex,
+    exactTitle: meta.exactTitle,
     jsonLd,
   };
 }

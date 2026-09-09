@@ -14,6 +14,8 @@ export interface SeoProps {
   lang: Language;
   /** Page title without the brand suffix. */
   title: string;
+  /** Use `title` verbatim — don't append " | {brand}". */
+  exactTitle?: boolean;
   description: string;
   /** Path without the locale prefix, e.g. "/" or "/contact". */
   path: string;
@@ -33,9 +35,9 @@ function localizedUrl(path: string, lang: Language): string {
  * Per-route document metadata. Relies on React 19 hoisting <title>/<meta>/<link>
  * into <head>; JSON-LD <script> tags are read by crawlers anywhere in the document.
  */
-export const Seo: React.FC<SeoProps> = ({ lang, title, description, path, image, noindex, jsonLd }) => {
+export const Seo: React.FC<SeoProps> = ({ lang, title, exactTitle, description, path, image, noindex, jsonLd }) => {
   const brand = BRAND[lang];
-  const fullTitle = title.includes(brand) ? title : `${title} | ${brand}`;
+  const fullTitle = exactTitle || title.includes(brand) ? title : `${title} | ${brand}`;
   const canonical = localizedUrl(path, lang);
   const ogImage = image
     ? (image.startsWith('http') ? image : `${SITE_URL}${image.startsWith('/') ? '' : '/'}${image}`)
