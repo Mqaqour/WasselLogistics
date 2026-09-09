@@ -126,7 +126,7 @@ const fetchLastShipmentStatus = async (
         return {
             status: latest.eventDescription || latest.derivedStatus || '—',
             date: dt && !isNaN(dt.getTime())
-                ? dt.toLocaleString(lang === 'en' ? 'en-GB' : 'ar')
+                ? dt.toLocaleString('en-GB')
                 : (latest.date || '—'),
         };
     }

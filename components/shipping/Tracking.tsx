@@ -31,16 +31,6 @@ interface DelayReasonInfo {
     action: string;
 }
 
-// A single scan event that carried an exception code — the raw history behind the
-// current reason above (e.g. an earlier "clearance instructions required" scan).
-interface DelayExceptionInfo {
-    code: string;
-    description: string;
-    eventDescription: string;
-    date: string;
-    time: string;
-}
-
 interface ShipmentInfo {
     category: string;
     serviceType: string;
@@ -48,7 +38,6 @@ interface ShipmentInfo {
     destination: string;
     weight: string;
     delayReasons?: DelayReasonInfo[];
-    delayExceptions?: DelayExceptionInfo[];
 }
 
 // WasselCustoms public customs-case view — served by /api/customs-case, which
@@ -343,7 +332,7 @@ const parseDhlJson = (shipment: any, lang: Language) => {
         description: status,
         icon: getEventIcon(status),
         relativeTime: '—',
-        day: dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', { weekday: 'long' }) : '—',
+        day: dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('en-US', { weekday: 'long' }) : '—',
         date: event.date || '—',
         time: event.time || '—',
       } as TrackingEvent;
@@ -383,39 +372,31 @@ const collectFedexDelayReasons = (trackResults: any[]): DelayReasonInfo[] => {
   return reasons;
 };
 
-// The raw exception history behind the current reason: every scan event across all
-// pieces that carried a non-empty exceptionCode, most recent first.
-const collectFedexExceptions = (trackResults: any[], lang: Language): DelayExceptionInfo[] => {
-  const exceptions: (DelayExceptionInfo & { sortKey: number })[] = [];
-  const seen = new Set<string>();
-
+// FedEx attaches a delay/exception code to individual scan events. Collect them
+// across every piece, keyed by the event's ISO timestamp, so each can be shown
+// inline on its matching Tracking-History row (mirrors how fedex.com annotates
+// the timeline), instead of in a separate list.
+type FedexException = { code: string; description: string; eventDescription: string; ts: number };
+const collectFedexExceptions = (trackResults: any[]): Map<string, FedexException> => {
+  const byTs = new Map<string, FedexException>();
   trackResults.forEach((piece) => {
     const scanEvents: any[] = Array.isArray(piece?.scanEvents) ? piece.scanEvents : [];
-
     scanEvents.forEach((event) => {
       const code = event.exceptionCode || '';
-      if (!code) return;
-
       const description = event.exceptionDescription || '';
-      const eventDescription = event.eventDescription || event.derivedStatus || '';
-      const key = `${event.date || ''}|${code}|${description}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-
-      const dt = event.date ? new Date(event.date) : null;
-      const valid = dt && !isNaN(dt.getTime());
-      exceptions.push({
+      if (!code && !description) return;
+      const iso = event.date || '';
+      if (byTs.has(iso)) return;
+      const dt = iso ? new Date(iso) : null;
+      byTs.set(iso, {
         code,
-        description,
-        eventDescription,
-        date: valid ? dt!.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US') : '—',
-        time: valid ? dt!.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '—',
-        sortKey: valid ? dt!.getTime() : 0,
+        description: description || event.eventDescription || event.derivedStatus || '',
+        eventDescription: event.eventDescription || event.derivedStatus || '',
+        ts: dt && !isNaN(dt.getTime()) ? dt.getTime() : 0,
       });
     });
   });
-
-  return exceptions.sort((a, b) => b.sortKey - a.sortKey).map(({ sortKey, ...rest }) => rest);
+  return byTs;
 };
 
 const parseFedexJson = (trackResults: any[], lang: Language) => {
@@ -431,7 +412,7 @@ const parseFedexJson = (trackResults: any[], lang: Language) => {
   const weightEntry = weightEntries.find((w) => w.unit === 'KG') ?? weightEntries[0];
 
   const delayReasons = collectFedexDelayReasons(trackResults);
-  const delayExceptions = collectFedexExceptions(trackResults, lang);
+  const exceptionsByTs = collectFedexExceptions(trackResults);
 
   const shipmentInfo: ShipmentInfo = {
     category: lang === 'en' ? 'International' : 'دولي',
@@ -440,30 +421,69 @@ const parseFedexJson = (trackResults: any[], lang: Language) => {
     destination: formatFedexAddress(recipientAddr),
     weight: weightEntry?.value ? `${weightEntry.value} ${weightEntry.unit || ''}`.trim() : '—',
     delayReasons: delayReasons.length > 0 ? delayReasons : undefined,
-    delayExceptions: delayExceptions.length > 0 ? delayExceptions : undefined,
   };
+
+  const fmtDate = (dt: Date | null) => dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('en-US') : '—';
+  const fmtTime = (dt: Date | null) => dt && !isNaN(dt.getTime()) ? dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—';
+  const fmtDay = (dt: Date | null) => dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('en-US', { weekday: 'long' }) : '—';
 
   const scanEvents: any[] = Array.isArray(trackResult.scanEvents) ? trackResult.scanEvents : [];
 
-  const trackingResult: TrackingEvent[] = scanEvents.map((event) => {
+  const rows: { ts: number; iso: string; event: TrackingEvent }[] = scanEvents.map((event) => {
     const status = event.eventDescription || event.derivedStatus || '—';
     const loc = event.scanLocation;
     const location = loc ? [loc.city, loc.stateOrProvinceCode, loc.countryCode].filter(Boolean).join(', ') : '—';
-    const dt = event.date ? new Date(event.date) : null;
-    const dateStr = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US') : '—';
-    const timeStr = dt && !isNaN(dt.getTime()) ? dt.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const iso = event.date || '';
+    const dt = iso ? new Date(iso) : null;
+    const dateStr = fmtDate(dt);
+    const timeStr = fmtTime(dt);
+    const ex = exceptionsByTs.get(iso);
     return {
-      status,
-      location,
-      timestamp: `${dateStr} - ${timeStr}`,
-      description: status,
-      icon: getEventIcon(status),
-      relativeTime: '—',
-      day: dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', { weekday: 'long' }) : '—',
-      date: dateStr,
-      time: timeStr,
-    } as TrackingEvent;
+      ts: dt && !isNaN(dt.getTime()) ? dt.getTime() : 0,
+      iso,
+      event: {
+        status,
+        location,
+        timestamp: `${dateStr} - ${timeStr}`,
+        description: status,
+        icon: ex ? 'alert' : getEventIcon(status),
+        relativeTime: '—',
+        day: fmtDay(dt),
+        date: dateStr,
+        time: timeStr,
+        exception: ex ? { code: ex.code, description: ex.description } : undefined,
+      } as TrackingEvent,
+    };
   });
+
+  // Exceptions on a timestamp with no piece-0 scan row (multi-piece shipments) —
+  // surface them as their own alert rows so nothing is dropped.
+  const coveredIso = new Set(rows.map((r) => r.iso));
+  exceptionsByTs.forEach((ex, iso) => {
+    if (coveredIso.has(iso)) return;
+    const dt = iso ? new Date(iso) : null;
+    const dateStr = fmtDate(dt);
+    const timeStr = fmtTime(dt);
+    rows.push({
+      ts: ex.ts,
+      iso,
+      event: {
+        status: ex.eventDescription || ex.description,
+        location: '—',
+        timestamp: `${dateStr} - ${timeStr}`,
+        description: ex.eventDescription || ex.description,
+        icon: 'alert',
+        relativeTime: '—',
+        day: fmtDay(dt),
+        date: dateStr,
+        time: timeStr,
+        exception: { code: ex.code, description: ex.description },
+      } as TrackingEvent,
+    });
+  });
+
+  rows.sort((a, b) => b.ts - a.ts);
+  const trackingResult: TrackingEvent[] = rows.map((r) => r.event);
 
   return { shipmentInfo, trackingResult, requiredAction: null as ActionRequired | null };
 };
@@ -558,7 +578,6 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
       infoCategory: lang === 'en' ? 'Type' : 'النوع',
       infoService: lang === 'en' ? 'Service' : 'الخدمة',
       delayReasonTitle: lang === 'en' ? 'Clearance Delay — Reason' : 'تأخير جمركي — السبب',
-      delayExceptionTitle: lang === 'en' ? 'Exception history' : 'سجل الاستثناءات',
 
       // Customs clearance case (WasselCustoms) — supplementary card
       customs: {
@@ -567,7 +586,6 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
         outstandingTitle: lang === 'en' ? 'Outstanding requirements' : 'المستندات المطلوبة',
         allReceived: lang === 'en' ? 'All requested documents received — no action needed from you.' : 'تم استلام جميع المستندات المطلوبة — لا حاجة لأي إجراء من جانبك.',
         historyTitle: lang === 'en' ? 'Status history' : 'سجل الحالة',
-        historyNote: lang === 'en' ? "Updated automatically from Wassel's customs system." : 'يُحدَّث تلقائيًا من نظام التخليص لدى واصل.',
         openedOn: lang === 'en' ? 'Opened' : 'فُتح في',
         updatedOn: lang === 'en' ? 'Updated' : 'آخر تحديث',
         // status buckets — keyed on case.status (raw key), fall back to English statusLabel
@@ -906,7 +924,7 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
       const d = new Date(iso);
       return isNaN(d.getTime())
         ? iso
-        : d.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     };
     const caseStatusLabel = (c: { status: string; statusLabel: string }) =>
       t.customs.statusLabels[c.status] || t.customs.statusLabelFallback[c.statusLabel] || c.statusLabel;
@@ -988,7 +1006,6 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                       );
                     })}
                   </ol>
-                  <p className="mt-1.5 text-[11px] text-gray-400">{t.customs.historyNote}</p>
                 </div>
               )}
             </div>
@@ -1205,22 +1222,6 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                       </li>
                     ))}
                   </ul>
-
-                  {shipmentInfo.delayExceptions && shipmentInfo.delayExceptions.length > 0 && (
-                    <div className="border-t border-amber-200 pt-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">{t.delayExceptionTitle}</p>
-                      <ul className="flex flex-col gap-2 ps-7">
-                        {shipmentInfo.delayExceptions.map((exc, i) => (
-                          <li key={`${exc.code}-${exc.date}-${exc.time}-${i}`} className="text-xs leading-snug text-amber-800">
-                            <span className="text-amber-500">{exc.date} · {exc.time}</span>
-                            {' — '}
-                            <span>{exc.description || exc.eventDescription}</span>
-                            {exc.code && <span className="text-amber-500"> ({exc.code})</span>}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1316,10 +1317,21 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                               </tr>
                               {group.events.map((event, idx) => (
                                 <tr key={`${event.timestamp}-${idx}`} className="border-t border-gray-100">
-                                  <td className="px-4 py-3 text-gray-600 w-28">{event.time || '—'}</td>
-                                  <td className="px-4 py-3 font-medium text-gray-900">{event.status}</td>
+                                  <td className="px-4 py-3 text-gray-600 w-28 align-top">{event.time || '—'}</td>
+                                  <td className="px-4 py-3 font-medium text-gray-900 align-top">
+                                    {event.status}
+                                    {event.exception && event.exception.description && event.exception.description !== event.status && (
+                                      <span className="mt-1 flex items-start gap-1.5 text-xs font-normal text-amber-700">
+                                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                                        <span>
+                                          {event.exception.description}
+                                          {event.exception.code && <span className="text-amber-500"> ({event.exception.code})</span>}
+                                        </span>
+                                      </span>
+                                    )}
+                                  </td>
                                   {resultCarrier !== 'passport' && (
-                                    <td className="px-4 py-3 text-gray-600">{event.location || '—'}</td>
+                                    <td className="px-4 py-3 text-gray-600 align-top">{event.location || '—'}</td>
                                   )}
                                 </tr>
                               ))}

@@ -271,7 +271,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ lang }) => {
                       </select>
                     </td>
                     <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(item.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-PS' : 'en-US')}
+                      {new Date(item.createdAt).toLocaleDateString('en-US')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button

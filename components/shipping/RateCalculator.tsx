@@ -217,7 +217,7 @@ export const RateCalculator: React.FC<RateCalculatorProps> = ({ lang, isPopup = 
             ? clampEtaToMinDays(rawEtaDate)
             : null;
           const deliveryDate = etaDate
-            ? etaDate.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB', {
+            ? etaDate.toLocaleDateString('en-GB', {
                 year: 'numeric', month: 'short', day: 'numeric',
               })
             : (quote.etaDays ?? '');

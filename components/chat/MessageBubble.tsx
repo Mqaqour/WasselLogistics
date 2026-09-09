@@ -72,7 +72,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, lang }) =
   }
 
   const time = message.createdAt
-    ? new Date(message.createdAt).toLocaleTimeString(lang === 'ar' ? 'ar-PS' : 'en-US', {
+    ? new Date(message.createdAt).toLocaleTimeString('en-US', {
         hour:   '2-digit',
         minute: '2-digit',
       })

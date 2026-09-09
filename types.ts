@@ -24,6 +24,8 @@ export interface TrackingEvent {
   day?: string;
   date?: string;
   time?: string;
+  /** Carrier exception attached to this scan (e.g. FedEx "Package available for clearance"). */
+  exception?: { code: string; description: string };
 }
 
 export interface Shipment {

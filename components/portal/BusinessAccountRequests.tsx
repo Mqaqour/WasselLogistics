@@ -141,7 +141,7 @@ export const BusinessAccountRequests: React.FC<BusinessAccountRequestsProps> = (
 
   const fmtDate = (iso: string) => {
     try {
-      return new Date(iso).toLocaleDateString(isRtl ? 'ar-PS' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     } catch {
       return iso;
     }
