@@ -10,6 +10,9 @@ export interface MaintenanceConfig {
   titleEn?: string;
   messageAr?: string;
   messageEn?: string;
+  /** Expected downtime, shown as a line under the message, e.g. "10 دقائق" / "10 minutes". */
+  durationAr?: string;
+  durationEn?: string;
 }
 
 interface MaintenanceProps {
@@ -34,6 +37,8 @@ export const Maintenance: React.FC<MaintenanceProps> = ({ lang, config }) => {
     || (isAr
       ? 'نُجري حالياً بعض التحسينات على النظام. نعتذر عن الإزعاج وسنعود قريباً.'
       : 'We’re making some improvements to our systems. Sorry for the interruption — we’ll be back shortly.');
+
+  const duration = (isAr ? config?.durationAr : config?.durationEn)?.trim();
 
   useEffect(() => {
     const previous = document.title;
@@ -61,6 +66,13 @@ export const Maintenance: React.FC<MaintenanceProps> = ({ lang, config }) => {
         <p className="mt-4 text-base leading-relaxed text-white/85 sm:text-lg">
           {message}
         </p>
+
+        {duration && (
+          <p className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium text-white">
+            <span aria-hidden="true">⏱</span>
+            {isAr ? `المدة المتوقعة: ${duration}` : `Estimated duration: ${duration}`}
+          </p>
+        )}
 
         <div className="mt-10 h-1 w-16 rounded-full bg-wassel-yellow/70" />
 

@@ -2,6 +2,8 @@
   "enabled": false,
   "titleAr": "",
   "titleEn": "",
-  "messageAr": "",
-  "messageEn": ""
+  "messageAr": "نُجري حالياً بعض التحسينات على النظام. نعتذر عن الإزعاج وسنعود قريباً.",
+  "messageEn": "",
+  "durationAr": "10 دقائق",
+  "durationEn": "10 minutes"
 }
