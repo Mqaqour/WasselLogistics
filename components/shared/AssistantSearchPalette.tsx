@@ -319,7 +319,7 @@ export const AssistantSearchPalette: React.FC<AssistantSearchPaletteProps> = ({
           onChange={(e) => setSearchValue(e.target.value)}
           onKeyDown={handleSearchKeyDown}
           placeholder={t.placeholder}
-          className="w-full py-5 pl-16 rtl:pl-4 rtl:pr-16 pr-14 text-[2rem] leading-tight text-gray-800 placeholder:text-indigo-300 outline-none bg-transparent"
+          className="w-full py-5 pl-16 pr-36 rtl:pl-36 rtl:pr-16 text-[2rem] leading-tight text-gray-800 placeholder:text-indigo-300 outline-none bg-transparent"
           readOnly={aiLoading}
         />
         {searchValue && !aiLoading && (
@@ -328,7 +328,7 @@ export const AssistantSearchPalette: React.FC<AssistantSearchPaletteProps> = ({
             aria-label={t.clear}
             onMouseDown={(e) => e.preventDefault()}
             onClick={resetSearch}
-            className="absolute right-16 rtl:left-16 rtl:right-auto top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-700 transition-colors text-sm font-semibold px-3 py-2 z-10"
+            className="absolute right-14 rtl:left-14 rtl:right-auto top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-700 transition-colors text-sm font-semibold px-3 py-2.5 rounded-lg bg-white z-10"
           >
             {t.clear}
           </button>
@@ -336,7 +336,7 @@ export const AssistantSearchPalette: React.FC<AssistantSearchPaletteProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 rtl:left-4 rtl:right-auto top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute right-3 rtl:left-3 rtl:right-auto top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-1.5 z-10"
           aria-label={t.close}
         >
           <X className="w-7 h-7" />
