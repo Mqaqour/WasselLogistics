@@ -370,9 +370,10 @@ export const App: React.FC = () => {
             {/* --- GLOBAL HOME BACKGROUND IMAGE --- */}
             <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none overflow-hidden bg-[#002B49]">
                 {!bgError ? (
-                    <img 
+                    <img
                         src={`${import.meta.env.BASE_URL}assets/background.png`}
-                        alt="Background" 
+                        alt=""
+                        aria-hidden="true"
                         className="w-full h-full object-cover object-top opacity-100"
                         onError={() => setBgError(true)}
                     />

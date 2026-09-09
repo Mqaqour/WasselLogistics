@@ -1203,7 +1203,35 @@ export function createApp() {
 
   // Serve the bundled frontend from the same host when present.
   if (frontendDistPath) {
-    app.use(express.static(frontendDistPath));
+    const distRoot = frontendDistPath; // captured for the closures below
+
+    // Resolve a request path to its prerendered `<path>/index.html` when the
+    // build produced one (scripts/prerender.mjs writes dist/ar/index.html,
+    // dist/ar/tracking/index.html, …). Crawlers then get real per-route HTML
+    // with the right <title>/<meta>/body instead of the empty SPA shell. Any
+    // route without a prerendered file falls back to the shell, which the SPA
+    // fills in client-side as before.
+    const prerenderedIndexFor = (reqPath: string): string | null => {
+      const clean = reqPath.replace(/\/+$/, '').replace(/^\/+/, '');
+      if (!clean || clean.includes('..') || clean.includes('\0')) return null;
+      const candidate = path.join(distRoot, clean, 'index.html');
+      if (!candidate.startsWith(distRoot + path.sep)) return null; // stay inside dist
+      return fs.existsSync(candidate) ? candidate : null;
+    };
+
+    // Root: serve the prerendered default-locale (ar) page so a crawler hitting
+    // https://wassel.ps gets real content (its canonical still points to /ar).
+    // Registered before express.static so its own index.html handling can't win.
+    app.get('/', (_req, res, next) => {
+      const file = prerenderedIndexFor('/ar');
+      if (file) res.sendFile(file);
+      else next();
+    });
+
+    // redirect:false so `/ar` isn't 301'd to `/ar/` just because a prerendered
+    // `dist/ar/` directory now exists — the catch-all serves it at the
+    // slash-less URL that the canonical tags and sitemap declare.
+    app.use(express.static(distRoot, { redirect: false }));
 
     app.get('*', (req, res, next) => {
       if (
@@ -1216,7 +1244,7 @@ export function createApp() {
         return;
       }
 
-      res.sendFile(path.join(frontendDistPath, 'index.html'));
+      res.sendFile(prerenderedIndexFor(req.path) ?? path.join(distRoot, 'index.html'));
     });
   } else {
     // Fallback root response when frontend bundle is not packaged.

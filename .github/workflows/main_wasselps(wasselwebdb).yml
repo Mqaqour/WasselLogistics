@@ -31,8 +31,11 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build frontend
-        run: npm run build
+      - name: Build frontend (+ prerender public routes for SEO)
+        # build:seo = `vite build` then scripts/prerender.mjs, which renders each
+        # public route to dist/<route>/index.html so crawlers get real per-route
+        # <title>/<meta>/body instead of the empty SPA shell.
+        run: npm run build:seo
         env:
           # Left unset intentionally: frontend and backend are served from the same
           # Express server/origin in production, so every API call site's fallback
@@ -40,6 +43,9 @@ jobs:
           VITE_GOOGLE_PLACES_API_KEY: ${{ secrets.VITE_GOOGLE_PLACES_API_KEY }}
           VITE_RESPONDIO_CHANNEL_ID: ${{ secrets.VITE_RESPONDIO_CHANNEL_ID }}
           VITE_GOOGLE_PLACES_LANGUAGE: en
+          # GitHub-hosted windows-latest ships Google Chrome here; prerender.mjs
+          # falls back to Edge if this path is ever missing.
+          PRERENDER_CHROME: 'C:\Program Files\Google\Chrome\Application\chrome.exe'
 
       - name: Install backend dependencies
         run: npm ci --prefix backend

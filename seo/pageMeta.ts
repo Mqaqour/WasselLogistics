@@ -3,15 +3,41 @@ import type { SeoProps } from '../components/Seo';
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL || 'https://wassel.ps').replace(/\/+$/, '');
 
+// ── Organization facts for structured data ──────────────────────────────────
+// Fill these with the real values so Google can attach them to the brand /
+// knowledge panel. Empty entries are simply left out of the JSON-LD.
+const ORG_SAME_AS: string[] = [
+  // 'https://www.facebook.com/…',
+  // 'https://www.instagram.com/…',
+  // 'https://www.linkedin.com/company/…',
+];
+const ORG_ADDRESS = {
+  streetAddress: '',
+  addressLocality: '', // e.g. 'Ramallah'
+  addressRegion: '',
+  addressCountry: 'PS',
+};
+const ORG_PHONE = '1700974444';
+
+// The four service pillars we want Wassel to surface for. Bilingual so the
+// Arabic catalogue matches Arabic queries ("شحن", "تخزين", "تخليص جمركي",
+// "خدمات الجوازات الأردنية").
+const SERVICE_PILLARS: Array<{ en: string; ar: string; path: string }> = [
+  { en: 'Domestic & International Shipping', ar: 'الشحن المحلي والدولي', path: '/rates' },
+  { en: 'Warehousing & 3PL Services', ar: 'التخزين والخدمات اللوجستية (3PL)', path: '/resources' },
+  { en: 'Customs Clearance', ar: 'التخليص الجمركي', path: '/resources' },
+  { en: 'Jordanian Passport Delivery', ar: 'خدمة توصيل الجوازات الأردنية', path: '/resources' },
+];
+
 type Meta = { title: string; description: string; path: string; noindex?: boolean };
 
 const PAGES: Record<Language, Partial<Record<PageView, Meta>>> = {
   en: {
     home: {
       path: '/',
-      title: 'Wassel Logistics — Shipping, Tracking & Logistics in Palestine',
+      title: 'Wassel Logistics — Shipping, Warehousing & Customs Clearance in Palestine',
       description:
-        'Wassel connects Palestine to the world with domestic and international shipping, customs clearance, warehousing and courier services. Track shipments, get rates and schedule a pickup.',
+        'Wassel Logistics in Palestine: domestic & international shipping, warehousing & 3PL, customs clearance, and Jordanian passport delivery. Track shipments and get instant rates.',
     },
     tracking: {
       path: '/tracking',
@@ -53,9 +79,9 @@ const PAGES: Record<Language, Partial<Record<PageView, Meta>>> = {
   ar: {
     home: {
       path: '/',
-      title: 'واصل لوجستكس — الشحن والتتبع والخدمات اللوجستية في فلسطين',
+      title: 'شركة واصل لوجستيك — الشحن والتخزين والتخليص الجمركي في فلسطين',
       description:
-        'واصل نصل فلسطين بالعالم عبر الشحن المحلي والدولي، التخليص الجمركي، التخزين وخدمات التوصيل السريع. تتبّع شحنتك، احصل على الأسعار واطلب استلاماً.',
+        'شركة واصل لوجستيك في فلسطين: الشحن المحلي والدولي، التخزين والخدمات اللوجستية (3PL)، التخليص الجمركي، وخدمة توصيل الجوازات الأردنية. تتبّع شحنتك واحصل على سعر فوري.',
     },
     tracking: {
       path: '/tracking',
@@ -100,16 +126,51 @@ const PAGES: Record<Language, Partial<Record<PageView, Meta>>> = {
 const NOINDEX_FALLBACK: Meta = { path: '/', title: 'Wassel', description: '', noindex: true };
 
 function organizationJsonLd(lang: Language): Record<string, unknown> {
+  const isAr = lang === 'ar';
+  const address = Object.values(ORG_ADDRESS).some((v) => v && v !== 'PS')
+    ? { '@type': 'PostalAddress', ...Object.fromEntries(Object.entries(ORG_ADDRESS).filter(([, v]) => v)) }
+    : undefined;
+
   return {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: lang === 'ar' ? 'واصل لوجستكس' : 'Wassel Logistics',
-    url: SITE_URL,
+    // LogisticsBusiness is a LocalBusiness subtype — the right fit for a
+    // shipping/warehousing/customs company and good for local + brand search.
+    '@type': ['Organization', 'LogisticsBusiness'],
+    name: isAr ? 'شركة واصل لوجستيك' : 'Wassel Logistics',
+    alternateName: isAr ? ['واصل', 'واصل لوجستكس', 'Wassel'] : ['Wassel', 'واصل لوجستيك'],
+    url: `${SITE_URL}/${lang}`,
     logo: `${SITE_URL}/assets/Wassel logo-01.png`,
+    image: `${SITE_URL}/assets/Wassel logo-01.png`,
+    description: isAr
+      ? 'شركة واصل لوجستيك في فلسطين: الشحن المحلي والدولي، التخزين والخدمات اللوجستية (3PL)، التخليص الجمركي، وخدمة توصيل الجوازات الأردنية.'
+      : 'Wassel Logistics in Palestine: domestic and international shipping, warehousing and 3PL, customs clearance, and Jordanian passport delivery.',
     email: 'info@wassel.ps',
-    telephone: '1700974444',
-    areaServed: 'PS',
-    sameAs: [] as string[],
+    telephone: ORG_PHONE,
+    areaServed: { '@type': 'Country', name: isAr ? 'فلسطين' : 'Palestine', identifier: 'PS' },
+    knowsLanguage: ['ar', 'en'],
+    ...(address ? { address } : {}),
+    ...(ORG_SAME_AS.length ? { sameAs: ORG_SAME_AS } : {}),
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: ORG_PHONE,
+      contactType: 'customer service',
+      areaServed: 'PS',
+      availableLanguage: ['Arabic', 'English'],
+    },
+    hasOfferCatalog: {
+      '@type': 'OfferCatalog',
+      name: isAr ? 'خدمات واصل' : 'Wassel Services',
+      itemListElement: SERVICE_PILLARS.map((s) => ({
+        '@type': 'Offer',
+        itemOffered: {
+          '@type': 'Service',
+          name: isAr ? s.ar : s.en,
+          areaServed: 'PS',
+          provider: { '@type': 'Organization', name: isAr ? 'شركة واصل لوجستيك' : 'Wassel Logistics' },
+          url: `${SITE_URL}/${lang}${s.path}`,
+        },
+      })),
+    },
   };
 }
 
