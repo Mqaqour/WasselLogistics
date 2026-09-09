@@ -22,6 +22,7 @@ import resourceCategoriesRoutes from './routes/resource-categories.routes';
 import resourceSubItemsRoutes   from './routes/resource-sub-items.routes';
 import resourceSectionsRoutes   from './routes/resource-sections.routes';
 import generalTrackingRoutes    from './routes/general-tracking.routes';
+import customsCaseRoutes        from './routes/customs-case.routes';
 import settingsRoutes from './routes/settings.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { getContactAiSuggestion } from './services/ai-agent.service';
@@ -197,6 +198,10 @@ export function createApp() {
 
   // GeneralTrackingApi — one unified tracking lookup for external automations (respond.io).
   app.use('/api/general-tracking',    generalTrackingLimiter, generalTrackingRoutes);
+
+  // WasselCustoms customs-case lookup — supplements the tracking page. Server-side
+  // proxy so the shared x-api-key stays off the browser.
+  app.use('/api/customs-case',        trackingLimiter,        customsCaseRoutes);
 
   // Jordan Passport proxy — forwards to the n8n webhook (replaces the old
   // jopassports.wassel.ps direct integration, which hung indefinitely from

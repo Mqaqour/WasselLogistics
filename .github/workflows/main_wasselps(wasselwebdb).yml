@@ -120,6 +120,7 @@ jobs:
           _FEDEX_CLIENT_ID:     ${{ secrets.FedExTrackClientId }}
           _FEDEX_CLIENT_SECRET: ${{ secrets.FedExTrackClientSecret }}
           _HADARA_SMS_API_KEY:  ${{ secrets.HADARA_SMS_API_KEY }}
+          _CUSTOMS_API_KEY:     ${{ secrets.CUSTOMS_API_KEY }}
         run: |
           $lines = @(
             "DB_SERVER=wassel.database.windows.net",
@@ -161,7 +162,9 @@ jobs:
             "FedExTrackClientId=`"$env:_FEDEX_CLIENT_ID`"",
             "FedExTrackClientSecret=`"$env:_FEDEX_CLIENT_SECRET`"",
             "HADARA_SMS_BASE_URL=http://smsservice.hadara.ps:4545/SMS.ashx/bulkservice/sessionvalue/sendmessage/",
-            "HADARA_SMS_API_KEY=`"$env:_HADARA_SMS_API_KEY`""
+            "HADARA_SMS_API_KEY=`"$env:_HADARA_SMS_API_KEY`"",
+            "CUSTOMS_API_BASE_URL=https://wasselwebuat.wassel.ps",
+            "CUSTOMS_API_KEY=`"$env:_CUSTOMS_API_KEY`""
           )
           $lines | Set-Content -Path deploy\.env
 

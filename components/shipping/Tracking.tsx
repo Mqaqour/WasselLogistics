@@ -51,6 +51,22 @@ interface ShipmentInfo {
     delayExceptions?: DelayExceptionInfo[];
 }
 
+// WasselCustoms public customs-case view — served by /api/customs-case, which
+// proxies the WasselCustoms API. Keep in sync with
+// WasselCustoms/packages/shared/src/tracking.ts (PublicTrackingView) and the
+// backend mirror in backend/src/services/customsCase.service.ts.
+interface CustomsRequirementView { type: string; title: string; status: string; outstanding: boolean; }
+interface CustomsStatusEventView { ts: string; statusLabel: string; }
+interface CustomsCaseView {
+    awbMasked?: string;
+    hasOpenCase: boolean;
+    cases: Array<{
+        caseNumber: string; status: string; statusLabel: string;
+        receivedAt: string; lastActivityAt: string;
+        requirements: CustomsRequirementView[]; statusHistory: CustomsStatusEventView[];
+    }>;
+}
+
 const WASSEL_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/wassel/track`;
 
 const JO_PASSPORT_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/jopassport/track`;
@@ -58,6 +74,8 @@ const JO_PASSPORT_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/
 const DHL_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/dhl/track`;
 
 const FEDEX_API_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/fedex/track`;
+
+const CUSTOMS_CASE_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/customs-case`;
 
 const WAITING_SHIPMENTS_BASE_URL = `${import.meta.env.VITE_CHAT_BACKEND_URL || ''}/api/waiting-shipments`;
 const WAITING_SHIPMENTS_URL = `${WAITING_SHIPMENTS_BASE_URL}/register`;
@@ -481,6 +499,8 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
   const [copiedTracking, setCopiedTracking] = useState(false);
   const [awbRecord, setAwbRecord] = useState<any>(null);
   const [pendingBillDetails, setPendingBillDetails] = useState<{ label: string; amount: number }[] | undefined>(undefined);
+  // Supplementary WasselCustoms clearance-case info; never blocks or gates tracking.
+  const [customsCase, setCustomsCase] = useState<CustomsCaseView | null>(null);
 
   // Contact Form State
   const [showContactForm, setShowContactForm] = useState(false);
@@ -539,6 +559,54 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
       infoService: lang === 'en' ? 'Service' : 'الخدمة',
       delayReasonTitle: lang === 'en' ? 'Clearance Delay — Reason' : 'تأخير جمركي — السبب',
       delayExceptionTitle: lang === 'en' ? 'Exception history' : 'سجل الاستثناءات',
+
+      // Customs clearance case (WasselCustoms) — supplementary card
+      customs: {
+        panelTitle: lang === 'en' ? 'Customs clearance in progress' : 'إجراءات التخليص الجمركي جارية',
+        fileLabel: lang === 'en' ? 'Customs file' : 'ملف جمركي',
+        outstandingTitle: lang === 'en' ? 'Outstanding requirements' : 'المستندات المطلوبة',
+        allReceived: lang === 'en' ? 'All requested documents received — no action needed from you.' : 'تم استلام جميع المستندات المطلوبة — لا حاجة لأي إجراء من جانبك.',
+        historyTitle: lang === 'en' ? 'Status history' : 'سجل الحالة',
+        historyNote: lang === 'en' ? "Updated automatically from Wassel's customs system." : 'يُحدَّث تلقائيًا من نظام التخليص لدى واصل.',
+        openedOn: lang === 'en' ? 'Opened' : 'فُتح في',
+        updatedOn: lang === 'en' ? 'Updated' : 'آخر تحديث',
+        // status buckets — keyed on case.status (raw key), fall back to English statusLabel
+        statusLabels: {
+          'received': lang === 'en' ? 'Received — under review' : 'تم الاستلام — قيد المراجعة',
+          'in-progress': lang === 'en' ? 'In progress' : 'قيد المعالجة',
+          'waiting-customer': lang === 'en' ? 'Action needed from you' : 'مطلوب إجراء منك',
+          'with-customs': lang === 'en' ? 'With customs' : 'لدى الجمارك',
+          'payment-required': lang === 'en' ? 'Payment required' : 'مطلوب دفع',
+        } as Record<string, string>,
+        // English statusLabel buckets → Arabic (fallback when case.status key is unknown)
+        statusLabelFallback: {
+          'Received — under review': lang === 'en' ? 'Received — under review' : 'تم الاستلام — قيد المراجعة',
+          'In progress': lang === 'en' ? 'In progress' : 'قيد المعالجة',
+          'Action needed from you': lang === 'en' ? 'Action needed from you' : 'مطلوب إجراء منك',
+          'With customs': lang === 'en' ? 'With customs' : 'لدى الجمارك',
+          'Payment required': lang === 'en' ? 'Payment required' : 'مطلوب دفع',
+        } as Record<string, string>,
+        // requirement.type → localized label ('other' falls back to the server title)
+        reqTypeLabels: {
+          'commercial-invoice': lang === 'en' ? 'Commercial invoice' : 'فاتورة تجارية',
+          'product-description': lang === 'en' ? 'Product description' : 'وصف البضاعة',
+          'value-declaration': lang === 'en' ? 'Value declaration' : 'إقرار القيمة',
+          'id': lang === 'en' ? 'ID / power of attorney' : 'هوية / تفويض',
+          'import-license': lang === 'en' ? 'Import license' : 'رخصة استيراد',
+          'intended-use': lang === 'en' ? 'Intended use' : 'الغرض من الاستخدام',
+          'packing-list': lang === 'en' ? 'Packing list' : 'قائمة تعبئة',
+          'certificate-of-origin': lang === 'en' ? 'Certificate of origin' : 'شهادة منشأ',
+          'other': lang === 'en' ? 'Other document' : 'مستند آخر',
+        } as Record<string, string>,
+        // requirement.status → localized label
+        reqStatusLabels: {
+          'new': lang === 'en' ? 'Requested' : 'مطلوب',
+          'requested': lang === 'en' ? 'Requested' : 'مطلوب',
+          'received': lang === 'en' ? 'Received' : 'مُستلم',
+          'missing': lang === 'en' ? 'Missing' : 'مفقود',
+          'completed': lang === 'en' ? 'Completed' : 'مكتمل',
+        } as Record<string, string>,
+      },
 
       // Contact Form
       inquiryTitle: lang === 'en' ? 'Inquire About Shipment' : 'استفسار بخصوص الشحنة',
@@ -613,9 +681,23 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
     setResultCarrier(null);
     setAwbRecord(null);
     setPendingBillDetails(undefined);
+    setCustomsCase(null);
 
     const carrier: Carrier = carrierOverride ?? detectCarrier(trimmedId);
     setResultCarrier(carrier);
+
+    // Supplementary customs-case lookup — fire-and-forget, never affects tracking.
+    // A customs case can exist before any carrier scan appears, so this runs
+    // regardless of whether the carrier lookup below succeeds. `carrier` here is
+    // advisory; only forward the codes the WasselCustoms API understands.
+    const customsCarrier = carrier === 'dhl' || carrier === 'fedex' ? `&carrier=${carrier}` : '';
+    void (async () => {
+      try {
+        const r = await fetch(`${CUSTOMS_CASE_URL}?awb=${encodeURIComponent(trimmedId)}${customsCarrier}`);
+        const data = await r.json().catch(() => null);
+        if (data && data.hasOpenCase) setCustomsCase(data as CustomsCaseView);
+      } catch { /* supplementary; never affects tracking */ }
+    })();
 
     try {
       if (carrier === 'passport') {
@@ -815,6 +897,107 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
       }
   };
 
+  // Supplementary WasselCustoms clearance card — shown whenever there's an open
+  // case, in both the normal results view and the "no carrier data yet" view
+  // (a customs file can exist before any carrier scan). Visual reference:
+  // WasselCustoms/…/scratchpad/tracking-with-customs-mockup.html
+  const customsCaseCard = customsCase?.hasOpenCase && customsCase.cases.length > 0 ? (() => {
+    const fmtDate = (iso: string) => {
+      const d = new Date(iso);
+      return isNaN(d.getTime())
+        ? iso
+        : d.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+    const caseStatusLabel = (c: { status: string; statusLabel: string }) =>
+      t.customs.statusLabels[c.status] || t.customs.statusLabelFallback[c.statusLabel] || c.statusLabel;
+    const reqLabel = (r: CustomsRequirementView) =>
+      r.type === 'other' ? (r.title || t.customs.reqTypeLabels.other) : (t.customs.reqTypeLabels[r.type] || r.title);
+    // Icon + pill styling keyed on requirement.status (mockup .tag.miss/.req/.recv/.done)
+    const reqStyle = (status: string): { Icon: typeof CheckCircle; icon: string; pill: string } => {
+      if (status === 'missing') return { Icon: AlertTriangle, icon: 'text-red-600', pill: 'bg-red-50 text-red-700 border border-red-200' };
+      if (status === 'new' || status === 'requested') return { Icon: Clock, icon: 'text-amber-600', pill: 'bg-amber-50 text-amber-800 border border-amber-200' };
+      if (status === 'received') return { Icon: CheckCircle, icon: 'text-emerald-600', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200' };
+      return { Icon: CheckCircle, icon: 'text-gray-400', pill: 'bg-gray-100 text-gray-600 border border-gray-200' };
+    };
+
+    return (
+      <div className="rounded-2xl border border-wassel-blue/30 bg-wassel-blue/5 px-4 py-4 flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-wassel-blue font-bold text-sm">
+          <FileText className="w-5 h-5 shrink-0" />
+          <span>{t.customs.panelTitle}</span>
+        </div>
+
+        {customsCase.cases.map((c, ci) => {
+          // Outstanding first, then the settled ones — same row treatment for all.
+          const reqs = [...c.requirements].sort((a, b) => Number(b.outstanding) - Number(a.outstanding));
+          const anyOutstanding = c.requirements.some((r) => r.outstanding);
+          const history = c.statusHistory.slice(-6);
+          return (
+            <div key={c.caseNumber} className={ci > 0 ? 'border-t border-wassel-blue/20 pt-4' : ''}>
+              {/* Case header */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
+                <span className="text-xs text-gray-500">{t.customs.fileLabel} {c.caseNumber}</span>
+                <span className="rounded-full bg-wassel-blue/10 px-3 py-1 text-xs font-bold text-wassel-blue">{caseStatusLabel(c)}</span>
+                {c.receivedAt && (
+                  <span className="text-xs text-gray-400">· {t.customs.openedOn} {fmtDate(c.receivedAt)}</span>
+                )}
+              </div>
+
+              {/* Requirements */}
+              {c.requirements.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-wassel-blue mb-2">{t.customs.outstandingTitle}</p>
+                  {!anyOutstanding ? (
+                    <p className="flex items-center gap-2 text-sm text-emerald-700">
+                      <CheckCircle className="w-4 h-4 shrink-0" />
+                      {t.customs.allReceived}
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {reqs.map((r, i) => {
+                        const { Icon, icon, pill } = reqStyle(r.status);
+                        return (
+                          <li key={`${r.type}-${i}`} className="flex items-start gap-2.5 text-sm">
+                            <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${icon}`} />
+                            <span className="flex-1 min-w-0 font-semibold text-gray-900">{reqLabel(r)}</span>
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${pill}`}>{t.customs.reqStatusLabels[r.status] || r.status}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* Status history — dot timeline, current step emphasised */}
+              {history.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-wassel-blue mb-2">{t.customs.historyTitle}</p>
+                  <ol className="flex flex-col">
+                    {history.map((ev, i) => {
+                      const current = i === history.length - 1;
+                      return (
+                        <li key={`${ev.ts}-${i}`} className="relative flex items-start gap-3 pb-3 last:pb-0">
+                          {!current && (
+                            <span className="absolute top-3 bottom-0 w-0.5 bg-wassel-blue/15 left-[3px] rtl:left-auto rtl:right-[3px]" />
+                          )}
+                          <span className={`relative z-10 mt-1 h-2 w-2 shrink-0 rounded-full ${current ? 'bg-wassel-blue ring-4 ring-wassel-blue/15' : 'bg-gray-300'}`} />
+                          <span className={`shrink-0 text-xs ${lang === 'ar' ? 'min-w-[88px]' : 'min-w-[68px]'} ${current ? 'text-wassel-blue/70' : 'text-gray-400'}`}>{fmtDate(ev.ts)}</span>
+                          <span className={`text-xs ${current ? 'font-bold text-wassel-blue' : 'text-gray-600'}`}>{t.customs.statusLabelFallback[ev.statusLabel] || ev.statusLabel}</span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  <p className="mt-1.5 text-[11px] text-gray-400">{t.customs.historyNote}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  })() : null;
+
   return (
     <div className={isPopup ? "w-full p-2" : "max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8"}>
       <div className={`text-center ${isPopup ? 'mb-8' : 'mb-12'}`}>
@@ -864,9 +1047,11 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
         </div>
       )}
 
-      {(awbRecord || notFound) && (
+      {(awbRecord || notFound || customsCase?.hasOpenCase) && (
         <div className="max-w-5xl mx-auto animate-slide-up space-y-6">
           {notFound ? (
+            <>
+            {customsCaseCard}
             <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
               <h3 className="text-xl font-bold text-gray-900 mb-1 text-center">{t.noData}</h3>
               <p className="text-gray-500 mb-6 text-center text-sm">{t.noDataDesc}</p>
@@ -978,7 +1163,8 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                 </button>
               </div>
             </div>
-          ) : (
+            </>
+          ) : awbRecord ? (
             <>
               <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -1037,6 +1223,8 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                   )}
                 </div>
               )}
+
+              {customsCaseCard}
 
               {shipmentInfo && (
                 <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -1144,6 +1332,8 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                 );
               })()}
             </>
+          ) : (
+            customsCaseCard
           )}
         </div>
       )}

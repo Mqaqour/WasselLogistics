@@ -47,6 +47,11 @@ export const env = {
   // endpoint is open (still rate-limited).
   GENERAL_TRACKING_API_KEY: optional('GENERAL_TRACKING_API_KEY', ''),
 
+  // WasselCustoms public customs-case lookup (server-to-server, shared x-api-key).
+  // Never sent to the browser — proxied by /api/customs-case. Empty key = feature off.
+  CUSTOMS_API_BASE_URL: optional('CUSTOMS_API_BASE_URL', 'https://wasselwebuat.wassel.ps'),
+  CUSTOMS_API_KEY:      optional('CUSTOMS_API_KEY', ''),
+
   // QuickRate shipping proxy
   QUICKRATE_API_KEY: optional('QUICKRATE_API_KEY', ''),
   QUICKRATE_BASE_URL: optional('QUICKRATE_BASE_URL', 'https://quickrate.wassel.ps'),
