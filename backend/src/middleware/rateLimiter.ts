@@ -41,6 +41,11 @@ export const aiChatLimiter = makeLimiter(MIN, env.CHAT_RATE_LIMIT_PER_MINUTE ?? 
 // external API call against a rate-limited/paid upstream.
 export const trackingLimiter = makeLimiter(15 * MIN, 20, 'Too many tracking requests. Please try again later.');
 
+// GeneralTrackingApi — the unified /api/general-tracking endpoint. Called by
+// respond.io (many customers behind a shared pool of IPs), so it needs a much
+// higher ceiling than the per-visitor trackingLimiter above.
+export const generalTrackingLimiter = makeLimiter(15 * MIN, 300, 'Too many tracking requests. Please try again later.');
+
 // Shipping rate quotes — proxies to QuickRate with our own API key.
 export const quickrateLimiter = makeLimiter(15 * MIN, 15, 'Too many rate requests. Please try again later.');
 

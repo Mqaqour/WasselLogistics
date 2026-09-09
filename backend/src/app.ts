@@ -21,6 +21,7 @@ import authRoutes from './routes/auth.routes';
 import resourceCategoriesRoutes from './routes/resource-categories.routes';
 import resourceSubItemsRoutes   from './routes/resource-sub-items.routes';
 import resourceSectionsRoutes   from './routes/resource-sections.routes';
+import generalTrackingRoutes    from './routes/general-tracking.routes';
 import settingsRoutes from './routes/settings.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { getContactAiSuggestion } from './services/ai-agent.service';
@@ -31,6 +32,7 @@ import { wasselAwbDetailsUrl, wasselAwbHeaders } from './utils/wasselAwb';
 import {
   apiFallbackLimiter,
   trackingLimiter,
+  generalTrackingLimiter,
   quickrateLimiter,
   sendRequestLimiter,
   contactSubmitLimiter,
@@ -192,6 +194,9 @@ export function createApp() {
   app.use('/api/resource-sub-items',  requireAuthForWrites, resourceSubItemsRoutes);
   app.use('/api/resource-sections',   requireAuthForWrites, resourceSectionsRoutes);
   app.use('/api/admin/settings',      requireAuth,           settingsRoutes);
+
+  // GeneralTrackingApi — one unified tracking lookup for external automations (respond.io).
+  app.use('/api/general-tracking',    generalTrackingLimiter, generalTrackingRoutes);
 
   // Jordan Passport proxy — forwards to the n8n webhook (replaces the old
   // jopassports.wassel.ps direct integration, which hung indefinitely from

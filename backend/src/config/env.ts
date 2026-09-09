@@ -42,6 +42,11 @@ export const env = {
   WASSEL_AWB_USERNAME: optional('WASSEL_AWB_USERNAME', ''),
   WASSEL_AWB_PASSWORD: optional('WASSEL_AWB_PASSWORD', ''),
 
+  // GeneralTrackingApi — unified /api/general-tracking endpoint (used by respond.io).
+  // When set, callers must send a matching `x-api-key` header; when empty the
+  // endpoint is open (still rate-limited).
+  GENERAL_TRACKING_API_KEY: optional('GENERAL_TRACKING_API_KEY', ''),
+
   // QuickRate shipping proxy
   QUICKRATE_API_KEY: optional('QUICKRATE_API_KEY', ''),
   QUICKRATE_BASE_URL: optional('QUICKRATE_BASE_URL', 'https://quickrate.wassel.ps'),
