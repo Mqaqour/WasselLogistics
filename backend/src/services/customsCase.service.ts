@@ -109,7 +109,9 @@ function coerce(data: unknown): CustomsCaseView | null {
 export async function getCustomsCase(rawAwb: string, carrier?: string): Promise<CustomsCaseView> {
   const awb = rawAwb.trim();
   if (!awb) return EMPTY;
-  if (!env.CUSTOMS_API_KEY) return EMPTY;
+  // Feature is off / misconfigured — fail silent (a blank base URL would otherwise
+  // throw in `new URL()` on every lookup).
+  if (!env.CUSTOMS_API_KEY || !env.CUSTOMS_API_BASE_URL) return EMPTY;
 
   const normCarrier = normalizeCarrier(carrier);
   const key = `${awb}|${normCarrier ?? ''}`;
