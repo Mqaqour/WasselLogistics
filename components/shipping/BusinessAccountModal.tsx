@@ -259,12 +259,9 @@ export const BusinessAccountModal: React.FC<BusinessAccountModalProps> = ({ lang
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/50"
       dir={isAr ? 'rtl' : 'ltr'}
-      onClick={handleClose}
     >
-      <div
-        className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()}
-      >
+      {/* Click-outside intentionally does NOT close this modal — use the X button. */}
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="relative bg-white px-5 pt-6 pb-4 shrink-0 border-b border-gray-100">
           <button

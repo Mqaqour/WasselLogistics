@@ -520,8 +520,8 @@ export const App: React.FC = () => {
       {activePopup && !['chat', 'open-account', 'notify', 'quote'].includes(activePopup) && (
         <div className="fixed inset-0 z-[60] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-                 {/* Backdrop */}
-                <div className="fixed inset-0 bg-gray-900/70 transition-opacity backdrop-blur-md" onClick={() => setActivePopup(null)}></div>
+                 {/* Backdrop — click-outside intentionally does NOT close the modal; use the X button. */}
+                <div className="fixed inset-0 bg-gray-900/70 transition-opacity backdrop-blur-md"></div>
                  
                  <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
