@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "name": "FedEx Derived Status Mapping",
+    "field": "derivedStatusCode",
+    "language": [
+      "en",
+      "ar"
+    ],
+    "notes": "Use only with FedEx derivedStatusCode. Do not reuse these meanings for eventType."
+  },
+  "statuses": [
+    {
+      "code": "IN",
+      "english": "Label created",
+      "arabic": "تم إنشاء بوليصة الشحن",
+      "customer_ar": "تم إنشاء بوليصة الشحن وإرسال معلوماتها إلى FedEx"
+    },
+    {
+      "code": "PU",
+      "english": "Picked up",
+      "arabic": "تم استلام الشحنة",
+      "customer_ar": "تم استلام الشحنة من المرسل"
+    },
+    {
+      "code": "IT",
+      "english": "In transit",
+      "arabic": "الشحنة قيد النقل",
+      "customer_ar": "الشحنة قيد النقل إلى وجهتها"
+    },
+    {
+      "code": "CD",
+      "english": "Clearance Delay",
+      "arabic": "تأخير في إجراءات التخليص الجمركي",
+      "customer_ar": "يوجد تأخير في إجراءات التخليص الجمركي، يرجى مراجعة التفاصيل"
+    }
+  ]
+}

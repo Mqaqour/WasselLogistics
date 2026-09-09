@@ -1,0 +1,261 @@
+{
+  "metadata": {
+    "name": "FedEx Clearance / Customs Exception Mapping",
+    "fields": [
+      "exceptionCode",
+      "ancillaryDetails[].reason"
+    ],
+    "language": [
+      "en",
+      "ar"
+    ],
+    "notes": "Prefer live FedEx reasonDescription/action/actionDescription when present. Use this table as a fallback/customer translation layer."
+  },
+  "exceptions": [
+    {
+      "code": "R0038",
+      "english": "Documentation discrepancy",
+      "arabic": "يوجد اختلاف أو نقص في مستندات التخليص"
+    },
+    {
+      "code": "R0045",
+      "english": "Value information/documentation required",
+      "arabic": "مطلوب استكمال معلومات قيمة البضاعة"
+    },
+    {
+      "code": "R0046",
+      "english": "Value Declaration required",
+      "arabic": "مطلوب تقديم إقرار بقيمة البضاعة"
+    },
+    {
+      "code": "R0047",
+      "english": "Confirmation of goods value required",
+      "arabic": "مطلوب تأكيد قيمة البضاعة"
+    },
+    {
+      "code": "R0048",
+      "english": "Currency confirmation required",
+      "arabic": "مطلوب تأكيد عملة الفاتورة"
+    },
+    {
+      "code": "R0049",
+      "english": "Country of manufacture verification",
+      "arabic": "مطلوب تأكيد بلد تصنيع البضاعة"
+    },
+    {
+      "code": "R0050",
+      "english": "Original visa/export license required",
+      "arabic": "مطلوب تصريح أو رخصة التصدير الأصلية"
+    },
+    {
+      "code": "R0051",
+      "english": "Awaiting customs approval / transit documents",
+      "arabic": "المعاملة بانتظار موافقة الجمارك أو مستندات العبور"
+    },
+    {
+      "code": "R0052",
+      "english": "Regulatory certificate/permit required",
+      "arabic": "مطلوب تصريح أو شهادة من الجهة المختصة"
+    },
+    {
+      "code": "R0053",
+      "english": "In clearance process",
+      "arabic": "الشحنة قيد إجراءات التخليص الجمركي"
+    },
+    {
+      "code": "R0054",
+      "english": "Importer deferment authorization required",
+      "arabic": "مطلوب تفويض متعلق بحساب المستورد الجمركي"
+    },
+    {
+      "code": "R0055",
+      "english": "Clearance instructions from importer required",
+      "arabic": "مطلوب تعليمات التخليص من المستورد"
+    },
+    {
+      "code": "R0056",
+      "english": "Importer identification/registration required",
+      "arabic": "مطلوب رقم تعريف أو تسجيل المستورد"
+    },
+    {
+      "code": "R0057",
+      "english": "Original importer permit/license required",
+      "arabic": "مطلوب تصريح أو رخصة الاستيراد الأصلية"
+    },
+    {
+      "code": "R0058",
+      "english": "End-use/import reason statement required",
+      "arabic": "مطلوب بيان يوضح استخدام البضاعة أو سبب الاستيراد"
+    },
+    {
+      "code": "R0059",
+      "english": "Import license/permit required",
+      "arabic": "مطلوب تصريح أو رخصة استيراد لإتمام التخليص"
+    },
+    {
+      "code": "R0061",
+      "english": "Specific regulatory letter required",
+      "arabic": "مطلوب مستند تنظيمي إضافي"
+    },
+    {
+      "code": "R0062",
+      "english": "Personal Effects form / self-clearance",
+      "arabic": "مطلوب نموذج أمتعة شخصية أو إجراء تخليص ذاتي"
+    },
+    {
+      "code": "R0063",
+      "english": "Power of Attorney required",
+      "arabic": "مطلوب تفويض للتخليص الجمركي"
+    },
+    {
+      "code": "R0064",
+      "english": "Quarantine permit required",
+      "arabic": "مطلوب تصريح حجر / موافقة الجهة المختصة"
+    },
+    {
+      "code": "R0066",
+      "english": "Specialized form required",
+      "arabic": "مطلوب نموذج أو إقرار إضافي من المستلم"
+    },
+    {
+      "code": "R0067",
+      "english": "Regulatory review",
+      "arabic": "البضاعة قيد مراجعة الجهات التنظيمية"
+    },
+    {
+      "code": "R0068",
+      "english": "Goods description required",
+      "arabic": "مطلوب وصف تفصيلي للبضاعة"
+    },
+    {
+      "code": "R0069",
+      "english": "Duty-free declaration required",
+      "arabic": "مطلوب إقرار للإعفاء الجمركي"
+    },
+    {
+      "code": "R0072",
+      "english": "More accurate commodity description",
+      "arabic": "مطلوب وصف أكثر دقة لمحتويات الشحنة"
+    },
+    {
+      "code": "R0073",
+      "english": "Itemized material/fabric breakdown required",
+      "arabic": "مطلوب تفصيل مكونات أو مواد البضاعة"
+    },
+    {
+      "code": "R0074",
+      "english": "Detailed broker information required",
+      "arabic": "مطلوب استكمال معلومات المخلص الجمركي"
+    },
+    {
+      "code": "R0075",
+      "english": "Proof of export required",
+      "arabic": "مطلوب إثبات التصدير"
+    },
+    {
+      "code": "R0076",
+      "english": "Original export documents required",
+      "arabic": "مطلوب مستند التصدير الأصلي"
+    },
+    {
+      "code": "R0077",
+      "english": "Temporary Importation Bond required",
+      "arabic": "مطلوب ضمان / مستند للاستيراد المؤقت"
+    },
+    {
+      "code": "R0078",
+      "english": "Translation of documents required",
+      "arabic": "مطلوب ترجمة المستندات"
+    },
+    {
+      "code": "R0081",
+      "english": "Recipient business not open",
+      "arabic": "منشأة المستلم مغلقة حاليًا"
+    },
+    {
+      "code": "R0083",
+      "english": "Signed affidavit/support document required",
+      "arabic": "مطلوب إقرار أو مستند داعم موقع"
+    },
+    {
+      "code": "R0084",
+      "english": "Non-express clearance requested",
+      "arabic": "تم طلب تخليص جمركي خارج خدمة FedEx"
+    },
+    {
+      "code": "R0085",
+      "english": "Regulatory review",
+      "arabic": "البضاعة قيد مراجعة الجهات المختصة"
+    },
+    {
+      "code": "R0089",
+      "english": "In clearance process",
+      "arabic": "الشحنة قيد إجراءات التخليص"
+    },
+    {
+      "code": "R0091",
+      "english": "Commercial invoice/value issue",
+      "arabic": "مطلوب تصحيح أو استكمال قيمة البضاعة في الفاتورة"
+    },
+    {
+      "code": "R0094",
+      "english": "Declaration for repaired/altered items required",
+      "arabic": "مطلوب إقرار خاص بالبضاعة التي تم إصلاحها أو تعديلها"
+    },
+    {
+      "code": "R0095",
+      "english": "Documentation/information missing",
+      "arabic": "مستندات أو معلومات التخليص غير مكتملة"
+    },
+    {
+      "code": "R0102",
+      "english": "Non-FedEx broker / unknown status",
+      "arabic": "التخليص لدى مخلص خارجي عن FedEx"
+    },
+    {
+      "code": "R0106",
+      "english": "Tariff number required",
+      "arabic": "مطلوب الرمز الجمركي / HS Code"
+    },
+    {
+      "code": "R0108",
+      "english": "Additional documentation required",
+      "arabic": "مطلوب مستندات إضافية لإتمام التخليص"
+    },
+    {
+      "code": "R0111",
+      "english": "Marking/labelling issue",
+      "arabic": "يوجد متطلب متعلق بوسم أو ملصقات البضاعة"
+    },
+    {
+      "code": "R0114",
+      "english": "Proof of origin required",
+      "arabic": "مطلوب إثبات منشأ البضاعة"
+    },
+    {
+      "code": "R0115",
+      "english": "Goods description required",
+      "arabic": "مطلوب وصف واضح لمحتويات الشحنة"
+    },
+    {
+      "code": "R0117",
+      "english": "Original invoice required",
+      "arabic": "مطلوب أصل الفاتورة"
+    },
+    {
+      "code": "R0119",
+      "english": "Repair/alteration/warranty cost required",
+      "arabic": "مطلوب تحديد تكلفة الإصلاح أو التعديل"
+    },
+    {
+      "code": "R0120",
+      "english": "In clearance process",
+      "arabic": "الشحنة قيد التخليص الجمركي"
+    },
+    {
+      "code": "R0163",
+      "english": "Regulatory review",
+      "arabic": "البضاعة قيد مراجعة الجهات التنظيمية"
+    }
+  ]
+}

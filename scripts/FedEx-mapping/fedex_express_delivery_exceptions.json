@@ -1,0 +1,112 @@
+{
+  "metadata": {
+    "name": "FedEx Express Special Delivery Exception Mapping",
+    "field": "FedEx Express delivery exception subcode",
+    "language": [
+      "en",
+      "ar"
+    ]
+  },
+  "exceptions": [
+    {
+      "code": "03",
+      "english": "Incorrect address",
+      "arabic": "عنوان غير صحيح"
+    },
+    {
+      "code": "03A",
+      "english": "Incorrect postal code",
+      "arabic": "الرمز البريدي غير صحيح"
+    },
+    {
+      "code": "03B",
+      "english": "Incorrect street/name/number",
+      "arabic": "بيانات الشارع غير صحيحة"
+    },
+    {
+      "code": "07",
+      "english": "Refused by recipient",
+      "arabic": "رفض المستلم استلام الشحنة"
+    },
+    {
+      "code": "07A",
+      "english": "Duplicate order",
+      "arabic": "طلب مكرر"
+    },
+    {
+      "code": "07B",
+      "english": "Package damaged",
+      "arabic": "الشحنة متضررة"
+    },
+    {
+      "code": "08",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "08A",
+      "english": "Signature issue",
+      "arabic": "لم يتوفر الشخص المطلوب للتوقيع"
+    },
+    {
+      "code": "08C",
+      "english": "Recipient account required",
+      "arabic": "مطلوب رقم حساب المستلم"
+    },
+    {
+      "code": "08D",
+      "english": "Access controlled by customer",
+      "arabic": "تعذر الوصول إلى موقع المستلم"
+    },
+    {
+      "code": "10",
+      "english": "Damaged, delivery incomplete",
+      "arabic": "تعذر التسليم بسبب تلف الشحنة"
+    },
+    {
+      "code": "15",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "17",
+      "english": "Future delivery requested",
+      "arabic": "تم طلب موعد تسليم لاحق"
+    },
+    {
+      "code": "29",
+      "english": "Rerouted",
+      "arabic": "تم تحويل الشحنة إلى عنوان جديد"
+    },
+    {
+      "code": "31",
+      "english": "Arrived after courier dispatch",
+      "arabic": "وصلت الشحنة بعد مغادرة مندوب التوصيل"
+    },
+    {
+      "code": "42",
+      "english": "Business closed",
+      "arabic": "المنشأة مغلقة"
+    },
+    {
+      "code": "84",
+      "english": "Local delivery restriction",
+      "arabic": "توجد قيود محلية على التسليم"
+    },
+    {
+      "code": "93",
+      "english": "Unable to collect payment",
+      "arabic": "الشحنة محتجزة لتعذر تحصيل المبلغ"
+    },
+    {
+      "code": "A6",
+      "english": "Adult recipient unavailable",
+      "arabic": "الشخص المخول بالاستلام غير متوفر"
+    },
+    {
+      "code": "A28",
+      "english": "Delay beyond control",
+      "arabic": "تأخير لأسباب خارجة عن السيطرة"
+    }
+  ]
+}

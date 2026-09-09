@@ -1,0 +1,1073 @@
+{
+  "metadata": {
+    "name": "FedEx Arabic Tracking Master Mapping",
+    "version": "1.0",
+    "purpose": "Website/API translation and customer-facing FedEx tracking status mapping",
+    "important": "Mappings are field/context specific. Do not flatten all codes into one dictionary."
+  },
+  "derived_statuses": [
+    {
+      "code": "IN",
+      "english": "Label created",
+      "arabic": "تم إنشاء بوليصة الشحن",
+      "customer_ar": "تم إنشاء بوليصة الشحن وإرسال معلوماتها إلى FedEx"
+    },
+    {
+      "code": "PU",
+      "english": "Picked up",
+      "arabic": "تم استلام الشحنة",
+      "customer_ar": "تم استلام الشحنة من المرسل"
+    },
+    {
+      "code": "IT",
+      "english": "In transit",
+      "arabic": "الشحنة قيد النقل",
+      "customer_ar": "الشحنة قيد النقل إلى وجهتها"
+    },
+    {
+      "code": "CD",
+      "english": "Clearance Delay",
+      "arabic": "تأخير في إجراءات التخليص الجمركي",
+      "customer_ar": "يوجد تأخير في إجراءات التخليص الجمركي، يرجى مراجعة التفاصيل"
+    }
+  ],
+  "scan_events": [
+    {
+      "category": "ship",
+      "code": "OC",
+      "english": "Shipment information sent to FedEx",
+      "arabic": "تم إنشاء معلومات الشحنة وإرسالها إلى FedEx"
+    },
+    {
+      "category": "ship",
+      "code": "DO",
+      "english": "Dropped Off",
+      "arabic": "تم تسليم الشحنة إلى نقطة FedEx"
+    },
+    {
+      "category": "ship",
+      "code": "LC",
+      "english": "Return label link cancelled",
+      "arabic": "تم إلغاء رابط بوليصة الإرجاع"
+    },
+    {
+      "category": "ship",
+      "code": "DS",
+      "english": "Vehicle dispatched",
+      "arabic": "تم إرسال مركبة لاستلام الشحنة"
+    },
+    {
+      "category": "ship",
+      "code": "PD",
+      "english": "Pickup delayed",
+      "arabic": "تأخر استلام الشحنة"
+    },
+    {
+      "category": "ship",
+      "code": "CA",
+      "english": "Shipment cancelled",
+      "arabic": "تم إلغاء الشحنة"
+    },
+    {
+      "category": "ship",
+      "code": "PU",
+      "english": "Picked up",
+      "arabic": "تم استلام الشحنة من المرسل"
+    },
+    {
+      "category": "ship",
+      "code": "US",
+      "english": "Scheduled delivery updated",
+      "arabic": "تم تحديث موعد التسليم"
+    },
+    {
+      "category": "ship",
+      "code": "RD",
+      "english": "Return label link expired",
+      "arabic": "انتهت صلاحية رابط بوليصة الإرجاع"
+    },
+    {
+      "category": "ship",
+      "code": "IP",
+      "english": "In FedEx possession",
+      "arabic": "الشحنة بحوزة FedEx"
+    },
+    {
+      "category": "ship",
+      "code": "HP",
+      "english": "Ready for pickup",
+      "arabic": "الشحنة جاهزة للاستلام"
+    },
+    {
+      "category": "ship",
+      "code": "RG",
+      "english": "Return label link expiring soon",
+      "arabic": "رابط بوليصة الإرجاع سينتهي قريبًا"
+    },
+    {
+      "category": "ship",
+      "code": "RP",
+      "english": "Return label link emailed",
+      "arabic": "تم إرسال رابط بوليصة الإرجاع"
+    },
+    {
+      "category": "ship",
+      "code": "RS",
+      "english": "Returning package to shipper",
+      "arabic": "جاري إعادة الشحنة إلى المرسل"
+    },
+    {
+      "category": "in_transit",
+      "code": "AR",
+      "english": "Arrived at Port of Entry",
+      "arabic": "وصلت الشحنة إلى منفذ الدخول"
+    },
+    {
+      "category": "in_transit",
+      "code": "AF",
+      "english": "At local FedEx facility",
+      "arabic": "الشحنة موجودة في مركز FedEx المحلي"
+    },
+    {
+      "category": "in_transit",
+      "code": "AC",
+      "english": "At Canada Post facility",
+      "arabic": "الشحنة موجودة في مركز البريد الكندي"
+    },
+    {
+      "category": "in_transit",
+      "code": "IT",
+      "english": "On the way",
+      "arabic": "الشحنة قيد النقل"
+    },
+    {
+      "category": "in_transit",
+      "code": "OX",
+      "english": "Shipment information sent to USPS",
+      "arabic": "تم إرسال معلومات الشحنة إلى البريد الأمريكي"
+    },
+    {
+      "category": "in_transit",
+      "code": "PM",
+      "english": "In Progress",
+      "arabic": "جاري معالجة الشحنة"
+    },
+    {
+      "category": "in_transit",
+      "code": "DP",
+      "english": "Left FedEx origin facility",
+      "arabic": "غادرت الشحنة مركز FedEx"
+    },
+    {
+      "category": "in_transit",
+      "code": "DR",
+      "english": "Vehicle furnished but not used",
+      "arabic": "لم يتم استخدام المركبة المخصصة"
+    },
+    {
+      "category": "customs",
+      "code": "CP",
+      "english": "Clearance in Progress",
+      "arabic": "جاري التخليص الجمركي"
+    },
+    {
+      "category": "customs",
+      "code": "EA",
+      "english": "Export Approved",
+      "arabic": "تمت الموافقة على تصدير الشحنة"
+    },
+    {
+      "category": "in_transit",
+      "code": "IN",
+      "english": "On Demand Care completed",
+      "arabic": "تم استكمال خدمة العناية الخاصة بالشحنة"
+    },
+    {
+      "category": "in_transit",
+      "code": "MD",
+      "english": "Manifest data",
+      "arabic": "تم تسجيل بيانات الشحنة"
+    },
+    {
+      "category": "in_transit",
+      "code": "TR",
+      "english": "Enroute to delivery",
+      "arabic": "الشحنة في الطريق للتسليم"
+    },
+    {
+      "category": "customs",
+      "code": "CC",
+      "english": "International shipment release",
+      "arabic": "تم الإفراج عن الشحنة جمركيًا"
+    },
+    {
+      "category": "delivery_option",
+      "code": "RC",
+      "english": "Delivery Option Request Cancelled",
+      "arabic": "تم إلغاء طلب تعديل التسليم"
+    },
+    {
+      "category": "in_transit",
+      "code": "CH",
+      "english": "Location changed",
+      "arabic": "تم تغيير موقع الشحنة"
+    },
+    {
+      "category": "delivery",
+      "code": "OD",
+      "english": "Out for delivery",
+      "arabic": "الشحنة خرجت للتسليم"
+    },
+    {
+      "category": "delivery",
+      "code": "DL",
+      "english": "Delivered",
+      "arabic": "تم تسليم الشحنة"
+    },
+    {
+      "category": "exception",
+      "code": "DD",
+      "english": "Delivery Delay",
+      "arabic": "تأخير في التسليم"
+    },
+    {
+      "category": "exception",
+      "code": "DE",
+      "english": "Delivery Exception",
+      "arabic": "تعذر التسليم / يوجد استثناء في التسليم"
+    },
+    {
+      "category": "exception",
+      "code": "SE",
+      "english": "Shipment Exception",
+      "arabic": "يوجد استثناء يؤثر على الشحنة"
+    },
+    {
+      "category": "customs",
+      "code": "CD",
+      "english": "Clearance Delay",
+      "arabic": "تأخير في إجراءات التخليص الجمركي"
+    },
+    {
+      "category": "edd",
+      "code": "AE",
+      "english": "Shipment arriving early",
+      "arabic": "من المتوقع وصول الشحنة قبل الموعد"
+    },
+    {
+      "category": "edd",
+      "code": "AO",
+      "english": "Shipment arriving on-time",
+      "arabic": "من المتوقع وصول الشحنة في الموعد"
+    },
+    {
+      "category": "edd",
+      "code": "DY",
+      "english": "Delivery updated",
+      "arabic": "تم تحديث موعد التسليم"
+    },
+    {
+      "category": "delivery_option",
+      "code": "RR",
+      "english": "Delivery option requested",
+      "arabic": "تم طلب تعديل خيار التسليم"
+    },
+    {
+      "category": "delivery_option",
+      "code": "RM",
+      "english": "Delivery option updated",
+      "arabic": "تم تحديث خيار التسليم"
+    },
+    {
+      "category": "delivery_option",
+      "code": "HA",
+      "english": "Hold at location accepted",
+      "arabic": "تم قبول طلب الاحتفاظ بالشحنة للاستلام"
+    },
+    {
+      "category": "return",
+      "code": "RT",
+      "english": "Return to Shipper Requested",
+      "arabic": "تم طلب إعادة الشحنة إلى المرسل"
+    },
+    {
+      "category": "address",
+      "code": "RA",
+      "english": "Address Change Requested",
+      "arabic": "تم طلب تغيير عنوان التسليم"
+    },
+    {
+      "category": "address",
+      "code": "PR",
+      "english": "Redirect completed",
+      "arabic": "تم تغيير عنوان التسليم بنجاح"
+    },
+    {
+      "category": "address",
+      "code": "AS",
+      "english": "Address Corrected",
+      "arabic": "تم تصحيح عنوان الشحنة"
+    }
+  ],
+  "additional_tracking_statuses": [
+    {
+      "code": "AA",
+      "english": "At Airport",
+      "arabic": "وصلت الشحنة إلى المطار"
+    },
+    {
+      "code": "AD",
+      "english": "At Delivery",
+      "arabic": "الشحنة في مرحلة التسليم"
+    },
+    {
+      "code": "AF",
+      "english": "At FedEx Facility",
+      "arabic": "الشحنة في مركز FedEx"
+    },
+    {
+      "code": "AP",
+      "english": "At Pickup",
+      "arabic": "الشحنة في موقع الاستلام"
+    },
+    {
+      "code": "AR",
+      "english": "Arrived At",
+      "arabic": "وصلت الشحنة"
+    },
+    {
+      "code": "AX",
+      "english": "At USPS Facility",
+      "arabic": "الشحنة في مركز البريد الأمريكي"
+    },
+    {
+      "code": "CA",
+      "english": "Shipment Cancelled",
+      "arabic": "تم إلغاء الشحنة"
+    },
+    {
+      "code": "CH",
+      "english": "Location Changed",
+      "arabic": "تم تغيير موقع الشحنة"
+    },
+    {
+      "code": "DD",
+      "english": "Delivery Delay",
+      "arabic": "تأخير في التسليم"
+    },
+    {
+      "code": "DE",
+      "english": "Delivery Exception",
+      "arabic": "استثناء في عملية التسليم"
+    },
+    {
+      "code": "DL",
+      "english": "Delivered",
+      "arabic": "تم تسليم الشحنة"
+    },
+    {
+      "code": "DP",
+      "english": "Departed",
+      "arabic": "غادرت الشحنة الموقع"
+    },
+    {
+      "code": "DR",
+      "english": "Vehicle Furnished but Not Used",
+      "arabic": "لم يتم استخدام المركبة المخصصة"
+    },
+    {
+      "code": "DS",
+      "english": "Vehicle Dispatched",
+      "arabic": "تم إرسال المركبة"
+    },
+    {
+      "code": "DY",
+      "english": "Delay / Delivery Update",
+      "arabic": "تم تحديث أو تأخير التسليم"
+    },
+    {
+      "code": "ED",
+      "english": "Enroute to Delivery",
+      "arabic": "الشحنة في الطريق للتسليم"
+    },
+    {
+      "code": "EO",
+      "english": "Enroute to Origin Airport",
+      "arabic": "الشحنة في الطريق إلى مطار المغادرة"
+    },
+    {
+      "code": "EP",
+      "english": "Enroute to Pickup",
+      "arabic": "في الطريق لاستلام الشحنة"
+    },
+    {
+      "code": "FD",
+      "english": "At FedEx Destination",
+      "arabic": "وصلت إلى مركز FedEx في الوجهة"
+    },
+    {
+      "code": "HL",
+      "english": "Hold at Location",
+      "arabic": "الشحنة محتجزة للاستلام من الموقع"
+    },
+    {
+      "code": "IT",
+      "english": "In Transit",
+      "arabic": "الشحنة قيد النقل"
+    },
+    {
+      "code": "IX",
+      "english": "In Transit — See Details",
+      "arabic": "الشحنة قيد النقل — يرجى مراجعة التفاصيل"
+    },
+    {
+      "code": "LO",
+      "english": "Left Origin",
+      "arabic": "غادرت الشحنة بلد / موقع المنشأ"
+    },
+    {
+      "code": "OC",
+      "english": "Order Created",
+      "arabic": "تم إنشاء الشحنة"
+    },
+    {
+      "code": "OD",
+      "english": "Out for Delivery",
+      "arabic": "الشحنة خرجت للتسليم"
+    },
+    {
+      "code": "OF",
+      "english": "At FedEx Origin Facility",
+      "arabic": "الشحنة في مركز FedEx في بلد المنشأ"
+    },
+    {
+      "code": "PF",
+      "english": "Plane in Flight",
+      "arabic": "الشحنة قيد النقل الجوي"
+    },
+    {
+      "code": "PL",
+      "english": "Plane Landed",
+      "arabic": "هبطت الطائرة الناقلة للشحنة"
+    },
+    {
+      "code": "PM",
+      "english": "In Progress",
+      "arabic": "جاري معالجة الشحنة"
+    },
+    {
+      "code": "PU",
+      "english": "Picked Up",
+      "arabic": "تم استلام الشحنة"
+    },
+    {
+      "code": "PX",
+      "english": "Picked Up — See Details",
+      "arabic": "تم استلام الشحنة — راجع التفاصيل"
+    },
+    {
+      "code": "RS",
+      "english": "Return to Shipper",
+      "arabic": "جاري إعادة الشحنة إلى المرسل"
+    },
+    {
+      "code": "SE",
+      "english": "Shipment Exception",
+      "arabic": "يوجد استثناء على الشحنة"
+    },
+    {
+      "code": "SF",
+      "english": "At Sort Facility",
+      "arabic": "الشحنة في مركز الفرز"
+    },
+    {
+      "code": "SP",
+      "english": "Split Status",
+      "arabic": "الشحنة متعددة القطع بحالات مختلفة"
+    },
+    {
+      "code": "TR",
+      "english": "Transfer",
+      "arabic": "جاري نقل الشحنة"
+    },
+    {
+      "code": "CC",
+      "english": "Cleared Customs",
+      "arabic": "تم التخليص الجمركي"
+    },
+    {
+      "code": "CD",
+      "english": "Clearance Delay",
+      "arabic": "تأخير في التخليص الجمركي"
+    },
+    {
+      "code": "CP",
+      "english": "Clearance in Progress",
+      "arabic": "جاري التخليص الجمركي"
+    }
+  ],
+  "clearance_exceptions": [
+    {
+      "code": "R0038",
+      "english": "Documentation discrepancy",
+      "arabic": "يوجد اختلاف أو نقص في مستندات التخليص"
+    },
+    {
+      "code": "R0045",
+      "english": "Value information/documentation required",
+      "arabic": "مطلوب استكمال معلومات قيمة البضاعة"
+    },
+    {
+      "code": "R0046",
+      "english": "Value Declaration required",
+      "arabic": "مطلوب تقديم إقرار بقيمة البضاعة"
+    },
+    {
+      "code": "R0047",
+      "english": "Confirmation of goods value required",
+      "arabic": "مطلوب تأكيد قيمة البضاعة"
+    },
+    {
+      "code": "R0048",
+      "english": "Currency confirmation required",
+      "arabic": "مطلوب تأكيد عملة الفاتورة"
+    },
+    {
+      "code": "R0049",
+      "english": "Country of manufacture verification",
+      "arabic": "مطلوب تأكيد بلد تصنيع البضاعة"
+    },
+    {
+      "code": "R0050",
+      "english": "Original visa/export license required",
+      "arabic": "مطلوب تصريح أو رخصة التصدير الأصلية"
+    },
+    {
+      "code": "R0051",
+      "english": "Awaiting customs approval / transit documents",
+      "arabic": "المعاملة بانتظار موافقة الجمارك أو مستندات العبور"
+    },
+    {
+      "code": "R0052",
+      "english": "Regulatory certificate/permit required",
+      "arabic": "مطلوب تصريح أو شهادة من الجهة المختصة"
+    },
+    {
+      "code": "R0053",
+      "english": "In clearance process",
+      "arabic": "الشحنة قيد إجراءات التخليص الجمركي"
+    },
+    {
+      "code": "R0054",
+      "english": "Importer deferment authorization required",
+      "arabic": "مطلوب تفويض متعلق بحساب المستورد الجمركي"
+    },
+    {
+      "code": "R0055",
+      "english": "Clearance instructions from importer required",
+      "arabic": "مطلوب تعليمات التخليص من المستورد"
+    },
+    {
+      "code": "R0056",
+      "english": "Importer identification/registration required",
+      "arabic": "مطلوب رقم تعريف أو تسجيل المستورد"
+    },
+    {
+      "code": "R0057",
+      "english": "Original importer permit/license required",
+      "arabic": "مطلوب تصريح أو رخصة الاستيراد الأصلية"
+    },
+    {
+      "code": "R0058",
+      "english": "End-use/import reason statement required",
+      "arabic": "مطلوب بيان يوضح استخدام البضاعة أو سبب الاستيراد"
+    },
+    {
+      "code": "R0059",
+      "english": "Import license/permit required",
+      "arabic": "مطلوب تصريح أو رخصة استيراد لإتمام التخليص"
+    },
+    {
+      "code": "R0061",
+      "english": "Specific regulatory letter required",
+      "arabic": "مطلوب مستند تنظيمي إضافي"
+    },
+    {
+      "code": "R0062",
+      "english": "Personal Effects form / self-clearance",
+      "arabic": "مطلوب نموذج أمتعة شخصية أو إجراء تخليص ذاتي"
+    },
+    {
+      "code": "R0063",
+      "english": "Power of Attorney required",
+      "arabic": "مطلوب تفويض للتخليص الجمركي"
+    },
+    {
+      "code": "R0064",
+      "english": "Quarantine permit required",
+      "arabic": "مطلوب تصريح حجر / موافقة الجهة المختصة"
+    },
+    {
+      "code": "R0066",
+      "english": "Specialized form required",
+      "arabic": "مطلوب نموذج أو إقرار إضافي من المستلم"
+    },
+    {
+      "code": "R0067",
+      "english": "Regulatory review",
+      "arabic": "البضاعة قيد مراجعة الجهات التنظيمية"
+    },
+    {
+      "code": "R0068",
+      "english": "Goods description required",
+      "arabic": "مطلوب وصف تفصيلي للبضاعة"
+    },
+    {
+      "code": "R0069",
+      "english": "Duty-free declaration required",
+      "arabic": "مطلوب إقرار للإعفاء الجمركي"
+    },
+    {
+      "code": "R0072",
+      "english": "More accurate commodity description",
+      "arabic": "مطلوب وصف أكثر دقة لمحتويات الشحنة"
+    },
+    {
+      "code": "R0073",
+      "english": "Itemized material/fabric breakdown required",
+      "arabic": "مطلوب تفصيل مكونات أو مواد البضاعة"
+    },
+    {
+      "code": "R0074",
+      "english": "Detailed broker information required",
+      "arabic": "مطلوب استكمال معلومات المخلص الجمركي"
+    },
+    {
+      "code": "R0075",
+      "english": "Proof of export required",
+      "arabic": "مطلوب إثبات التصدير"
+    },
+    {
+      "code": "R0076",
+      "english": "Original export documents required",
+      "arabic": "مطلوب مستند التصدير الأصلي"
+    },
+    {
+      "code": "R0077",
+      "english": "Temporary Importation Bond required",
+      "arabic": "مطلوب ضمان / مستند للاستيراد المؤقت"
+    },
+    {
+      "code": "R0078",
+      "english": "Translation of documents required",
+      "arabic": "مطلوب ترجمة المستندات"
+    },
+    {
+      "code": "R0081",
+      "english": "Recipient business not open",
+      "arabic": "منشأة المستلم مغلقة حاليًا"
+    },
+    {
+      "code": "R0083",
+      "english": "Signed affidavit/support document required",
+      "arabic": "مطلوب إقرار أو مستند داعم موقع"
+    },
+    {
+      "code": "R0084",
+      "english": "Non-express clearance requested",
+      "arabic": "تم طلب تخليص جمركي خارج خدمة FedEx"
+    },
+    {
+      "code": "R0085",
+      "english": "Regulatory review",
+      "arabic": "البضاعة قيد مراجعة الجهات المختصة"
+    },
+    {
+      "code": "R0089",
+      "english": "In clearance process",
+      "arabic": "الشحنة قيد إجراءات التخليص"
+    },
+    {
+      "code": "R0091",
+      "english": "Commercial invoice/value issue",
+      "arabic": "مطلوب تصحيح أو استكمال قيمة البضاعة في الفاتورة"
+    },
+    {
+      "code": "R0094",
+      "english": "Declaration for repaired/altered items required",
+      "arabic": "مطلوب إقرار خاص بالبضاعة التي تم إصلاحها أو تعديلها"
+    },
+    {
+      "code": "R0095",
+      "english": "Documentation/information missing",
+      "arabic": "مستندات أو معلومات التخليص غير مكتملة"
+    },
+    {
+      "code": "R0102",
+      "english": "Non-FedEx broker / unknown status",
+      "arabic": "التخليص لدى مخلص خارجي عن FedEx"
+    },
+    {
+      "code": "R0106",
+      "english": "Tariff number required",
+      "arabic": "مطلوب الرمز الجمركي / HS Code"
+    },
+    {
+      "code": "R0108",
+      "english": "Additional documentation required",
+      "arabic": "مطلوب مستندات إضافية لإتمام التخليص"
+    },
+    {
+      "code": "R0111",
+      "english": "Marking/labelling issue",
+      "arabic": "يوجد متطلب متعلق بوسم أو ملصقات البضاعة"
+    },
+    {
+      "code": "R0114",
+      "english": "Proof of origin required",
+      "arabic": "مطلوب إثبات منشأ البضاعة"
+    },
+    {
+      "code": "R0115",
+      "english": "Goods description required",
+      "arabic": "مطلوب وصف واضح لمحتويات الشحنة"
+    },
+    {
+      "code": "R0117",
+      "english": "Original invoice required",
+      "arabic": "مطلوب أصل الفاتورة"
+    },
+    {
+      "code": "R0119",
+      "english": "Repair/alteration/warranty cost required",
+      "arabic": "مطلوب تحديد تكلفة الإصلاح أو التعديل"
+    },
+    {
+      "code": "R0120",
+      "english": "In clearance process",
+      "arabic": "الشحنة قيد التخليص الجمركي"
+    },
+    {
+      "code": "R0163",
+      "english": "Regulatory review",
+      "arabic": "البضاعة قيد مراجعة الجهات التنظيمية"
+    }
+  ],
+  "delivery_exceptions": [
+    {
+      "code": "001",
+      "english": "Recipient location security delay",
+      "arabic": "تعذر التسليم بسبب قيود أمنية في موقع المستلم"
+    },
+    {
+      "code": "002",
+      "english": "Incorrect address",
+      "arabic": "عنوان التسليم غير صحيح"
+    },
+    {
+      "code": "002A",
+      "english": "Incorrect ZIP/postal code",
+      "arabic": "الرمز البريدي غير صحيح"
+    },
+    {
+      "code": "002B",
+      "english": "Incorrect street name",
+      "arabic": "اسم الشارع غير صحيح"
+    },
+    {
+      "code": "002C",
+      "english": "Incorrect street number",
+      "arabic": "رقم الشارع غير صحيح"
+    },
+    {
+      "code": "002D",
+      "english": "Incorrect apartment/suite",
+      "arabic": "رقم الشقة أو المكتب غير صحيح"
+    },
+    {
+      "code": "003",
+      "english": "Unable to locate address",
+      "arabic": "تعذر العثور على عنوان المستلم"
+    },
+    {
+      "code": "004",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "006",
+      "english": "Refused by recipient",
+      "arabic": "رفض المستلم استلام الشحنة"
+    },
+    {
+      "code": "006A",
+      "english": "Order cancelled",
+      "arabic": "رفض الاستلام بسبب إلغاء الطلب"
+    },
+    {
+      "code": "006B",
+      "english": "Duplicate order",
+      "arabic": "رفض الاستلام بسبب تكرار الطلب"
+    },
+    {
+      "code": "006C",
+      "english": "Late delivery",
+      "arabic": "رفض الاستلام بسبب تأخر الشحنة"
+    },
+    {
+      "code": "006D",
+      "english": "Package damaged",
+      "arabic": "رفض المستلم بسبب تلف الشحنة"
+    },
+    {
+      "code": "006E",
+      "english": "Not ordered",
+      "arabic": "المستلم أفاد بأنه لم يطلب الشحنة"
+    },
+    {
+      "code": "006F",
+      "english": "Order incorrect",
+      "arabic": "المستلم أفاد بأن الطلب غير صحيح"
+    },
+    {
+      "code": "007",
+      "english": "Customer unavailable/business closed",
+      "arabic": "لم يتم التسليم لعدم توفر المستلم أو إغلاق المنشأة"
+    },
+    {
+      "code": "007A",
+      "english": "Adult signature required",
+      "arabic": "تعذر التسليم لعدم توفر شخص مخول بالتوقيع"
+    },
+    {
+      "code": "010",
+      "english": "Returned to facility for inspection",
+      "arabic": "أعيدت الشحنة إلى مركز FedEx للفحص"
+    },
+    {
+      "code": "011",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "012",
+      "english": "Delivery delayed to next business day",
+      "arabic": "تم تأجيل محاولة التسليم إلى يوم العمل التالي"
+    },
+    {
+      "code": "017",
+      "english": "Rerouted to correct address",
+      "arabic": "تم تحويل الشحنة إلى عنوان التسليم الصحيح"
+    },
+    {
+      "code": "019",
+      "english": "Delivered to alternate address",
+      "arabic": "تم تسليم الشحنة إلى عنوان بديل"
+    },
+    {
+      "code": "022",
+      "english": "Held for COD information",
+      "arabic": "الشحنة محتجزة لاستكمال معلومات الدفع عند الاستلام"
+    },
+    {
+      "code": "024",
+      "english": "Payment/package not ready",
+      "arabic": "تعذر الإجراء بسبب عدم توفر الدفع أو جاهزية الشحنة"
+    },
+    {
+      "code": "025",
+      "english": "Tendered to authorized agent",
+      "arabic": "تم تسليم الشحنة لوكيل معتمد لإكمال التوصيل"
+    },
+    {
+      "code": "027",
+      "english": "No delivery attempt",
+      "arabic": "لم تتم محاولة التسليم وسيتم إعادة المحاولة"
+    },
+    {
+      "code": "028",
+      "english": "Tendered to authorized agent",
+      "arabic": "تم تحويل الشحنة إلى وكيل للتسليم النهائي"
+    },
+    {
+      "code": "034",
+      "english": "Future delivery requested",
+      "arabic": "تم طلب التسليم في موعد لاحق"
+    },
+    {
+      "code": "035",
+      "english": "Additional delivery information required",
+      "arabic": "مطلوب معلومات إضافية لإتمام التسليم"
+    },
+    {
+      "code": "036",
+      "english": "Local delivery restriction",
+      "arabic": "توجد قيود محلية تمنع التسليم حاليًا"
+    },
+    {
+      "code": "037",
+      "english": "Delivery rescheduled",
+      "arabic": "تمت إعادة جدولة التسليم"
+    },
+    {
+      "code": "039",
+      "english": "Damaged / shipper instructions",
+      "arabic": "تم التعامل مع شحنة متضررة حسب تعليمات المرسل"
+    },
+    {
+      "code": "057",
+      "english": "Local weather delay",
+      "arabic": "تأخر التسليم بسبب الأحوال الجوية"
+    },
+    {
+      "code": "058",
+      "english": "Local delivery restriction",
+      "arabic": "تأخير بسبب قيود محلية على التوصيل"
+    },
+    {
+      "code": "059",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "082",
+      "english": "Weather delay",
+      "arabic": "تأخير بسبب الأحوال الجوية"
+    },
+    {
+      "code": "083",
+      "english": "Local delivery restriction",
+      "arabic": "تعذر التسليم بسبب قيود محلية"
+    },
+    {
+      "code": "099",
+      "english": "Unable to deliver",
+      "arabic": "تعذر تسليم الشحنة"
+    },
+    {
+      "code": "099A",
+      "english": "Damaged / unable to deliver",
+      "arabic": "تعذر التسليم بسبب تلف الشحنة"
+    },
+    {
+      "code": "A28",
+      "english": "Delay beyond FedEx control",
+      "arabic": "تأخير لأسباب خارجة عن سيطرة FedEx"
+    }
+  ],
+  "express_delivery_exceptions": [
+    {
+      "code": "03",
+      "english": "Incorrect address",
+      "arabic": "عنوان غير صحيح"
+    },
+    {
+      "code": "03A",
+      "english": "Incorrect postal code",
+      "arabic": "الرمز البريدي غير صحيح"
+    },
+    {
+      "code": "03B",
+      "english": "Incorrect street/name/number",
+      "arabic": "بيانات الشارع غير صحيحة"
+    },
+    {
+      "code": "07",
+      "english": "Refused by recipient",
+      "arabic": "رفض المستلم استلام الشحنة"
+    },
+    {
+      "code": "07A",
+      "english": "Duplicate order",
+      "arabic": "طلب مكرر"
+    },
+    {
+      "code": "07B",
+      "english": "Package damaged",
+      "arabic": "الشحنة متضررة"
+    },
+    {
+      "code": "08",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "08A",
+      "english": "Signature issue",
+      "arabic": "لم يتوفر الشخص المطلوب للتوقيع"
+    },
+    {
+      "code": "08C",
+      "english": "Recipient account required",
+      "arabic": "مطلوب رقم حساب المستلم"
+    },
+    {
+      "code": "08D",
+      "english": "Access controlled by customer",
+      "arabic": "تعذر الوصول إلى موقع المستلم"
+    },
+    {
+      "code": "10",
+      "english": "Damaged, delivery incomplete",
+      "arabic": "تعذر التسليم بسبب تلف الشحنة"
+    },
+    {
+      "code": "15",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "17",
+      "english": "Future delivery requested",
+      "arabic": "تم طلب موعد تسليم لاحق"
+    },
+    {
+      "code": "29",
+      "english": "Rerouted",
+      "arabic": "تم تحويل الشحنة إلى عنوان جديد"
+    },
+    {
+      "code": "31",
+      "english": "Arrived after courier dispatch",
+      "arabic": "وصلت الشحنة بعد مغادرة مندوب التوصيل"
+    },
+    {
+      "code": "42",
+      "english": "Business closed",
+      "arabic": "المنشأة مغلقة"
+    },
+    {
+      "code": "84",
+      "english": "Local delivery restriction",
+      "arabic": "توجد قيود محلية على التسليم"
+    },
+    {
+      "code": "93",
+      "english": "Unable to collect payment",
+      "arabic": "الشحنة محتجزة لتعذر تحصيل المبلغ"
+    },
+    {
+      "code": "A6",
+      "english": "Adult recipient unavailable",
+      "arabic": "الشخص المخول بالاستلام غير متوفر"
+    },
+    {
+      "code": "A28",
+      "english": "Delay beyond control",
+      "arabic": "تأخير لأسباب خارجة عن السيطرة"
+    }
+  ],
+  "fallback": {
+    "unknown_code": {
+      "arabic": "تحديث جديد على الشحنة",
+      "english": "New shipment update",
+      "behavior": "Preserve the original FedEx code and description. If reasonDescription/action/actionDescription are present, display them after translation or as original fallback."
+    },
+    "priority": [
+      "Use exact field-specific mapping first.",
+      "For clearance/delivery exceptions, prefer FedEx live reasonDescription/actionDescription when present.",
+      "Never infer meaning from a two-character code without its source field.",
+      "Store raw FedEx payload/code for audit and future mapping updates."
+    ]
+  }
+}

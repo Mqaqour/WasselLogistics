@@ -1,0 +1,289 @@
+{
+  "metadata": {
+    "name": "FedEx Scan Event Mapping",
+    "field": "scanEvents[].eventType",
+    "language": [
+      "en",
+      "ar"
+    ],
+    "notes": "Use only with eventType / scan event codes."
+  },
+  "events": [
+    {
+      "category": "ship",
+      "code": "OC",
+      "english": "Shipment information sent to FedEx",
+      "arabic": "تم إنشاء معلومات الشحنة وإرسالها إلى FedEx"
+    },
+    {
+      "category": "ship",
+      "code": "DO",
+      "english": "Dropped Off",
+      "arabic": "تم تسليم الشحنة إلى نقطة FedEx"
+    },
+    {
+      "category": "ship",
+      "code": "LC",
+      "english": "Return label link cancelled",
+      "arabic": "تم إلغاء رابط بوليصة الإرجاع"
+    },
+    {
+      "category": "ship",
+      "code": "DS",
+      "english": "Vehicle dispatched",
+      "arabic": "تم إرسال مركبة لاستلام الشحنة"
+    },
+    {
+      "category": "ship",
+      "code": "PD",
+      "english": "Pickup delayed",
+      "arabic": "تأخر استلام الشحنة"
+    },
+    {
+      "category": "ship",
+      "code": "CA",
+      "english": "Shipment cancelled",
+      "arabic": "تم إلغاء الشحنة"
+    },
+    {
+      "category": "ship",
+      "code": "PU",
+      "english": "Picked up",
+      "arabic": "تم استلام الشحنة من المرسل"
+    },
+    {
+      "category": "ship",
+      "code": "US",
+      "english": "Scheduled delivery updated",
+      "arabic": "تم تحديث موعد التسليم"
+    },
+    {
+      "category": "ship",
+      "code": "RD",
+      "english": "Return label link expired",
+      "arabic": "انتهت صلاحية رابط بوليصة الإرجاع"
+    },
+    {
+      "category": "ship",
+      "code": "IP",
+      "english": "In FedEx possession",
+      "arabic": "الشحنة بحوزة FedEx"
+    },
+    {
+      "category": "ship",
+      "code": "HP",
+      "english": "Ready for pickup",
+      "arabic": "الشحنة جاهزة للاستلام"
+    },
+    {
+      "category": "ship",
+      "code": "RG",
+      "english": "Return label link expiring soon",
+      "arabic": "رابط بوليصة الإرجاع سينتهي قريبًا"
+    },
+    {
+      "category": "ship",
+      "code": "RP",
+      "english": "Return label link emailed",
+      "arabic": "تم إرسال رابط بوليصة الإرجاع"
+    },
+    {
+      "category": "ship",
+      "code": "RS",
+      "english": "Returning package to shipper",
+      "arabic": "جاري إعادة الشحنة إلى المرسل"
+    },
+    {
+      "category": "in_transit",
+      "code": "AR",
+      "english": "Arrived at Port of Entry",
+      "arabic": "وصلت الشحنة إلى منفذ الدخول"
+    },
+    {
+      "category": "in_transit",
+      "code": "AF",
+      "english": "At local FedEx facility",
+      "arabic": "الشحنة موجودة في مركز FedEx المحلي"
+    },
+    {
+      "category": "in_transit",
+      "code": "AC",
+      "english": "At Canada Post facility",
+      "arabic": "الشحنة موجودة في مركز البريد الكندي"
+    },
+    {
+      "category": "in_transit",
+      "code": "IT",
+      "english": "On the way",
+      "arabic": "الشحنة قيد النقل"
+    },
+    {
+      "category": "in_transit",
+      "code": "OX",
+      "english": "Shipment information sent to USPS",
+      "arabic": "تم إرسال معلومات الشحنة إلى البريد الأمريكي"
+    },
+    {
+      "category": "in_transit",
+      "code": "PM",
+      "english": "In Progress",
+      "arabic": "جاري معالجة الشحنة"
+    },
+    {
+      "category": "in_transit",
+      "code": "DP",
+      "english": "Left FedEx origin facility",
+      "arabic": "غادرت الشحنة مركز FedEx"
+    },
+    {
+      "category": "in_transit",
+      "code": "DR",
+      "english": "Vehicle furnished but not used",
+      "arabic": "لم يتم استخدام المركبة المخصصة"
+    },
+    {
+      "category": "customs",
+      "code": "CP",
+      "english": "Clearance in Progress",
+      "arabic": "جاري التخليص الجمركي"
+    },
+    {
+      "category": "customs",
+      "code": "EA",
+      "english": "Export Approved",
+      "arabic": "تمت الموافقة على تصدير الشحنة"
+    },
+    {
+      "category": "in_transit",
+      "code": "IN",
+      "english": "On Demand Care completed",
+      "arabic": "تم استكمال خدمة العناية الخاصة بالشحنة"
+    },
+    {
+      "category": "in_transit",
+      "code": "MD",
+      "english": "Manifest data",
+      "arabic": "تم تسجيل بيانات الشحنة"
+    },
+    {
+      "category": "in_transit",
+      "code": "TR",
+      "english": "Enroute to delivery",
+      "arabic": "الشحنة في الطريق للتسليم"
+    },
+    {
+      "category": "customs",
+      "code": "CC",
+      "english": "International shipment release",
+      "arabic": "تم الإفراج عن الشحنة جمركيًا"
+    },
+    {
+      "category": "delivery_option",
+      "code": "RC",
+      "english": "Delivery Option Request Cancelled",
+      "arabic": "تم إلغاء طلب تعديل التسليم"
+    },
+    {
+      "category": "in_transit",
+      "code": "CH",
+      "english": "Location changed",
+      "arabic": "تم تغيير موقع الشحنة"
+    },
+    {
+      "category": "delivery",
+      "code": "OD",
+      "english": "Out for delivery",
+      "arabic": "الشحنة خرجت للتسليم"
+    },
+    {
+      "category": "delivery",
+      "code": "DL",
+      "english": "Delivered",
+      "arabic": "تم تسليم الشحنة"
+    },
+    {
+      "category": "exception",
+      "code": "DD",
+      "english": "Delivery Delay",
+      "arabic": "تأخير في التسليم"
+    },
+    {
+      "category": "exception",
+      "code": "DE",
+      "english": "Delivery Exception",
+      "arabic": "تعذر التسليم / يوجد استثناء في التسليم"
+    },
+    {
+      "category": "exception",
+      "code": "SE",
+      "english": "Shipment Exception",
+      "arabic": "يوجد استثناء يؤثر على الشحنة"
+    },
+    {
+      "category": "customs",
+      "code": "CD",
+      "english": "Clearance Delay",
+      "arabic": "تأخير في إجراءات التخليص الجمركي"
+    },
+    {
+      "category": "edd",
+      "code": "AE",
+      "english": "Shipment arriving early",
+      "arabic": "من المتوقع وصول الشحنة قبل الموعد"
+    },
+    {
+      "category": "edd",
+      "code": "AO",
+      "english": "Shipment arriving on-time",
+      "arabic": "من المتوقع وصول الشحنة في الموعد"
+    },
+    {
+      "category": "edd",
+      "code": "DY",
+      "english": "Delivery updated",
+      "arabic": "تم تحديث موعد التسليم"
+    },
+    {
+      "category": "delivery_option",
+      "code": "RR",
+      "english": "Delivery option requested",
+      "arabic": "تم طلب تعديل خيار التسليم"
+    },
+    {
+      "category": "delivery_option",
+      "code": "RM",
+      "english": "Delivery option updated",
+      "arabic": "تم تحديث خيار التسليم"
+    },
+    {
+      "category": "delivery_option",
+      "code": "HA",
+      "english": "Hold at location accepted",
+      "arabic": "تم قبول طلب الاحتفاظ بالشحنة للاستلام"
+    },
+    {
+      "category": "return",
+      "code": "RT",
+      "english": "Return to Shipper Requested",
+      "arabic": "تم طلب إعادة الشحنة إلى المرسل"
+    },
+    {
+      "category": "address",
+      "code": "RA",
+      "english": "Address Change Requested",
+      "arabic": "تم طلب تغيير عنوان التسليم"
+    },
+    {
+      "category": "address",
+      "code": "PR",
+      "english": "Redirect completed",
+      "arabic": "تم تغيير عنوان التسليم بنجاح"
+    },
+    {
+      "category": "address",
+      "code": "AS",
+      "english": "Address Corrected",
+      "arabic": "تم تصحيح عنوان الشحنة"
+    }
+  ]
+}

@@ -1,0 +1,212 @@
+{
+  "metadata": {
+    "name": "FedEx Delivery Exception Mapping",
+    "field": "delivery exception / exceptionCode",
+    "language": [
+      "en",
+      "ar"
+    ]
+  },
+  "exceptions": [
+    {
+      "code": "001",
+      "english": "Recipient location security delay",
+      "arabic": "تعذر التسليم بسبب قيود أمنية في موقع المستلم"
+    },
+    {
+      "code": "002",
+      "english": "Incorrect address",
+      "arabic": "عنوان التسليم غير صحيح"
+    },
+    {
+      "code": "002A",
+      "english": "Incorrect ZIP/postal code",
+      "arabic": "الرمز البريدي غير صحيح"
+    },
+    {
+      "code": "002B",
+      "english": "Incorrect street name",
+      "arabic": "اسم الشارع غير صحيح"
+    },
+    {
+      "code": "002C",
+      "english": "Incorrect street number",
+      "arabic": "رقم الشارع غير صحيح"
+    },
+    {
+      "code": "002D",
+      "english": "Incorrect apartment/suite",
+      "arabic": "رقم الشقة أو المكتب غير صحيح"
+    },
+    {
+      "code": "003",
+      "english": "Unable to locate address",
+      "arabic": "تعذر العثور على عنوان المستلم"
+    },
+    {
+      "code": "004",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "006",
+      "english": "Refused by recipient",
+      "arabic": "رفض المستلم استلام الشحنة"
+    },
+    {
+      "code": "006A",
+      "english": "Order cancelled",
+      "arabic": "رفض الاستلام بسبب إلغاء الطلب"
+    },
+    {
+      "code": "006B",
+      "english": "Duplicate order",
+      "arabic": "رفض الاستلام بسبب تكرار الطلب"
+    },
+    {
+      "code": "006C",
+      "english": "Late delivery",
+      "arabic": "رفض الاستلام بسبب تأخر الشحنة"
+    },
+    {
+      "code": "006D",
+      "english": "Package damaged",
+      "arabic": "رفض المستلم بسبب تلف الشحنة"
+    },
+    {
+      "code": "006E",
+      "english": "Not ordered",
+      "arabic": "المستلم أفاد بأنه لم يطلب الشحنة"
+    },
+    {
+      "code": "006F",
+      "english": "Order incorrect",
+      "arabic": "المستلم أفاد بأن الطلب غير صحيح"
+    },
+    {
+      "code": "007",
+      "english": "Customer unavailable/business closed",
+      "arabic": "لم يتم التسليم لعدم توفر المستلم أو إغلاق المنشأة"
+    },
+    {
+      "code": "007A",
+      "english": "Adult signature required",
+      "arabic": "تعذر التسليم لعدم توفر شخص مخول بالتوقيع"
+    },
+    {
+      "code": "010",
+      "english": "Returned to facility for inspection",
+      "arabic": "أعيدت الشحنة إلى مركز FedEx للفحص"
+    },
+    {
+      "code": "011",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "012",
+      "english": "Delivery delayed to next business day",
+      "arabic": "تم تأجيل محاولة التسليم إلى يوم العمل التالي"
+    },
+    {
+      "code": "017",
+      "english": "Rerouted to correct address",
+      "arabic": "تم تحويل الشحنة إلى عنوان التسليم الصحيح"
+    },
+    {
+      "code": "019",
+      "english": "Delivered to alternate address",
+      "arabic": "تم تسليم الشحنة إلى عنوان بديل"
+    },
+    {
+      "code": "022",
+      "english": "Held for COD information",
+      "arabic": "الشحنة محتجزة لاستكمال معلومات الدفع عند الاستلام"
+    },
+    {
+      "code": "024",
+      "english": "Payment/package not ready",
+      "arabic": "تعذر الإجراء بسبب عدم توفر الدفع أو جاهزية الشحنة"
+    },
+    {
+      "code": "025",
+      "english": "Tendered to authorized agent",
+      "arabic": "تم تسليم الشحنة لوكيل معتمد لإكمال التوصيل"
+    },
+    {
+      "code": "027",
+      "english": "No delivery attempt",
+      "arabic": "لم تتم محاولة التسليم وسيتم إعادة المحاولة"
+    },
+    {
+      "code": "028",
+      "english": "Tendered to authorized agent",
+      "arabic": "تم تحويل الشحنة إلى وكيل للتسليم النهائي"
+    },
+    {
+      "code": "034",
+      "english": "Future delivery requested",
+      "arabic": "تم طلب التسليم في موعد لاحق"
+    },
+    {
+      "code": "035",
+      "english": "Additional delivery information required",
+      "arabic": "مطلوب معلومات إضافية لإتمام التسليم"
+    },
+    {
+      "code": "036",
+      "english": "Local delivery restriction",
+      "arabic": "توجد قيود محلية تمنع التسليم حاليًا"
+    },
+    {
+      "code": "037",
+      "english": "Delivery rescheduled",
+      "arabic": "تمت إعادة جدولة التسليم"
+    },
+    {
+      "code": "039",
+      "english": "Damaged / shipper instructions",
+      "arabic": "تم التعامل مع شحنة متضررة حسب تعليمات المرسل"
+    },
+    {
+      "code": "057",
+      "english": "Local weather delay",
+      "arabic": "تأخر التسليم بسبب الأحوال الجوية"
+    },
+    {
+      "code": "058",
+      "english": "Local delivery restriction",
+      "arabic": "تأخير بسبب قيود محلية على التوصيل"
+    },
+    {
+      "code": "059",
+      "english": "Customer unavailable/business closed",
+      "arabic": "المستلم غير متوفر أو المنشأة مغلقة"
+    },
+    {
+      "code": "082",
+      "english": "Weather delay",
+      "arabic": "تأخير بسبب الأحوال الجوية"
+    },
+    {
+      "code": "083",
+      "english": "Local delivery restriction",
+      "arabic": "تعذر التسليم بسبب قيود محلية"
+    },
+    {
+      "code": "099",
+      "english": "Unable to deliver",
+      "arabic": "تعذر تسليم الشحنة"
+    },
+    {
+      "code": "099A",
+      "english": "Damaged / unable to deliver",
+      "arabic": "تعذر التسليم بسبب تلف الشحنة"
+    },
+    {
+      "code": "A28",
+      "english": "Delay beyond FedEx control",
+      "arabic": "تأخير لأسباب خارجة عن سيطرة FedEx"
+    }
+  ]
+}

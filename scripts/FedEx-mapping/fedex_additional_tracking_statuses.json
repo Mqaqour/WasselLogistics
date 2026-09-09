@@ -1,0 +1,208 @@
+{
+  "metadata": {
+    "name": "FedEx Additional / Legacy Tracking Status Mapping",
+    "field": "tracking/status code depending on FedEx service/API",
+    "language": [
+      "en",
+      "ar"
+    ],
+    "notes": "Keep separate from eventType and derivedStatusCode. Meanings may vary by FedEx service/API context."
+  },
+  "statuses": [
+    {
+      "code": "AA",
+      "english": "At Airport",
+      "arabic": "وصلت الشحنة إلى المطار"
+    },
+    {
+      "code": "AD",
+      "english": "At Delivery",
+      "arabic": "الشحنة في مرحلة التسليم"
+    },
+    {
+      "code": "AF",
+      "english": "At FedEx Facility",
+      "arabic": "الشحنة في مركز FedEx"
+    },
+    {
+      "code": "AP",
+      "english": "At Pickup",
+      "arabic": "الشحنة في موقع الاستلام"
+    },
+    {
+      "code": "AR",
+      "english": "Arrived At",
+      "arabic": "وصلت الشحنة"
+    },
+    {
+      "code": "AX",
+      "english": "At USPS Facility",
+      "arabic": "الشحنة في مركز البريد الأمريكي"
+    },
+    {
+      "code": "CA",
+      "english": "Shipment Cancelled",
+      "arabic": "تم إلغاء الشحنة"
+    },
+    {
+      "code": "CH",
+      "english": "Location Changed",
+      "arabic": "تم تغيير موقع الشحنة"
+    },
+    {
+      "code": "DD",
+      "english": "Delivery Delay",
+      "arabic": "تأخير في التسليم"
+    },
+    {
+      "code": "DE",
+      "english": "Delivery Exception",
+      "arabic": "استثناء في عملية التسليم"
+    },
+    {
+      "code": "DL",
+      "english": "Delivered",
+      "arabic": "تم تسليم الشحنة"
+    },
+    {
+      "code": "DP",
+      "english": "Departed",
+      "arabic": "غادرت الشحنة الموقع"
+    },
+    {
+      "code": "DR",
+      "english": "Vehicle Furnished but Not Used",
+      "arabic": "لم يتم استخدام المركبة المخصصة"
+    },
+    {
+      "code": "DS",
+      "english": "Vehicle Dispatched",
+      "arabic": "تم إرسال المركبة"
+    },
+    {
+      "code": "DY",
+      "english": "Delay / Delivery Update",
+      "arabic": "تم تحديث أو تأخير التسليم"
+    },
+    {
+      "code": "ED",
+      "english": "Enroute to Delivery",
+      "arabic": "الشحنة في الطريق للتسليم"
+    },
+    {
+      "code": "EO",
+      "english": "Enroute to Origin Airport",
+      "arabic": "الشحنة في الطريق إلى مطار المغادرة"
+    },
+    {
+      "code": "EP",
+      "english": "Enroute to Pickup",
+      "arabic": "في الطريق لاستلام الشحنة"
+    },
+    {
+      "code": "FD",
+      "english": "At FedEx Destination",
+      "arabic": "وصلت إلى مركز FedEx في الوجهة"
+    },
+    {
+      "code": "HL",
+      "english": "Hold at Location",
+      "arabic": "الشحنة محتجزة للاستلام من الموقع"
+    },
+    {
+      "code": "IT",
+      "english": "In Transit",
+      "arabic": "الشحنة قيد النقل"
+    },
+    {
+      "code": "IX",
+      "english": "In Transit — See Details",
+      "arabic": "الشحنة قيد النقل — يرجى مراجعة التفاصيل"
+    },
+    {
+      "code": "LO",
+      "english": "Left Origin",
+      "arabic": "غادرت الشحنة بلد / موقع المنشأ"
+    },
+    {
+      "code": "OC",
+      "english": "Order Created",
+      "arabic": "تم إنشاء الشحنة"
+    },
+    {
+      "code": "OD",
+      "english": "Out for Delivery",
+      "arabic": "الشحنة خرجت للتسليم"
+    },
+    {
+      "code": "OF",
+      "english": "At FedEx Origin Facility",
+      "arabic": "الشحنة في مركز FedEx في بلد المنشأ"
+    },
+    {
+      "code": "PF",
+      "english": "Plane in Flight",
+      "arabic": "الشحنة قيد النقل الجوي"
+    },
+    {
+      "code": "PL",
+      "english": "Plane Landed",
+      "arabic": "هبطت الطائرة الناقلة للشحنة"
+    },
+    {
+      "code": "PM",
+      "english": "In Progress",
+      "arabic": "جاري معالجة الشحنة"
+    },
+    {
+      "code": "PU",
+      "english": "Picked Up",
+      "arabic": "تم استلام الشحنة"
+    },
+    {
+      "code": "PX",
+      "english": "Picked Up — See Details",
+      "arabic": "تم استلام الشحنة — راجع التفاصيل"
+    },
+    {
+      "code": "RS",
+      "english": "Return to Shipper",
+      "arabic": "جاري إعادة الشحنة إلى المرسل"
+    },
+    {
+      "code": "SE",
+      "english": "Shipment Exception",
+      "arabic": "يوجد استثناء على الشحنة"
+    },
+    {
+      "code": "SF",
+      "english": "At Sort Facility",
+      "arabic": "الشحنة في مركز الفرز"
+    },
+    {
+      "code": "SP",
+      "english": "Split Status",
+      "arabic": "الشحنة متعددة القطع بحالات مختلفة"
+    },
+    {
+      "code": "TR",
+      "english": "Transfer",
+      "arabic": "جاري نقل الشحنة"
+    },
+    {
+      "code": "CC",
+      "english": "Cleared Customs",
+      "arabic": "تم التخليص الجمركي"
+    },
+    {
+      "code": "CD",
+      "english": "Clearance Delay",
+      "arabic": "تأخير في التخليص الجمركي"
+    },
+    {
+      "code": "CP",
+      "english": "Clearance in Progress",
+      "arabic": "جاري التخليص الجمركي"
+    }
+  ]
+}

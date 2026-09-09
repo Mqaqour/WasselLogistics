@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, MapPin, Truck, CheckCircle, Clock, Bell, AlertTriangle, FileText, CreditCard, Package, MessageCircle, X, Send, Globe, Scale, Tag, ArrowRight, DollarSign, Copy, RefreshCw, Plane, IdCard, FileCheck, Ship, Container, Loader2 } from 'lucide-react';
+import { Search, MapPin, Truck, CheckCircle, Clock, Bell, AlertTriangle, CreditCard, Package, MessageCircle, X, Send, Globe, Scale, Tag, ArrowRight, DollarSign, Copy, RefreshCw, Plane, IdCard, FileCheck, Ship, Container, Loader2 } from 'lucide-react';
 import { TrackingEvent, Language } from '../../types';
 import { useTypewriter } from '../../hooks/useTypewriter';
+import { fedexLabel, fedexExceptionLabel } from './fedexArabic';
 
 // Icons for the track button, synced by index to the placeholder's typewriter word list
 const TRACK_ICONS = [Package, Plane, Truck, IdCard, FileCheck, Ship, Container];
@@ -23,21 +24,12 @@ interface ActionRequired {
     service: string;
 }
 
-// FedEx's "ancillary details" on a held/delayed shipment — a reason code plus the
-// human-readable explanation and (when FedEx provides one) what the importer needs to do.
-interface DelayReasonInfo {
-    code: string;
-    reason: string;
-    action: string;
-}
-
 interface ShipmentInfo {
     category: string;
     serviceType: string;
     origin: string;
     destination: string;
     weight: string;
-    delayReasons?: DelayReasonInfo[];
 }
 
 // WasselCustoms public customs-case view — served by /api/customs-case, which
@@ -195,9 +187,14 @@ const getEventIcon = (status: string): TrackingEvent['icon'] => {
     normalized.includes('hold') ||
     normalized.includes('required') ||
     normalized.includes('not found') ||
+    normalized.includes('delay') ||
+    normalized.includes('exception') ||
     normalized.includes('معلق') ||
     normalized.includes('مطلوب') ||
-    normalized.includes('رسوم')
+    normalized.includes('رسوم') ||
+    normalized.includes('تأخير') ||
+    normalized.includes('استثناء') ||
+    normalized.includes('تعذر')
   ) {
     return 'alert';
   }
@@ -209,7 +206,9 @@ const getEventIcon = (status: string): TrackingEvent['icon'] => {
     normalized.includes('تم ارسال') ||
     normalized.includes('تجهيز') ||
     normalized.includes('النقل') ||
-    normalized.includes('خرج')
+    normalized.includes('خرج') ||
+    normalized.includes('غادر') ||
+    normalized.includes('وصل')
   ) {
     return 'truck';
   }
@@ -344,54 +343,29 @@ const parseDhlJson = (shipment: any, lang: Language) => {
 const formatFedexAddress = (address: any): string =>
   address ? [address.city, address.stateOrProvinceCode, address.countryCode].filter(Boolean).join(', ') : '—';
 
-// FedEx returns one entry per associated piece for a multi-piece shipment (MPS) — the
-// delay/exception reason we actually want to surface can land on any of them, not just
-// the first, so this is collected separately from the single piece used for the rest
-// of the summary below.
-const collectFedexDelayReasons = (trackResults: any[]): DelayReasonInfo[] => {
-  const reasons: DelayReasonInfo[] = [];
-  const seen = new Set<string>();
-
-  trackResults.forEach((piece) => {
-    const ancillaryDetails: any[] = Array.isArray(piece?.latestStatusDetail?.ancillaryDetails)
-      ? piece.latestStatusDetail.ancillaryDetails
-      : [];
-
-    ancillaryDetails.forEach((detail) => {
-      const reason = detail.actionDescription || detail.reasonDescription || '';
-      const action = detail.action || '';
-      if (!reason && !action) return; // FedEx sometimes sends a bare code with no text at all
-
-      const key = `${detail.reason || ''}|${reason}|${action}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      reasons.push({ code: detail.reason || '', reason, action });
-    });
-  });
-
-  return reasons;
-};
-
 // FedEx attaches a delay/exception code to individual scan events. Collect them
 // across every piece, keyed by the event's ISO timestamp, so each can be shown
 // inline on its matching Tracking-History row (mirrors how fedex.com annotates
 // the timeline), instead of in a separate list.
 type FedexException = { code: string; description: string; eventDescription: string; ts: number };
-const collectFedexExceptions = (trackResults: any[]): Map<string, FedexException> => {
+const collectFedexExceptions = (trackResults: any[], lang: Language): Map<string, FedexException> => {
   const byTs = new Map<string, FedexException>();
   trackResults.forEach((piece) => {
     const scanEvents: any[] = Array.isArray(piece?.scanEvents) ? piece.scanEvents : [];
     scanEvents.forEach((event) => {
       const code = event.exceptionCode || '';
-      const description = event.exceptionDescription || '';
-      if (!code && !description) return;
+      const rawDescription = event.exceptionDescription || '';
+      if (!code && !rawDescription) return;
       const iso = event.date || '';
       if (byTs.has(iso)) return;
       const dt = iso ? new Date(iso) : null;
+      const description = rawDescription
+        ? fedexExceptionLabel(lang, { code, description: rawDescription })
+        : fedexLabel(lang, event);
       byTs.set(iso, {
         code,
         description: description || event.eventDescription || event.derivedStatus || '',
-        eventDescription: event.eventDescription || event.derivedStatus || '',
+        eventDescription: fedexLabel(lang, event) || event.eventDescription || event.derivedStatus || '',
         ts: dt && !isNaN(dt.getTime()) ? dt.getTime() : 0,
       });
     });
@@ -411,8 +385,7 @@ const parseFedexJson = (trackResults: any[], lang: Language) => {
     ?? [];
   const weightEntry = weightEntries.find((w) => w.unit === 'KG') ?? weightEntries[0];
 
-  const delayReasons = collectFedexDelayReasons(trackResults);
-  const exceptionsByTs = collectFedexExceptions(trackResults);
+  const exceptionsByTs = collectFedexExceptions(trackResults, lang);
 
   const shipmentInfo: ShipmentInfo = {
     category: lang === 'en' ? 'International' : 'دولي',
@@ -420,7 +393,6 @@ const parseFedexJson = (trackResults: any[], lang: Language) => {
     origin: formatFedexAddress(shipperAddr),
     destination: formatFedexAddress(recipientAddr),
     weight: weightEntry?.value ? `${weightEntry.value} ${weightEntry.unit || ''}`.trim() : '—',
-    delayReasons: delayReasons.length > 0 ? delayReasons : undefined,
   };
 
   const fmtDate = (dt: Date | null) => dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString('en-US') : '—';
@@ -430,7 +402,7 @@ const parseFedexJson = (trackResults: any[], lang: Language) => {
   const scanEvents: any[] = Array.isArray(trackResult.scanEvents) ? trackResult.scanEvents : [];
 
   const rows: { ts: number; iso: string; event: TrackingEvent }[] = scanEvents.map((event) => {
-    const status = event.eventDescription || event.derivedStatus || '—';
+    const status = fedexLabel(lang, event) || '—';
     const loc = event.scanLocation;
     const location = loc ? [loc.city, loc.stateOrProvinceCode, loc.countryCode].filter(Boolean).join(', ') : '—';
     const iso = event.date || '';
@@ -577,7 +549,6 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
       infoWeight: lang === 'en' ? 'Weight' : 'الوزن',
       infoCategory: lang === 'en' ? 'Type' : 'النوع',
       infoService: lang === 'en' ? 'Service' : 'الخدمة',
-      delayReasonTitle: lang === 'en' ? 'Clearance Delay — Reason' : 'تأخير جمركي — السبب',
 
       // Customs clearance case (WasselCustoms) — supplementary card
       customs: {
@@ -588,6 +559,8 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
         historyTitle: lang === 'en' ? 'Status history' : 'سجل الحالة',
         openedOn: lang === 'en' ? 'Opened' : 'فُتح في',
         updatedOn: lang === 'en' ? 'Updated' : 'آخر تحديث',
+        helpTitle: lang === 'en' ? 'Need help?' : 'بحاجة إلى مساعدة؟',
+        helpBody: lang === 'en' ? "Wassel's customs clearance team is here to help" : 'فريق التخليص في واصل جاهز لمساعدتك',
         // status buckets — keyed on case.status (raw key), fall back to English statusLabel
         statusLabels: {
           'received': lang === 'en' ? 'Received — under review' : 'تم الاستلام — قيد المراجعة',
@@ -938,79 +911,100 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
       return { Icon: CheckCircle, icon: 'text-gray-400', pill: 'bg-gray-100 text-gray-600 border border-gray-200' };
     };
 
+    const singleCase = customsCase.cases.length === 1;
+
     return (
-      <div className="rounded-2xl border border-wassel-blue/30 bg-wassel-blue/5 px-4 py-4 flex flex-col gap-4">
-        <div className="flex items-center gap-2 text-wassel-blue font-bold text-sm">
-          <FileText className="w-5 h-5 shrink-0" />
-          <span>{t.customs.panelTitle}</span>
+      <div className="rounded-2xl border border-red-800 bg-white overflow-hidden">
+        {/* Bold red header — status pill sits here when there's a single case */}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-red-700 px-4 py-3 text-white">
+          <span className="flex items-center gap-2 font-bold text-sm">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <span>{t.customs.panelTitle}</span>
+          </span>
+          {singleCase && (
+            <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-bold text-red-800">
+              {caseStatusLabel(customsCase.cases[0])}
+            </span>
+          )}
         </div>
 
-        {customsCase.cases.map((c, ci) => {
-          // Outstanding first, then the settled ones — same row treatment for all.
-          const reqs = [...c.requirements].sort((a, b) => Number(b.outstanding) - Number(a.outstanding));
-          const anyOutstanding = c.requirements.some((r) => r.outstanding);
-          const history = c.statusHistory.slice(-6);
-          return (
-            <div key={c.caseNumber} className={ci > 0 ? 'border-t border-wassel-blue/20 pt-4' : ''}>
-              {/* Case header */}
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
-                <span className="text-xs text-gray-500">{t.customs.fileLabel} {c.caseNumber}</span>
-                <span className="rounded-full bg-wassel-blue/10 px-3 py-1 text-xs font-bold text-wassel-blue">{caseStatusLabel(c)}</span>
-                {c.receivedAt && (
-                  <span className="text-xs text-gray-400">· {t.customs.openedOn} {fmtDate(c.receivedAt)}</span>
-                )}
-              </div>
+        <div className="px-4 py-4 flex flex-col gap-4">
+          {customsCase.cases.map((c, ci) => {
+            // Outstanding first, then the settled ones — same row treatment for all.
+            const reqs = [...c.requirements].sort((a, b) => Number(b.outstanding) - Number(a.outstanding));
+            const anyOutstanding = c.requirements.some((r) => r.outstanding);
+            const history = c.statusHistory.slice(-6);
+            return (
+              <div key={c.caseNumber} className={ci > 0 ? 'border-t border-red-200 pt-4' : ''}>
+                {/* Case header */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
+                  <span className="text-xs font-semibold text-red-800">{t.customs.fileLabel} {c.caseNumber}</span>
+                  {!singleCase && (
+                    <span className="rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-bold text-red-800">{caseStatusLabel(c)}</span>
+                  )}
+                  {c.receivedAt && (
+                    <span className="text-xs text-red-700">· {t.customs.openedOn} {fmtDate(c.receivedAt)}</span>
+                  )}
+                </div>
 
-              {/* Requirements */}
-              {c.requirements.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-wassel-blue mb-2">{t.customs.outstandingTitle}</p>
-                  {!anyOutstanding ? (
-                    <p className="flex items-center gap-2 text-sm text-emerald-700">
-                      <CheckCircle className="w-4 h-4 shrink-0" />
-                      {t.customs.allReceived}
-                    </p>
-                  ) : (
-                    <ul className="flex flex-col gap-2">
-                      {reqs.map((r, i) => {
-                        const { Icon, icon, pill } = reqStyle(r.status);
+                {/* Requirements */}
+                {c.requirements.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-red-800 mb-2">{t.customs.outstandingTitle}</p>
+                    {!anyOutstanding ? (
+                      <p className="flex items-center gap-2 text-sm text-emerald-700">
+                        <CheckCircle className="w-4 h-4 shrink-0" />
+                        {t.customs.allReceived}
+                      </p>
+                    ) : (
+                      <ul className="flex flex-col gap-2">
+                        {reqs.map((r, i) => {
+                          const { Icon, icon, pill } = reqStyle(r.status);
+                          return (
+                            <li key={`${r.type}-${i}`} className="flex items-start gap-2.5 text-sm">
+                              <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${icon}`} />
+                              <span className="flex-1 min-w-0 font-semibold text-gray-900">{reqLabel(r)}</span>
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${pill}`}>{t.customs.reqStatusLabels[r.status] || r.status}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                {/* Status history — dot timeline, current step emphasised */}
+                {history.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-red-800 mb-2">{t.customs.historyTitle}</p>
+                    <ol className="flex flex-col">
+                      {history.map((ev, i) => {
+                        const current = i === history.length - 1;
                         return (
-                          <li key={`${r.type}-${i}`} className="flex items-start gap-2.5 text-sm">
-                            <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${icon}`} />
-                            <span className="flex-1 min-w-0 font-semibold text-gray-900">{reqLabel(r)}</span>
-                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${pill}`}>{t.customs.reqStatusLabels[r.status] || r.status}</span>
+                          <li key={`${ev.ts}-${i}`} className="relative flex items-start gap-3 pb-3 last:pb-0">
+                            {!current && (
+                              <span className="absolute top-3 bottom-0 w-0.5 bg-red-200 left-[3px] rtl:left-auto rtl:right-[3px]" />
+                            )}
+                            <span className={`relative z-10 mt-1 h-2 w-2 shrink-0 rounded-full ${current ? 'bg-red-700 ring-4 ring-red-700/25' : 'bg-red-300'}`} />
+                            <span className={`shrink-0 text-xs ${lang === 'ar' ? 'min-w-[88px]' : 'min-w-[68px]'} ${current ? 'text-red-800' : 'text-red-400'}`}>{fmtDate(ev.ts)}</span>
+                            <span className={`text-xs ${current ? 'font-bold text-red-800' : 'text-red-900/80'}`}>{t.customs.statusLabelFallback[ev.statusLabel] || ev.statusLabel}</span>
                           </li>
                         );
                       })}
-                    </ul>
-                  )}
-                </div>
-              )}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
-              {/* Status history — dot timeline, current step emphasised */}
-              {history.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-wassel-blue mb-2">{t.customs.historyTitle}</p>
-                  <ol className="flex flex-col">
-                    {history.map((ev, i) => {
-                      const current = i === history.length - 1;
-                      return (
-                        <li key={`${ev.ts}-${i}`} className="relative flex items-start gap-3 pb-3 last:pb-0">
-                          {!current && (
-                            <span className="absolute top-3 bottom-0 w-0.5 bg-wassel-blue/15 left-[3px] rtl:left-auto rtl:right-[3px]" />
-                          )}
-                          <span className={`relative z-10 mt-1 h-2 w-2 shrink-0 rounded-full ${current ? 'bg-wassel-blue ring-4 ring-wassel-blue/15' : 'bg-gray-300'}`} />
-                          <span className={`shrink-0 text-xs ${lang === 'ar' ? 'min-w-[88px]' : 'min-w-[68px]'} ${current ? 'text-wassel-blue/70' : 'text-gray-400'}`}>{fmtDate(ev.ts)}</span>
-                          <span className={`text-xs ${current ? 'font-bold text-wassel-blue' : 'text-gray-600'}`}>{t.customs.statusLabelFallback[ev.statusLabel] || ev.statusLabel}</span>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-              )}
-            </div>
-          );
-        })}
+          {/* Help footer — the clearance team's contact */}
+          <div className="border-t border-red-200 pt-3">
+            <p className="text-sm font-bold text-red-800">{t.customs.helpTitle}</p>
+            <p className="mt-0.5 text-xs text-red-900/80">{t.customs.helpBody}</p>
+            <a href="mailto:customs@wassel.ps" dir="ltr" className="mt-1 inline-block text-xs font-semibold text-red-700 underline">customs@wassel.ps</a>
+          </div>
+        </div>
       </div>
     );
   })() : null;
@@ -1203,28 +1197,6 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                 </div>
               </div>
 
-              {shipmentInfo?.delayReasons && shipmentInfo.delayReasons.length > 0 && (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-amber-800">
-                    <AlertTriangle className="w-5 h-5 shrink-0" />
-                    <span className="text-sm font-bold">{t.delayReasonTitle}</span>
-                  </div>
-                  <ul className="flex flex-col gap-2.5 ps-7">
-                    {shipmentInfo.delayReasons.map((delay, i) => (
-                      <li key={`${delay.code}-${i}`} className="text-sm leading-snug">
-                        <p className="font-semibold text-amber-900">
-                          {delay.reason}
-                          {delay.code && <span className="font-normal text-amber-600"> ({delay.code})</span>}
-                        </p>
-                        {delay.action && delay.action !== delay.reason && (
-                          <p className="text-amber-700 mt-0.5">{delay.action}</p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               {customsCaseCard}
 
               {shipmentInfo && (
@@ -1321,12 +1293,9 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
                                   <td className="px-4 py-3 font-medium text-gray-900 align-top">
                                     {event.status}
                                     {event.exception && event.exception.description && event.exception.description !== event.status && (
-                                      <span className="mt-1 flex items-start gap-1.5 text-xs font-normal text-amber-700">
+                                      <span className="mt-1.5 inline-flex items-start gap-1.5 rounded bg-wassel-yellow px-2 py-1 text-xs font-semibold text-wassel-blue">
                                         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
-                                        <span>
-                                          {event.exception.description}
-                                          {event.exception.code && <span className="text-amber-500"> ({event.exception.code})</span>}
-                                        </span>
+                                        <span>{event.exception.description}</span>
                                       </span>
                                     )}
                                   </td>
