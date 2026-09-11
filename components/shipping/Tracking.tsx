@@ -723,7 +723,10 @@ export const Tracking: React.FC<TrackingProps> = ({ lang, initialTrackingId, isP
           headers: { Accept: 'application/json' },
         });
 
-        const json = await response.json();
+        // A DHL 404 for an unrecognized number can come back as IIS's HTML error
+        // page rather than JSON (see backend/src/app.ts) — treat unparsable body
+        // the same as "not found" rather than surfacing it as a fetch failure.
+        const json = await response.json().catch(() => null);
         const shipment = json?.shipments?.[0];
 
         if (!response.ok || !shipment) {

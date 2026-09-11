@@ -123,7 +123,9 @@ export function createApp() {
           'https://cdn.respond.io',
           'https://maps.googleapis.com',
           'https://maps.gstatic.com',
-          'https://www.clarity.ms',
+          // Microsoft Clarity — the tag itself is www.clarity.ms, which then
+          // loads the real payload from a versioned scripts.clarity.ms URL.
+          'https://*.clarity.ms',
         ],
         scriptSrcElem: [
           "'self'",
@@ -131,7 +133,7 @@ export function createApp() {
           'https://cdn.respond.io',
           'https://maps.googleapis.com',
           'https://maps.gstatic.com',
-          'https://www.clarity.ms',
+          'https://*.clarity.ms',
         ],
         scriptSrcAttr: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
@@ -143,9 +145,8 @@ export function createApp() {
           'https://maps.googleapis.com',
           'https://maps.gstatic.com',
           'https://places.googleapis.com',
-          // Microsoft Clarity — the tag script itself is www.clarity.ms; its
-          // event beacons go out to several rotating subdomains (c/q/etc.).
-          'https://www.clarity.ms',
+          // Microsoft Clarity — event beacons go out to several rotating
+          // subdomains (c/q/etc.), covered by the wildcard.
           'https://*.clarity.ms',
           'wss:',
         ],
