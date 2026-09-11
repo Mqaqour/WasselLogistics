@@ -36,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
     brand: lang === 'en' ? 'WASSEL' : 'واصل',
     assistant: lang === 'en' ? 'Assistant' : 'المساعدة',
     about: lang === 'en' ? 'About Us' : 'من نحن',
+    novica: lang === 'en' ? 'Novica' : 'نوفيكا',
     contactUs: lang === 'en' ? 'Contact Us' : 'تواصل معنا',
   };
 
@@ -43,7 +44,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
     currentView === 'home' ||
     currentView === 'resources' ||
     currentView === 'contact' ||
-    currentView === 'about'
+    currentView === 'about' ||
+    currentView === 'novica'
   ) && !isScrolled && !isOpen;
 
   const topBarBg = isTransparent ? 'bg-transparent border-white/10' : 'bg-wassel-darkBlue border-gray-700/50';
@@ -146,6 +148,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
                 <span>{t.about}</span>
               </button>
 
+              <button
+                onClick={() => handleNavClick('novica')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-base xl:text-lg font-bold transition-all duration-200 hover:text-wassel-yellow hover:bg-white/5 ${currentView === 'novica' ? 'text-wassel-yellow' : 'text-gray-100'}`}
+              >
+                <span>{t.novica}</span>
+              </button>
+
               <div className="h-6 w-px bg-gray-600 mx-2"></div>
 
               <button
@@ -178,6 +187,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView, isL
               </button>
               <button onClick={() => handleNavClick('about')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
                 {t.about}
+              </button>
+              <button onClick={() => handleNavClick('novica')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
+                {t.novica}
               </button>
               <button onClick={() => handleNavClick('contact')} className="block w-full text-left rtl:text-right px-4 py-4 text-lg font-bold text-gray-200 hover:bg-white/5">
                 {t.contactUs}

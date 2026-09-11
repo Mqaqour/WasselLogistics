@@ -74,6 +74,12 @@ const PAGES: Record<Language, Partial<Record<PageView, Meta>>> = {
       description:
         'Since 2005, Wassel has connected Palestine with the world — domestic and international shipping, customs clearance, warehousing and government services, delivered by specialized teams and a modern fleet.',
     },
+    novica: {
+      path: '/novica',
+      title: 'Novica Palestine',
+      description:
+        'A global platform for Palestinian artisans — Wassel partners with Novica to open international markets to local craftspeople. Apply to sell your handmade work worldwide.',
+    },
     login: { path: '/login', title: 'Portal Login', description: 'Wassel staff portal login.', noindex: true },
   },
   ar: {
@@ -118,6 +124,12 @@ const PAGES: Record<Language, Partial<Record<PageView, Meta>>> = {
       title: 'من نحن',
       description:
         'منذ العام 2005 وواصل تصل فلسطين بالعالم عبر الشحن المحلي والدولي، التخليص الجمركي، التخزين والخدمات الحكومية، بفرق عمل متخصصة وأسطول حديث.',
+    },
+    novica: {
+      path: '/novica',
+      title: 'نوفيكا فلسطين',
+      description:
+        'منصة عالمية تحتضن الحرفيين الفلسطينيين وتفتح لهم أبواب الأسواق الدولية، بشراكة بين واصل ونوفيكا. قدّم طلبك لعرض أعمالك اليدوية للمشترين حول العالم.',
     },
     login: { path: '/login', title: 'تسجيل الدخول', description: 'تسجيل دخول بوابة موظفي واصل.', noindex: true },
   },

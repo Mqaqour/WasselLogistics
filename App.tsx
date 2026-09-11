@@ -12,6 +12,7 @@ import {
   ChatBot,
   Resources,
   About,
+  Novica,
   FloatingActionBar,
   Contact,
   FloatingCircles,
@@ -79,6 +80,7 @@ export const App: React.FC = () => {
     contact: '/contact',
     resources: '/resources',
     about: '/about',
+    novica: '/novica',
     booking_window: '/booking',
     'kb-admin': '/admin/kb',
     'system-settings': '/admin/settings',
@@ -104,6 +106,7 @@ export const App: React.FC = () => {
       '/admin/business-accounts': 'business-accounts',
       '/contact': 'contact',
       '/about': 'about',
+      '/novica': 'novica',
       '/booking': 'booking_window',
     };
 
@@ -324,7 +327,7 @@ export const App: React.FC = () => {
   }
 
   // Determine if the current view should be treated as a "Landing Page" (Transparent Header & Background)
-  const isLandingPage = currentView === 'home' || currentView === 'resources' || currentView === 'contact' || currentView === 'about';
+  const isLandingPage = currentView === 'home' || currentView === 'resources' || currentView === 'contact' || currentView === 'about' || currentView === 'novica';
 
   const renderView = () => {
     switch (currentView) {
@@ -353,6 +356,8 @@ export const App: React.FC = () => {
         return <Contact lang={lang} />;
       case 'about':
         return <About lang={lang} onAction={handleAction} />;
+      case 'novica':
+        return <Novica lang={lang} />;
       case 'login':
         return <Login onLogin={handleLogin} lang={lang} />;
       case 'dashboard':

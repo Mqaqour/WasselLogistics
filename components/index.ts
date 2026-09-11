@@ -22,6 +22,7 @@ export * from './support/ChatBot';
 
 export * from './pages/Resources';
 export * from './pages/About';
+export * from './pages/Novica';
 export * from './pages/StaticPages';
 export * from './pages/Maintenance';
 

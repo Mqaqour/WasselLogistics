@@ -28,6 +28,7 @@ const PATHS = [
   '/ar/contact', '/en/contact',
   '/ar/resources', '/en/resources',
   '/ar/about', '/en/about',
+  '/ar/novica', '/en/novica',
 ];
 
 function findChrome() {
