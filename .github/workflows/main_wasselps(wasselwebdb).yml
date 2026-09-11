@@ -42,6 +42,7 @@ jobs:
           # to a relative URL (see e.g. Tracking.tsx, chatApi.ts) is what we want here.
           VITE_GOOGLE_PLACES_API_KEY: ${{ secrets.VITE_GOOGLE_PLACES_API_KEY }}
           VITE_RESPONDIO_CHANNEL_ID: ${{ secrets.VITE_RESPONDIO_CHANNEL_ID }}
+          VITE_CLARITY_PROJECT_ID: ${{ secrets.VITE_CLARITY_PROJECT_ID }}
           VITE_GOOGLE_PLACES_LANGUAGE: en
           # GitHub-hosted windows-latest ships Google Chrome here; prerender.mjs
           # falls back to Edge if this path is ever missing.

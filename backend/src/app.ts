@@ -123,6 +123,7 @@ export function createApp() {
           'https://cdn.respond.io',
           'https://maps.googleapis.com',
           'https://maps.gstatic.com',
+          'https://www.clarity.ms',
         ],
         scriptSrcElem: [
           "'self'",
@@ -130,6 +131,7 @@ export function createApp() {
           'https://cdn.respond.io',
           'https://maps.googleapis.com',
           'https://maps.gstatic.com',
+          'https://www.clarity.ms',
         ],
         scriptSrcAttr: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
@@ -141,6 +143,10 @@ export function createApp() {
           'https://maps.googleapis.com',
           'https://maps.gstatic.com',
           'https://places.googleapis.com',
+          // Microsoft Clarity — the tag script itself is www.clarity.ms; its
+          // event beacons go out to several rotating subdomains (c/q/etc.).
+          'https://www.clarity.ms',
+          'https://*.clarity.ms',
           'wss:',
         ],
         frameSrc: ["'self'", 'https://*.respond.io', 'https://www.google.com', 'https://maps.google.com'],
