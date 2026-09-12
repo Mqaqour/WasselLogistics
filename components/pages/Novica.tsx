@@ -370,7 +370,6 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
               onClick={scrollToForm}
               className="inline-flex items-center gap-2 rounded-lg bg-wassel-yellow px-6 py-3 text-base font-extrabold text-wassel-blue hover:bg-wassel-lightYellow transition-colors shadow-lg"
             >
-              <Sparkles className="w-5 h-5" />
               {t.applyNow}
             </button>
           </div>
