@@ -14,6 +14,9 @@ const WASSEL_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Temporarily hidden — re-enable when asked.
+const SHOW_APPLICATION_FORM = false;
+
 const CRAFT_TYPES: Array<{ value: string; en: string; ar: string }> = [
   { value: 'embroidery',     en: 'Embroidery',        ar: 'تطريز' },
   { value: 'pottery',        en: 'Pottery',            ar: 'فخار' },
@@ -205,7 +208,7 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
     stepsTitle: isAr ? 'كيف تنضم؟' : 'How to join',
     steps: [
       isAr ? 'عبّئ نموذج التقديم أدناه ببيانات حرفتك وأعمالك.' : 'Fill out the application below with details about your craft and work.',
-      isAr ? 'يراجع فريق نوفيكا وواصل طلبك ويتواصلان معك.' : 'The Novica and Wassel team reviews your application and reaches out to you.',
+      isAr ? 'سنراجع طلبك نتواصل معك لإستكمال اجراءات فتح الحساب' : "We'll review your request and contact you to complete the account setup process.",
       isAr ? 'بعد القبول، تبدأ بعرض منتجاتك أمام مشترين حول العالم.' : 'Once accepted, start showcasing your products to buyers around the world.',
     ],
 
@@ -456,6 +459,7 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
       </section>
 
       {/* APPLICATION FORM */}
+      {SHOW_APPLICATION_FORM && (
       <section ref={formRef} className="bg-[#F6F8FB] border-t border-gray-100 scroll-mt-24">
         <div className="relative max-w-2xl mx-auto px-4 py-16 md:py-20">
           <div className="absolute -top-6 -right-10 rtl:-left-10 rtl:right-auto h-64 w-64 bg-wassel-yellow/20 blur-3xl rounded-full pointer-events-none" />
@@ -660,6 +664,7 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
           </div>
         </div>
       </section>
+      )}
     </div>
   );
 };
