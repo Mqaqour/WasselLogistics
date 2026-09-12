@@ -304,3 +304,42 @@ export interface BusinessAccountSubmitRequest {
   notes?: string;
   language?: string;
 }
+
+// Novica Palestine — artisan application form (Wassel x Novica partnership, /novica).
+export type NovicaApplicationStatus = 'new' | 'contacted' | 'approved' | 'rejected';
+
+export interface NovicaApplication {
+  id: number;
+  fullName: string;
+  projectName: string | null;
+  city: string;
+  mobile: string;
+  email: string;
+  craftType: string;
+  craftTypeOther: string | null;
+  hasSamples: 'yes' | 'no';
+  sellsOnline: 'yes' | 'no';
+  sellsOnlineWhere: string | null;
+  notes: string | null;
+  language: string | null;
+  status: NovicaApplicationStatus;
+  emailDeliveryStatus: 'pending' | 'sent' | 'failed';
+  emailError: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface NovicaApplicationSubmitRequest {
+  fullName: string;
+  projectName?: string;
+  city: string;
+  mobile: string;
+  email: string;
+  craftType: string;
+  craftTypeOther?: string;
+  hasSamples: 'yes' | 'no';
+  sellsOnline: 'yes' | 'no';
+  sellsOnlineWhere?: string;
+  notes?: string;
+  language?: string;
+}

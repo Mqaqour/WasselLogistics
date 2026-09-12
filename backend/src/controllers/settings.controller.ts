@@ -40,7 +40,8 @@ export async function updateNotifications(req: Request, res: Response, next: Nex
       }
     }
 
-    // businessAccountEmail may be empty (falls back to the contact inbox) or a valid email list.
+    // businessAccountEmail / novicaApplyEmail may be empty (falls back to the
+    // contact inbox) or a valid email list.
     if (
       body.businessAccountEmail !== undefined &&
       (typeof body.businessAccountEmail !== 'string' ||
@@ -51,6 +52,21 @@ export async function updateNotifications(req: Request, res: Response, next: Nex
         error: {
           code: 'VALIDATION_ERROR',
           message: 'businessAccountEmail must be empty or one or more comma-separated email addresses.',
+        },
+      });
+      return;
+    }
+
+    if (
+      body.novicaApplyEmail !== undefined &&
+      (typeof body.novicaApplyEmail !== 'string' ||
+        (body.novicaApplyEmail.trim().length > 0 && !isValidEmailList(body.novicaApplyEmail)))
+    ) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'novicaApplyEmail must be empty or one or more comma-separated email addresses.',
         },
       });
       return;
@@ -88,6 +104,9 @@ export async function updateNotifications(req: Request, res: Response, next: Nex
     }
     if (typeof body.businessAccountEmail === 'string') {
       values.businessAccountEmail = body.businessAccountEmail.trim();
+    }
+    if (typeof body.novicaApplyEmail === 'string') {
+      values.novicaApplyEmail = body.novicaApplyEmail.trim();
     }
 
     if (body.contactTopicEmails && typeof body.contactTopicEmails === 'object') {

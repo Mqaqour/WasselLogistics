@@ -9,7 +9,7 @@ import https from 'https';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from './config/env';
 import * as repo from './repositories/chat.repository';
-import { ContactSubmitRequest, ShippingRequestSubmitRequest, WaitingShipmentRegisterRequest, BusinessAccountSubmitRequest, BusinessAccountStatus } from './types/chat.types';
+import { ContactSubmitRequest, ShippingRequestSubmitRequest, WaitingShipmentRegisterRequest, BusinessAccountSubmitRequest, BusinessAccountStatus, NovicaApplicationSubmitRequest, NovicaApplicationStatus } from './types/chat.types';
 import chatRoutes from './routes/chat.routes';
 import respondioRoutes from './routes/respondio.routes';
 import questionsRoutes from './routes/questions.routes';
@@ -26,7 +26,7 @@ import customsCaseRoutes        from './routes/customs-case.routes';
 import settingsRoutes from './routes/settings.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { getContactAiSuggestion } from './services/ai-agent.service';
-import { getNotificationSettings, resolveContactRecipient, resolveBusinessAccountRecipient } from './services/settings.service';
+import { getNotificationSettings, resolveContactRecipient, resolveBusinessAccountRecipient, resolveNovicaApplyRecipient } from './services/settings.service';
 import { logger } from './utils/logger';
 import { requireAuth, requireAuthForWrites } from './middleware/requireAuth';
 import { wasselAwbDetailsUrl, wasselAwbHeaders } from './utils/wasselAwb';
@@ -1051,6 +1051,194 @@ export function createApp() {
     const updated = await repo.updateBusinessAccountRequestStatus(id, status as BusinessAccountStatus);
     if (!updated) {
       res.status(404).json({ error: 'Business account request not found or could not be updated' });
+      return;
+    }
+
+    res.json({ ok: true });
+  });
+
+  // Novica applications — the artisan-program form on /novica (Wassel x Novica
+  // partnership). Persisted as a lead and emailed to the Novica/Wassel team.
+  app.post('/api/novica/apply', sendRequestLimiter, async (req, res) => {
+    const body = (req.body ?? {}) as NovicaApplicationSubmitRequest;
+    const fullName = String(body.fullName ?? '').trim();
+    const city = String(body.city ?? '').trim();
+    const mobile = String(body.mobile ?? '').trim();
+    const email = String(body.email ?? '').trim();
+    const craftType = String(body.craftType ?? '').trim();
+    const hasSamples = String(body.hasSamples ?? '').trim();
+    const sellsOnline = String(body.sellsOnline ?? '').trim();
+
+    if (
+      !fullName || !city || !mobile || !email || !craftType ||
+      !['yes', 'no'].includes(hasSamples) || !['yes', 'no'].includes(sellsOnline)
+    ) {
+      res.status(400).json({ error: 'fullName, city, mobile, email, craftType, hasSamples and sellsOnline are required' });
+      return;
+    }
+
+    const isAr = String(body.language ?? 'ar').trim().toLowerCase().startsWith('ar');
+
+    const id = await repo.createNovicaApplication({
+      fullName,
+      projectName: body.projectName ? String(body.projectName).trim() : null,
+      city,
+      mobile,
+      email,
+      craftType,
+      craftTypeOther: body.craftTypeOther ? String(body.craftTypeOther).trim() : null,
+      hasSamples: hasSamples as 'yes' | 'no',
+      sellsOnline: sellsOnline as 'yes' | 'no',
+      sellsOnlineWhere: body.sellsOnlineWhere ? String(body.sellsOnlineWhere).trim() : null,
+      notes: body.notes ? String(body.notes).trim() : null,
+      language: body.language ? String(body.language) : null,
+    });
+
+    if (id === null) {
+      res.status(503).json({ error: 'Could not persist your application. Please try again.' });
+      return;
+    }
+
+    if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) {
+      await repo.updateNovicaApplicationEmailStatus(id, 'failed', 'SMTP is not configured');
+      res.status(200).json({ ok: true, id });
+      return;
+    }
+
+    const craftLabels: Record<string, string> = {
+      embroidery: isAr ? 'تطريز' : 'Embroidery',
+      pottery: isAr ? 'فخار' : 'Pottery',
+      'glass-ceramic': isAr ? 'زجاج / سيراميك' : 'Glass / Ceramic',
+      'wood-carving': isAr ? 'نحت خشبي' : 'Wood carving',
+      jewelry: isAr ? 'مجوهرات' : 'Jewelry',
+      painting: isAr ? 'رسم / لوحات' : 'Painting',
+      other: isAr ? 'أخرى' : 'Other',
+    };
+    const craftLabel = craftLabels[craftType] ?? craftType;
+    const yesNo = (v: string) => (v === 'yes' ? (isAr ? 'نعم' : 'Yes') : (isAr ? 'لا' : 'No'));
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        secure: false,
+        auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
+      });
+
+      const submittedAt = formatEmailTimestamp();
+      const subject = `${isAr ? 'طلب انضمام حرفي — نوفيكا فلسطين' : 'Novica Palestine — Artisan Application'} — ${fullName}`;
+
+      const rows: Array<[string, string]> = [
+        [isAr ? 'الاسم الكامل' : 'Full name', fullName],
+        ...(body.projectName ? [[isAr ? 'اسم المشروع / الورشة' : 'Project / workshop', String(body.projectName)] as [string, string]] : []),
+        [isAr ? 'المحافظة / المدينة' : 'City', city],
+        [isAr ? 'رقم الجوال / واتساب' : 'Mobile / WhatsApp', mobile],
+        [isAr ? 'البريد الإلكتروني' : 'Email', email],
+        [isAr ? 'نوع الحرفة / المنتج' : 'Craft / product type', craftType === 'other' && body.craftTypeOther ? `${craftLabel} — ${body.craftTypeOther}` : craftLabel],
+        [isAr ? 'عينات جاهزة؟' : 'Ready samples?', yesNo(hasSamples)],
+        [isAr ? 'يبيع أونلاين؟' : 'Sells online?', yesNo(sellsOnline)],
+        ...(body.sellsOnlineWhere ? [[isAr ? 'أين يبيع أونلاين' : 'Sells online where', String(body.sellsOnlineWhere)] as [string, string]] : []),
+        ...(body.notes ? [[isAr ? 'ملاحظات' : 'Notes', String(body.notes)] as [string, string]] : []),
+        [isAr ? 'رقم الطلب' : 'Reference', String(id)],
+      ];
+
+      const htmlRows = rows.map(([label, value]) =>
+        `<tr><td style="padding:8px 0; width:220px; color:#64748b;">${label}</td><td style="padding:8px 0; font-weight:600;">${String(value).replace(/\n/g, '<br>')}</td></tr>`
+      ).join('');
+
+      const html = `
+        <div style="${EMAIL_SHELL_STYLE}">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:700px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
+            <tr>
+              <td style="background:#0b3f77; padding:18px 24px; color:#ffffff;">
+                <h2 style="margin:0; font-size:20px;">${isAr ? 'طلب انضمام حرفي جديد — نوفيكا فلسطين' : 'New Artisan Application — Novica Palestine'}</h2>
+                <p style="margin:6px 0 0; font-size:12px; opacity:0.9;">${isAr ? 'أُرسل في' : 'Submitted at'} <span dir="ltr">${submittedAt}</span></p>
+              </td>
+            </tr>
+            <tr><td style="padding:20px 24px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;">${htmlRows}</table>
+            </td></tr>
+          </table>
+        </div>
+      `;
+
+      const text = rows.map(([label, value]) => `${label}: ${value}`).join('\n');
+
+      await transporter.sendMail({
+        from: env.SMTP_USER,
+        to: await resolveNovicaApplyRecipient(),
+        subject,
+        text,
+        html,
+      });
+
+      await repo.updateNovicaApplicationEmailStatus(id, 'sent', null);
+
+      // Confirmation to the applicant — best effort, never affects the response or
+      // the internal email status.
+      try {
+        const custSubject = isAr
+          ? 'تم استلام طلبك للانضمام إلى نوفيكا فلسطين'
+          : 'We received your Novica Palestine application';
+        const custGreeting = isAr ? `مرحباً ${fullName}،` : `Hi ${fullName},`;
+        const custBody = isAr
+          ? 'شكراً لتقديمك للانضمام إلى نوفيكا فلسطين بالشراكة مع واصل. لقد استلمنا طلبك، وسيتواصل معك فريقنا قريباً بخصوص الخطوات التالية.'
+          : "Thank you for applying to Novica Palestine, in partnership with Wassel. We've received your application, and our team will be in touch soon about next steps.";
+        const custClosing = isAr ? 'فريق واصل × نوفيكا' : 'The Wassel x Novica Team';
+
+        await transporter.sendMail({
+          from: env.SMTP_USER,
+          to: email,
+          subject: custSubject,
+          text: `${custGreeting}\n\n${custBody}\n\n${custClosing}`,
+          html: `
+            <div style="${EMAIL_SHELL_STYLE}">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:640px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">
+                <tr><td style="background:#0b3f77; padding:18px 24px; color:#ffffff;">
+                  <h2 style="margin:0; font-size:20px;">${isAr ? 'نوفيكا فلسطين × واصل' : 'Novica Palestine x Wassel'}</h2>
+                </td></tr>
+                <tr><td style="padding:24px; font-size:14px; line-height:1.7;">
+                  <p style="margin:0 0 12px;">${custGreeting}</p>
+                  <p style="margin:0 0 12px;">${custBody}</p>
+                  <p style="margin:16px 0 0; color:#64748b;">${custClosing}</p>
+                </td></tr>
+              </table>
+            </div>
+          `,
+        });
+      } catch (custErr) {
+        logger.warn(`Novica application confirmation email to applicant failed (application ${id}): ${String(custErr)}`);
+      }
+
+      res.json({ ok: true, id });
+    } catch (err) {
+      const emailError = err instanceof Error ? err.message : String(err);
+      await repo.updateNovicaApplicationEmailStatus(id, 'failed', emailError);
+      // The lead is saved — surface success to the applicant even if the email failed.
+      res.json({ ok: true, id });
+    }
+  });
+
+  // Admin: list all Novica applications
+  app.get('/api/novica/applications', requireAuth, async (_req, res) => {
+    const items = await repo.fetchNovicaApplications();
+    res.json({ items });
+  });
+
+  // Admin: move a Novica application through its follow-up workflow
+  app.patch('/api/novica/applications/:id/status', requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const status = String(req.body?.status ?? '').trim();
+    const allowed: NovicaApplicationStatus[] = ['new', 'contacted', 'approved', 'rejected'];
+
+    if (isNaN(id) || !allowed.includes(status as NovicaApplicationStatus)) {
+      res.status(400).json({ error: 'Valid id and status (new/contacted/approved/rejected) are required' });
+      return;
+    }
+
+    const updated = await repo.updateNovicaApplicationStatus(id, status as NovicaApplicationStatus);
+    if (!updated) {
+      res.status(404).json({ error: 'Novica application not found or could not be updated' });
       return;
     }
 

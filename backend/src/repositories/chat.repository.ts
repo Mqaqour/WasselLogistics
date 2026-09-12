@@ -8,6 +8,8 @@ import {
   WaitingShipmentEntry,
   BusinessAccountRequest,
   BusinessAccountStatus,
+  NovicaApplication,
+  NovicaApplicationStatus,
   MessageDTO,
 } from '../types/chat.types';
 import { logger } from '../utils/logger';
@@ -705,6 +707,122 @@ export async function updateBusinessAccountRequestStatus(
     return (result.rowsAffected?.[0] ?? 0) > 0;
   } catch (error) {
     logger.warn(`Could not update business account request ${id}: ${String(error)}`);
+    return false;
+  }
+}
+
+// ── Novica applications (Wassel x Novica artisan program, /novica) ────────────
+
+export async function createNovicaApplication(
+  req: Omit<NovicaApplication, 'id' | 'status' | 'emailDeliveryStatus' | 'emailError' | 'createdAt' | 'updatedAt'>
+): Promise<number | null> {
+  if (!(await isDbAvailable())) {
+    logger.warn('Could not save Novica application: database is unavailable.');
+    return null;
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('fullName', sql.NVarChar(200), req.fullName)
+      .input('projectName', sql.NVarChar(200), req.projectName)
+      .input('city', sql.NVarChar(100), req.city)
+      .input('mobile', sql.NVarChar(50), req.mobile)
+      .input('email', sql.NVarChar(200), req.email)
+      .input('craftType', sql.NVarChar(50), req.craftType)
+      .input('craftTypeOther', sql.NVarChar(200), req.craftTypeOther)
+      .input('hasSamples', sql.NVarChar(3), req.hasSamples)
+      .input('sellsOnline', sql.NVarChar(3), req.sellsOnline)
+      .input('sellsOnlineWhere', sql.NVarChar(300), req.sellsOnlineWhere)
+      .input('notes', sql.NVarChar(sql.MAX), req.notes)
+      .input('language', sql.NVarChar(10), req.language)
+      .query<{ id: number | string }>(`
+        INSERT INTO novica_applications
+          (full_name, project_name, city, mobile, email, craft_type, craft_type_other,
+           has_samples, sells_online, sells_online_where, notes, language)
+        OUTPUT INSERTED.id
+        VALUES
+          (@fullName, @projectName, @city, @mobile, @email, @craftType, @craftTypeOther,
+           @hasSamples, @sellsOnline, @sellsOnlineWhere, @notes, @language)
+      `);
+
+    const rawId = result.recordset[0]?.id;
+    return rawId != null ? Number(rawId) : null;
+  } catch (error) {
+    logger.warn(`Could not save Novica application: ${String(error)}`);
+    return null;
+  }
+}
+
+export async function updateNovicaApplicationEmailStatus(
+  id: number,
+  status: 'pending' | 'sent' | 'failed',
+  emailError: string | null
+): Promise<void> {
+  if (!(await isDbAvailable())) return;
+
+  try {
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.BigInt, id)
+      .input('status', sql.NVarChar(20), status)
+      .input('emailError', sql.NVarChar(sql.MAX), emailError)
+      .query(`
+        UPDATE novica_applications
+        SET email_delivery_status = @status, email_error = @emailError, updated_at = SYSDATETIME()
+        WHERE id = @id
+      `);
+  } catch (error) {
+    logger.warn(`Could not update Novica application email status for ${id}: ${String(error)}`);
+  }
+}
+
+export async function fetchNovicaApplications(): Promise<NovicaApplication[]> {
+  if (!(await isDbAvailable())) {
+    logger.warn('Could not list Novica applications: database is unavailable.');
+    return [];
+  }
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request().query<Record<string, unknown>>(`
+      SELECT
+        id, full_name AS fullName, project_name AS projectName, city, mobile, email,
+        craft_type AS craftType, craft_type_other AS craftTypeOther,
+        has_samples AS hasSamples, sells_online AS sellsOnline, sells_online_where AS sellsOnlineWhere,
+        notes, language, status, email_delivery_status AS emailDeliveryStatus, email_error AS emailError,
+        created_at AS createdAt, updated_at AS updatedAt
+      FROM novica_applications
+      ORDER BY created_at DESC
+    `);
+
+    return result.recordset as unknown as NovicaApplication[];
+  } catch (error) {
+    logger.warn(`Could not list Novica applications: ${String(error)}`);
+    return [];
+  }
+}
+
+export async function updateNovicaApplicationStatus(
+  id: number,
+  status: NovicaApplicationStatus
+): Promise<boolean> {
+  if (!(await isDbAvailable())) return false;
+
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.BigInt, id)
+      .input('status', sql.NVarChar(20), status)
+      .query(`
+        UPDATE novica_applications
+        SET status = @status, updated_at = SYSDATETIME()
+        WHERE id = @id
+      `);
+
+    return (result.rowsAffected?.[0] ?? 0) > 0;
+  } catch (error) {
+    logger.warn(`Could not update Novica application ${id}: ${String(error)}`);
     return false;
   }
 }

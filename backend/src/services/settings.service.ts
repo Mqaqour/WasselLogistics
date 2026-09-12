@@ -17,6 +17,9 @@ export interface NotificationSettings {
   /** Commercial department inbox(es) for "Open Account" business-account requests
    *  (comma-separated allowed). Empty string = fall back to contactNotifyEmail. */
   businessAccountEmail: string;
+  /** Inbox(es) for Novica artisan-program applications (/novica). Empty string =
+   *  fall back to contactNotifyEmail. */
+  novicaApplyEmail: string;
   /** Per-topic override inbox for the Contact form. Empty string = fall back to contactNotifyEmail. */
   contactTopicEmails: Record<ContactTopicId, string>;
 }
@@ -25,13 +28,15 @@ type ScalarNotificationKey =
   | 'pickupNotifyEmail'
   | 'contactNotifyEmail'
   | 'loginAlertEmails'
-  | 'businessAccountEmail';
+  | 'businessAccountEmail'
+  | 'novicaApplyEmail';
 
 const NOTIFICATION_KEYS: ScalarNotificationKey[] = [
   'pickupNotifyEmail',
   'contactNotifyEmail',
   'loginAlertEmails',
   'businessAccountEmail',
+  'novicaApplyEmail',
 ];
 
 const contactTopicSettingKey = (topic: string): string => `contactTopicEmail_${topic}`;
@@ -43,6 +48,7 @@ function notificationDefaults(): Record<ScalarNotificationKey, string> {
     loginAlertEmails: env.LOGIN_ALERT_EMAILS,
     // No dedicated env default — an unset value falls back to the contact inbox at resolve time.
     businessAccountEmail: '',
+    novicaApplyEmail: '',
   };
 }
 
@@ -67,6 +73,7 @@ export async function getNotificationSettings(): Promise<NotificationSettings> {
     contactNotifyEmail: stored.contactNotifyEmail ?? defaults.contactNotifyEmail,
     loginAlertEmails: stored.loginAlertEmails ?? defaults.loginAlertEmails,
     businessAccountEmail: stored.businessAccountEmail ?? defaults.businessAccountEmail,
+    novicaApplyEmail: stored.novicaApplyEmail ?? defaults.novicaApplyEmail,
     contactTopicEmails,
   };
 }
@@ -114,5 +121,14 @@ export async function resolveBusinessAccountRecipient(): Promise<string> {
   const settings = await getNotificationSettings();
   return settings.businessAccountEmail.trim().length > 0
     ? settings.businessAccountEmail.trim()
+    : settings.contactNotifyEmail;
+}
+
+/** The inbox(es) a Novica artisan-program application should be emailed to,
+ *  falling back to the default contact inbox. */
+export async function resolveNovicaApplyRecipient(): Promise<string> {
+  const settings = await getNotificationSettings();
+  return settings.novicaApplyEmail.trim().length > 0
+    ? settings.novicaApplyEmail.trim()
     : settings.contactNotifyEmail;
 }

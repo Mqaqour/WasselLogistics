@@ -357,7 +357,7 @@ export const App: React.FC = () => {
       case 'about':
         return <About lang={lang} onAction={handleAction} />;
       case 'novica':
-        return <Novica lang={lang} />;
+        return <Novica lang={lang} onAction={handleAction} />;
       case 'login':
         return <Login onLogin={handleLogin} lang={lang} />;
       case 'dashboard':

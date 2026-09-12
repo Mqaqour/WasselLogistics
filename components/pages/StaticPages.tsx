@@ -492,7 +492,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                 <div className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row animate-pop delay-100">
                     
                     {/* Left Panel: Contact Info & Branches (Darker Blue) */}
-                    <div className="w-full lg:w-1/3 bg-wassel-darkBlue text-white p-8 lg:p-12 relative overflow-hidden">
+                    <div className="w-full lg:w-1/3 bg-wassel-darkBlue text-white p-8 lg:p-12 relative overflow-hidden order-2 lg:order-1">
                         {/* Background Pattern */}
                         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white to-transparent pointer-events-none"></div>
                         
@@ -592,7 +592,7 @@ export const Contact: React.FC<PageProps> = ({ lang }) => {
                     </div>
 
                     {/* Right Panel: Contact Form */}
-                    <div className="flex-1 p-8 lg:p-12 bg-white">
+                    <div className="flex-1 p-8 lg:p-12 bg-white order-1 lg:order-2">
                         {!isSent ? (
                             <div className="max-w-2xl mx-auto h-full flex flex-col justify-center">
                                 <h2 className="text-3xl font-extrabold text-gray-900 mb-2">{t.formTitle}</h2>

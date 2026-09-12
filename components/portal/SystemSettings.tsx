@@ -14,6 +14,7 @@ interface NotificationSettings {
   contactNotifyEmail: string;
   loginAlertEmails: string;
   businessAccountEmail: string;
+  novicaApplyEmail: string;
   contactTopicEmails: Record<string, string>;
 }
 
@@ -58,6 +59,7 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ lang }) => {
     contactNotifyEmail: '',
     loginAlertEmails: '',
     businessAccountEmail: '',
+    novicaApplyEmail: '',
     contactTopicEmails: {},
   });
 
@@ -70,7 +72,7 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ lang }) => {
     adminFetch('/api/admin/settings/notifications')
       .then((r) => r.json())
       .then((data: { success: boolean; settings: NotificationSettings }) => {
-        if (data.success) setForm({ ...data.settings, businessAccountEmail: data.settings.businessAccountEmail ?? "", contactTopicEmails: data.settings.contactTopicEmails ?? {} });
+        if (data.success) setForm({ ...data.settings, businessAccountEmail: data.settings.businessAccountEmail ?? "", novicaApplyEmail: data.settings.novicaApplyEmail ?? "", contactTopicEmails: data.settings.contactTopicEmails ?? {} });
       })
       .catch(() => flash(isRtl ? 'فشل تحميل الإعدادات' : 'Failed to load settings', false))
       .finally(() => setLoading(false));
@@ -90,7 +92,7 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ lang }) => {
         flash(data?.error?.message ?? (isRtl ? 'فشل حفظ الإعدادات' : 'Failed to save settings'), false);
         return;
       }
-      setForm({ ...data.settings, businessAccountEmail: data.settings.businessAccountEmail ?? "", contactTopicEmails: data.settings.contactTopicEmails ?? {} });
+      setForm({ ...data.settings, businessAccountEmail: data.settings.businessAccountEmail ?? "", novicaApplyEmail: data.settings.novicaApplyEmail ?? "", contactTopicEmails: data.settings.contactTopicEmails ?? {} });
       flash(isRtl ? '✓ تم حفظ الإعدادات' : '✓ Settings saved', true);
     } catch {
       flash(isRtl ? 'فشل حفظ الإعدادات' : 'Failed to save settings', false);
@@ -114,6 +116,9 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ lang }) => {
     businessAccount: isRtl
       ? 'البريد الإلكتروني للقسم التجاري — يستقبل طلبات فتح الحسابات (اتركه فارغاً لاستخدام بريد التواصل، وافصل بين العناوين بفاصلة)'
       : 'Commercial department emails — receives business account requests (blank = use the contact inbox; comma-separate multiple)',
+    novicaApply: isRtl
+      ? 'بريد طلبات نوفيكا — يستقبل طلبات الانضمام من صفحة /novica (اتركه فارغاً لاستخدام بريد التواصل، وافصل بين العناوين بفاصلة)'
+      : 'Novica applications — receives artisan applications from /novica (blank = use the contact inbox; comma-separate multiple)',
     loginAlerts: isRtl ? 'بريد تنبيهات حظر تسجيل الدخول (يفصل بينها بفاصلة)' : 'Login-block security alerts (comma-separated)',
     save: isRtl ? 'حفظ التغييرات' : 'Save Changes',
     dashboard: isRtl ? 'لوحة التحكم' : 'Dashboard',
@@ -207,6 +212,18 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({ lang }) => {
                 className={cls.input}
                 value={form.businessAccountEmail}
                 onChange={(e) => setForm((f) => ({ ...f, businessAccountEmail: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t.novicaApply}</label>
+              <input
+                type="text"
+                dir="ltr"
+                placeholder={form.contactNotifyEmail || (isRtl ? 'البريد الافتراضي' : 'default inbox')}
+                className={cls.input}
+                value={form.novicaApplyEmail}
+                onChange={(e) => setForm((f) => ({ ...f, novicaApplyEmail: e.target.value }))}
               />
             </div>
 
