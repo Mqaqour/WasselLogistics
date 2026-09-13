@@ -1090,6 +1090,7 @@ export function createApp() {
       hasSamples: hasSamples as 'yes' | 'no',
       sellsOnline: sellsOnline as 'yes' | 'no',
       sellsOnlineWhere: body.sellsOnlineWhere ? String(body.sellsOnlineWhere).trim() : null,
+      website: body.website ? String(body.website).trim() : null,
       notes: body.notes ? String(body.notes).trim() : null,
       language: body.language ? String(body.language) : null,
     });
@@ -1114,7 +1115,8 @@ export function createApp() {
       painting: isAr ? 'رسم / لوحات' : 'Painting',
       other: isAr ? 'أخرى' : 'Other',
     };
-    const craftLabel = craftLabels[craftType] ?? craftType;
+    const craftTypeList = craftType.split(',').map((s) => s.trim()).filter(Boolean);
+    const craftLabel = craftTypeList.map((ct) => craftLabels[ct] ?? ct).join(isAr ? '، ' : ', ');
     const yesNo = (v: string) => (v === 'yes' ? (isAr ? 'نعم' : 'Yes') : (isAr ? 'لا' : 'No'));
 
     try {
@@ -1134,10 +1136,11 @@ export function createApp() {
         [isAr ? 'المحافظة / المدينة' : 'City', city],
         [isAr ? 'رقم الجوال / واتساب' : 'Mobile / WhatsApp', mobile],
         [isAr ? 'البريد الإلكتروني' : 'Email', email],
-        [isAr ? 'نوع الحرفة / المنتج' : 'Craft / product type', craftType === 'other' && body.craftTypeOther ? `${craftLabel} — ${body.craftTypeOther}` : craftLabel],
+        [isAr ? 'نوع الحرفة / المنتج' : 'Craft / product type', craftTypeList.includes('other') && body.craftTypeOther ? `${craftLabel} — ${body.craftTypeOther}` : craftLabel],
         [isAr ? 'عينات جاهزة؟' : 'Ready samples?', yesNo(hasSamples)],
         [isAr ? 'يبيع أونلاين؟' : 'Sells online?', yesNo(sellsOnline)],
         ...(body.sellsOnlineWhere ? [[isAr ? 'أين يبيع أونلاين' : 'Sells online where', String(body.sellsOnlineWhere)] as [string, string]] : []),
+        ...(body.website ? [[isAr ? 'الموقع الإلكتروني / الصفحة' : 'Website / page', String(body.website)] as [string, string]] : []),
         ...(body.notes ? [[isAr ? 'ملاحظات' : 'Notes', String(body.notes)] as [string, string]] : []),
         [isAr ? 'رقم الطلب' : 'Reference', String(id)],
       ];

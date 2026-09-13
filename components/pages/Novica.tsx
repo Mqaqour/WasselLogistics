@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Language } from '../../types';
 import {
-  Globe2, Users, ShoppingBag, Sparkles, Truck,
+  Globe2, Users, ShoppingBag, Sparkles, Truck, TrendingUp,
   CheckCircle2, Loader2, AlertCircle, Check, ArrowLeft, ArrowRight, Quote,
 } from 'lucide-react';
 import { CopilotToggle } from '../shared/CopilotToggle';
@@ -15,7 +15,7 @@ const WASSEL_LOGO = `${import.meta.env.BASE_URL}assets/Wassel logo-01.png`;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Temporarily hidden — re-enable when asked.
-const SHOW_APPLICATION_FORM = false;
+const SHOW_APPLICATION_FORM = true;
 
 const CRAFT_TYPES: Array<{ value: string; en: string; ar: string }> = [
   { value: 'embroidery',     en: 'Embroidery',        ar: 'تطريز' },
@@ -74,12 +74,12 @@ function useCountUp(to: number, durationMs = 1400) {
   return [ref, value] as const;
 }
 
-const StatItem: React.FC<{ to: number; suffix?: string; label: string; className?: string }> = ({ to, suffix = '', label, className = '' }) => {
+const StatItem: React.FC<{ to: number; prefix?: string; suffix?: string; label: string; className?: string }> = ({ to, prefix = '', suffix = '', label, className = '' }) => {
   const [ref, value] = useCountUp(to);
   return (
     <div ref={ref} className={`text-center ${className}`}>
-      <div className="text-4xl md:text-5xl font-extrabold text-wassel-blue tabular-nums">
-        {value}{suffix}
+      <div className="text-3xl md:text-4xl font-extrabold text-wassel-blue tabular-nums">
+        {prefix}{value.toLocaleString('en-US')}{suffix}
       </div>
       <p className="mt-1 text-sm font-medium text-gray-500">{label}</p>
     </div>
@@ -121,17 +121,18 @@ interface FormState {
   city: string;
   mobile: string;
   email: string;
-  craftType: string;
+  craftTypes: string[];
   craftTypeOther: string;
   hasSamples: '' | 'yes' | 'no';
   sellsOnline: '' | 'yes' | 'no';
   sellsOnlineWhere: string;
+  website: string;
   notes: string;
 }
 
 const EMPTY_FORM: FormState = {
   fullName: '', projectName: '', city: '', mobile: '', email: '',
-  craftType: '', craftTypeOther: '', hasSamples: '', sellsOnline: '', sellsOnlineWhere: '', notes: '',
+  craftTypes: [], craftTypeOther: '', hasSamples: '', sellsOnline: '', sellsOnlineWhere: '', website: '', notes: '',
 };
 
 export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
@@ -152,6 +153,7 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const t = {
+    heroKicker: isAr ? 'من فلسطين... إلى العالم' : 'From Palestine... to the world',
     title: isAr ? 'نوفيكا فلسطين' : 'Novica Palestine',
     tagline: isAr
       ? 'منصة عالمية تحتضن الحرفيين الفلسطينيين وتفتح لهم أبواب الأسواق الدولية.'
@@ -164,9 +166,9 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
       ? 'نوفيكا هي سوق عالمي متخصص بالحرف اليدوية الأصيلة، يصل إلى ملايين المشترين في أكثر من 165 دولة. من خلال شراكة نوفيكا فلسطين مع واصل، يحصل الحرفيون الفلسطينيون على قناة تصدير موثوقة — من استلام المنتج وتغليفه وحتى شحنه والتخليص عليه دولياً — لتصل أعمالهم اليدوية إلى بيوت حول العالم.'
       : "Novica is a global marketplace dedicated to authentic, handmade craftsmanship, reaching millions of buyers in more than 165 countries. Through Novica Palestine's partnership with Wassel, Palestinian artisans get a reliable export channel — from pickup and packaging to international shipping and customs clearance — so their handmade work reaches homes around the world.",
 
-    statCountries: isAr ? 'دولة حول العالم' : 'Countries reached',
-    statSteps: isAr ? 'خطوات بسيطة للانضمام' : 'Simple steps to join',
-    statFree: isAr ? 'مجاني بالكامل للتقديم' : 'Free to apply',
+    statArtists: isAr ? 'فنان حول العالم من أكثر من 100 دولة' : 'Artists worldwide, from 100+ countries',
+    statProducts: isAr ? 'منتج حرفي معروض عالميًا' : 'Handcrafted products listed globally',
+    statSales: isAr ? 'مبيعات فنانينا حول العالم' : "In artisan sales worldwide",
 
     spotlightQuote: isAr ? 'حرفتك تستحق أن يراها العالم' : 'Your craft deserves to be seen by the world',
     spotlightBody: isAr
@@ -175,6 +177,13 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
 
     benefitsTitle: isAr ? 'ماذا يقدّم لك البرنامج' : 'What the program offers you',
     benefits: [
+      {
+        icon: TrendingUp,
+        title: isAr ? 'زيادة أرباحك' : 'Grow your profit',
+        desc: isAr
+          ? 'وسّع تجارتك وطوّر أعمالك من خلال الوصول إلى مشترين جدد حول العالم.'
+          : 'Expand your trade and grow your business by reaching new buyers around the world.',
+      },
       {
         icon: Globe2,
         title: isAr ? 'وصول عالمي' : 'Global reach',
@@ -230,10 +239,12 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
     labelMobile: isAr ? 'رقم الجوال / واتساب' : 'Mobile / WhatsApp number',
     labelEmail: isAr ? 'البريد الإلكتروني' : 'Email address',
     labelCraftType: isAr ? 'نوع الحرفة / المنتج' : 'Craft / product type',
+    craftTypeHint: isAr ? '(يمكنك اختيار أكثر من نوع)' : '(you can select more than one)',
     labelCraftTypeOther: isAr ? 'حدد نوع الحرفة' : 'Please specify',
     labelHasSamples: isAr ? 'هل تملك عينات جاهزة من منتجاتك؟' : 'Do you have ready samples of your products?',
     labelSellsOnline: isAr ? 'هل تبيع منتجاتك أونلاين؟' : 'Do you already sell your products online?',
     labelSellsOnlineWhere: isAr ? 'إذا كانت الإجابة نعم، أين؟' : 'If yes, where?',
+    labelWebsite: isAr ? 'أضف موقعك الإلكتروني أو صفحتك' : 'Add your website or page',
     labelNotes: isAr ? 'ملاحظات إضافية' : 'Additional notes',
     optional: isAr ? '(اختياري)' : '(optional)',
     yes: isAr ? 'نعم' : 'Yes',
@@ -256,12 +267,22 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
       if (!EMAIL_RE.test(form.email.trim())) return t.errEmail;
     }
     if (step === 2) {
-      if (!form.craftType || (form.craftType === 'other' && !form.craftTypeOther.trim())
+      if (form.craftTypes.length === 0 || (form.craftTypes.includes('other') && !form.craftTypeOther.trim())
         || !form.hasSamples || !form.sellsOnline) {
         return t.errRequired;
       }
     }
     return '';
+  };
+
+  const toggleCraftType = (value: string) => {
+    setForm((f) => ({
+      ...f,
+      craftTypes: f.craftTypes.includes(value)
+        ? f.craftTypes.filter((v) => v !== value)
+        : [...f.craftTypes, value],
+    }));
+    setError('');
   };
 
   const goNext = () => {
@@ -295,11 +316,12 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
           city: form.city.trim(),
           mobile: form.mobile.trim(),
           email: form.email.trim(),
-          craftType: form.craftType,
-          craftTypeOther: form.craftType === 'other' ? form.craftTypeOther.trim() || undefined : undefined,
+          craftType: form.craftTypes.join(','),
+          craftTypeOther: form.craftTypes.includes('other') ? form.craftTypeOther.trim() || undefined : undefined,
           hasSamples: form.hasSamples,
           sellsOnline: form.sellsOnline,
           sellsOnlineWhere: form.sellsOnline === 'yes' ? (form.sellsOnlineWhere.trim() || undefined) : undefined,
+          website: form.website.trim() || undefined,
           notes: form.notes.trim() || undefined,
           language: lang,
         }),
@@ -358,7 +380,10 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
             <span className="h-7 sm:h-8 w-px bg-gray-200" />
             <img src={WASSEL_LOGO} alt="Wassel" className="h-6 sm:h-7 w-auto" />
           </div>
-          <h1 className="mt-6 text-4xl md:text-6xl font-extrabold tracking-tight animate-slide-up delay-100">
+          <p className="mt-6 text-sm font-bold tracking-wide text-wassel-yellow animate-slide-up delay-100">
+            {t.heroKicker}
+          </p>
+          <h1 className="mt-2 text-4xl md:text-6xl font-extrabold tracking-tight animate-slide-up delay-100">
             <span className="text-wassel-yellow">{t.title}</span>
           </h1>
           <p className="mt-6 text-lg md:text-xl text-blue-100 max-w-2xl mx-auto animate-slide-up delay-200">
@@ -382,9 +407,9 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
       {/* STATS */}
       <section className="bg-[#FBF7F0]">
         <div className="max-w-3xl mx-auto px-4 py-10 md:py-14 grid grid-cols-3">
-          <StatItem to={165} suffix="+" label={t.statCountries} className="border-e border-gray-200" />
-          <StatItem to={3} label={t.statSteps} className="border-e border-gray-200" />
-          <StatItem to={100} suffix="%" label={t.statFree} />
+          <StatItem to={3000} suffix="+" label={t.statArtists} className="border-e border-gray-200 px-1" />
+          <StatItem to={70000} suffix="+" label={t.statProducts} className="border-e border-gray-200 px-1" />
+          <StatItem to={140} prefix="$" suffix="M+" label={t.statSales} className="px-1" />
         </div>
       </section>
 
@@ -401,7 +426,7 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
           <Reveal className="text-center mb-10">
             <h2 className="text-3xl font-extrabold">{t.benefitsTitle}</h2>
           </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {t.benefits.map((b, i) => (
               <Reveal key={b.title} delayMs={i * 80}>
                 <div className="group h-full rounded-2xl bg-white/5 border border-white/10 p-5 flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/10 hover:border-wassel-yellow/40 hover:shadow-xl">
@@ -537,6 +562,11 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
                       </div>
 
                       <div>
+                        <label className={labelCls}>{t.labelWebsite} <span className="text-gray-400 font-normal">{t.optional}</span></label>
+                        <input type="text" dir="ltr" className={inputCls} value={form.website} onChange={(e) => set('website', e.target.value)} />
+                      </div>
+
+                      <div>
                         <label className={labelCls}>{t.labelCity}</label>
                         <input type="text" required className={inputCls} value={form.city} onChange={(e) => set('city', e.target.value)} />
                       </div>
@@ -556,28 +586,28 @@ export const Novica: React.FC<NovicaProps> = ({ lang, onAction }) => {
                   {wizardStep === 2 && (
                     <>
                       <div>
-                        <label className={labelCls}>{t.labelCraftType}</label>
+                        <label className={labelCls}>{t.labelCraftType} <span className="text-gray-400 font-normal">{t.craftTypeHint}</span></label>
                         <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {CRAFT_TYPES.map((c) => (
                             <label
                               key={c.value}
                               className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${
-                                form.craftType === c.value ? 'border-wassel-blue bg-wassel-blue/5 text-wassel-blue font-semibold' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                                form.craftTypes.includes(c.value) ? 'border-wassel-blue bg-wassel-blue/5 text-wassel-blue font-semibold' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
                               }`}
                             >
                               <input
-                                type="radio"
-                                name="craftType"
+                                type="checkbox"
+                                name="craftTypes"
                                 value={c.value}
-                                checked={form.craftType === c.value}
-                                onChange={() => set('craftType', c.value)}
+                                checked={form.craftTypes.includes(c.value)}
+                                onChange={() => toggleCraftType(c.value)}
                                 className="accent-wassel-blue"
                               />
                               {isAr ? c.ar : c.en}
                             </label>
                           ))}
                         </div>
-                        {form.craftType === 'other' && (
+                        {form.craftTypes.includes('other') && (
                           <input
                             type="text"
                             className={`${inputCls} mt-2`}

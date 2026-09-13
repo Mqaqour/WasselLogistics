@@ -315,11 +315,13 @@ export interface NovicaApplication {
   city: string;
   mobile: string;
   email: string;
+  /** Comma-separated list of selected craft types (the picker is multi-select). */
   craftType: string;
   craftTypeOther: string | null;
   hasSamples: 'yes' | 'no';
   sellsOnline: 'yes' | 'no';
   sellsOnlineWhere: string | null;
+  website: string | null;
   notes: string | null;
   language: string | null;
   status: NovicaApplicationStatus;
@@ -335,11 +337,13 @@ export interface NovicaApplicationSubmitRequest {
   city: string;
   mobile: string;
   email: string;
+  /** Comma-separated list of selected craft types (the picker is multi-select). */
   craftType: string;
   craftTypeOther?: string;
   hasSamples: 'yes' | 'no';
   sellsOnline: 'yes' | 'no';
   sellsOnlineWhere?: string;
+  website?: string;
   notes?: string;
   language?: string;
 }

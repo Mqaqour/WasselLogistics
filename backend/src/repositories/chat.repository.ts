@@ -729,21 +729,22 @@ export async function createNovicaApplication(
       .input('city', sql.NVarChar(100), req.city)
       .input('mobile', sql.NVarChar(50), req.mobile)
       .input('email', sql.NVarChar(200), req.email)
-      .input('craftType', sql.NVarChar(50), req.craftType)
+      .input('craftType', sql.NVarChar(300), req.craftType)
       .input('craftTypeOther', sql.NVarChar(200), req.craftTypeOther)
       .input('hasSamples', sql.NVarChar(3), req.hasSamples)
       .input('sellsOnline', sql.NVarChar(3), req.sellsOnline)
       .input('sellsOnlineWhere', sql.NVarChar(300), req.sellsOnlineWhere)
+      .input('website', sql.NVarChar(500), req.website)
       .input('notes', sql.NVarChar(sql.MAX), req.notes)
       .input('language', sql.NVarChar(10), req.language)
       .query<{ id: number | string }>(`
         INSERT INTO novica_applications
           (full_name, project_name, city, mobile, email, craft_type, craft_type_other,
-           has_samples, sells_online, sells_online_where, notes, language)
+           has_samples, sells_online, sells_online_where, website, notes, language)
         OUTPUT INSERTED.id
         VALUES
           (@fullName, @projectName, @city, @mobile, @email, @craftType, @craftTypeOther,
-           @hasSamples, @sellsOnline, @sellsOnlineWhere, @notes, @language)
+           @hasSamples, @sellsOnline, @sellsOnlineWhere, @website, @notes, @language)
       `);
 
     const rawId = result.recordset[0]?.id;
@@ -790,7 +791,7 @@ export async function fetchNovicaApplications(): Promise<NovicaApplication[]> {
         id, full_name AS fullName, project_name AS projectName, city, mobile, email,
         craft_type AS craftType, craft_type_other AS craftTypeOther,
         has_samples AS hasSamples, sells_online AS sellsOnline, sells_online_where AS sellsOnlineWhere,
-        notes, language, status, email_delivery_status AS emailDeliveryStatus, email_error AS emailError,
+        website, notes, language, status, email_delivery_status AS emailDeliveryStatus, email_error AS emailError,
         created_at AS createdAt, updated_at AS updatedAt
       FROM novica_applications
       ORDER BY created_at DESC
